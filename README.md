@@ -49,7 +49,8 @@ and description length. `minimize_blockmodel_dl()` performs an experimental
 greedy flat-SBM fit. It is not graph-tool's multilevel optimizer, may find
 worse local optima, and is intended for small graphs. See `?block_state`.
 Hierarchical inference, posterior sampling, cookbook datasets and drawing are
-not implemented yet.
+not implemented yet, apart from the football network loader and its base-R
+demonstration (`demo("football")`).
 
 ```r
 g <- graph_create(3, directed = FALSE)
