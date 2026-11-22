@@ -1,0 +1,14 @@
+Package: graphtool
+Type: Package
+Title: Native R Interface to graph-tool Graphs
+Version: 0.1.0
+Authors@R: person("Diogo", "Melo", role = c("aut", "cre"), email = "diogro@users.noreply.github.com")
+Description: An initial R interface to the graph-tool C++ adjacency
+    structure for constructing and inspecting multigraphs.
+License: GPL (>= 3)
+Encoding: UTF-8
+Imports: Rcpp
+LinkingTo: Rcpp, BH
+Suggests: testthat (>= 3.0.0)
+Config/testthat/edition: 3
+SystemRequirements: C++17
