@@ -31,8 +31,10 @@ layer.
 - [x] Native flat block-model description length, with incremental move costs.
 - [x] Native multilevel agglomerative minimization and refinement.
 - [x] Football cookbook data loader and runnable fit/plot demonstration.
-- [ ] Hierarchical inference, posterior sampling, other cookbook datasets, and
-  visualization.
+- [x] Native nested block model description length and level-by-level
+  minimization, with a Netzschleuder loader, the C. elegans demo, and a
+  radial hierarchy plot.
+- [ ] Posterior sampling, other cookbook datasets, and general visualization.
 
 Fixed-partition scores match graph-tool 3.9 to a relative tolerance of 1e-10 for directed
 and undirected multigraphs with loops, both degree priors, and groups whose
@@ -43,6 +45,18 @@ finds 1738.87-1747.64 nats (mean 1740.71) without degree correction and
 (mean 1740.08) and 1787.36-1803.30 (mean 1789.89), in 0.02-0.09 s per fit. On a
 3000-vertex, 15000-edge planted partition both reach 79808.22 nats; the R port
 takes about 6 s against 1.5-3.6 s for graph-tool on one thread.
+
+Nested scores match graph-tool 3.9 to within 2e-11 nats on 40 fitted football
+and 20 fitted C. elegans hierarchies, and on a 500-vertex multigraph with
+loops, directed and undirected. Over 20 football seeds graph-tool finds
+1733.53-1738.32 nats (mean 1734.23) without degree correction and
+1782.02-1787.55 (mean 1782.68) with it. The port finds 1733.53-1735.20 (mean
+1733.94) and 1782.02-1782.37 (mean 1782.12), in 0.04-0.2 s per fit. Over 10 C.
+elegans seeds (directed), graph-tool finds 8459.65-8615.34 (mean 8506.34) and
+8539.59-8662.94 (mean 8605.02). The port finds 8439.07-8578.20 (mean 8484.94)
+and 8515.98-8632.54 (mean 8573.18), in 0.4-3.6 s per fit. The sequential,
+lazily re-evaluated merges are a plausible reason for the port's slightly
+better optima.
 
 ## Milestones
 
@@ -73,26 +87,32 @@ direct group-merge formula.
 
 ### 2. Hierarchical partitions and refinement
 
-- [ ] Implement nested block states, hierarchical description length,
-  minimization, level traversal, and hierarchy summaries.
-- [ ] Load the C. elegans neural network and produce the hierarchy visualization
-  and per-level membership examples.
+- [x] Implement nested block states, hierarchical description length,
+  minimization, level traversal, and hierarchy summaries
+  (`minimize_nested_blockmodel_dl()`, `nested_block_state()`,
+  `nested_summary()`, `nested_project()`, `nested_level_state()`).
+- [x] Load the C. elegans neural network and produce the hierarchy visualization
+  and per-level membership examples (`netzschleuder_network()`,
+  `plot_hierarchy()`, `demo("celegans")`). The plot is an R-native radial
+  hierarchy with bundled edges, not a reproduction of graph-tool's layout.
 - [x] Port the flat multilevel refinement loop (`refine=True` sweeps with
   strict merges), seeded by R's RNG.
-- [ ] Port nested-state merge-split refinement and annealing, with reproducible
-  random seeds. Flat refinement is a zero-temperature optimizer, not a
-  posterior sampler.
+- [x] Port the nested zero-temperature refinement loop.
+- [ ] Port nested merge-split MCMC and annealing at finite temperature. These
+  belong with posterior sampling (milestone 4).
 
 **Done when:** the hierarchical cookbook examples run and refinement tests
 verify that zero-temperature accepted moves do not worsen the objective.
+**Complete** for zero-temperature inference; finite-temperature moves are
+tracked under milestone 4.
 
 ### 3. Model selection
 
 - [ ] Support comparing degree-corrected and non-degree-corrected nested models,
   including description-length differences and log posterior odds. Flat
-  degree-corrected versus non-degree-corrected fitting and score comparison
-  are implemented natively with upstream score parity; nested model comparison
-  remains unimplemented.
+  comparison is implemented (`compare_blockmodels()`). Nested fits and scores
+  for both models exist, but there is no comparison helper or posterior-odds
+  report yet.
 - [ ] Run the political blogs and football model-selection examples.
 
 **Done when:** scores agree with the reference for identical states and the R

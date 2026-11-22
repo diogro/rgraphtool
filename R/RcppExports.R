@@ -21,6 +21,18 @@ cpp_log_q <- function(n, k, q_max) {
     .Call(`_graphtool_cpp_log_q`, n, k, q_max)
 }
 
+cpp_nested_entropy <- function(pointer, bs, degree_corrected, distributed, q_max) {
+    .Call(`_graphtool_cpp_nested_entropy`, pointer, bs, degree_corrected, distributed, q_max)
+}
+
+cpp_nested_check_moves <- function(pointer, bs, degree_corrected, distributed, nmoves, q_max) {
+    .Call(`_graphtool_cpp_nested_check_moves`, pointer, bs, degree_corrected, distributed, nmoves, q_max)
+}
+
+cpp_nested_minimize <- function(pointer, degree_corrected, distributed, control, refine, q_max) {
+    .Call(`_graphtool_cpp_nested_minimize`, pointer, degree_corrected, distributed, control, refine, q_max)
+}
+
 cpp_graph_create <- function(n, directed) {
     .Call(`_graphtool_cpp_graph_create`, n, directed)
 }

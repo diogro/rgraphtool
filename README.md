@@ -1,9 +1,10 @@
 # graph-tool-R
 
 An experimental, incremental native R port of graph-tool. It uses graph-tool's C++
-adjacency structure and implements flat stochastic block model inference; it is
-**not** a complete port and does not yet implement property maps, filters,
-hierarchical inference, file formats, or visualization. It does not depend on Python.
+adjacency structure and implements flat and nested (hierarchical) stochastic
+block model inference; it is **not** a complete port and does not yet implement
+property maps, filters, posterior sampling, file formats, or general graph
+drawing. It does not depend on Python.
 
 The active adjacency headers come from graph-tool release 3.9, commit
 `b24bc428e8426d0acb36b2d57bd61633335a3a26`. Their original copyright
@@ -61,9 +62,21 @@ a supplied partition, and `compare_blockmodels()` fits both models and reports
 the one with the smaller description length. See `?minimize_blockmodel_dl` for
 the algorithm and its differences from graph-tool.
 
-Nested (hierarchical) models, posterior sampling, and other cookbook datasets
-are not implemented yet. The football network loader and base-R fit/plot
-example are available via `football_network()` and `demo("football")`.
+## Hierarchical block models
+
+`minimize_nested_blockmodel_dl()` fits the nested SBM with graph-tool's
+level-by-level multilevel search and refinement. Moves account for the change
+in description length at every level above. `nested_block_state()` scores a
+supplied hierarchy; on fitted football and C. elegans hierarchies the scores
+match graph-tool 3.9 to within 2e-11 nats. `nested_summary()`,
+`nested_project()` and `nested_level_state()` inspect the levels, and
+`plot_hierarchy()` draws a radial hierarchy with bundled edges.
+`netzschleuder_network()` downloads any network from the
+[Netzschleuder](https://networks.skewed.de) repository used by graph-tool's
+`collection.ns`. See `demo("celegans")` for the cookbook's hierarchical
+example and `demo("football")` for the flat one.
+
+Posterior sampling and the other cookbook datasets are not implemented yet.
 
 ```r
 g <- graph_create(3, directed = FALSE)
@@ -78,6 +91,11 @@ set.seed(1)
 fit <- minimize_blockmodel_dl(football$graph)
 block_sizes(fit)
 block_description_length(fit)
+
+celegans <- netzschleuder_network("celegansneural")
+nested <- minimize_nested_blockmodel_dl(celegans$graph)
+nested                          # l: 0, N: 297, B: ...
+plot_hierarchy(nested)
 ```
 
 ## Validation against graph-tool
