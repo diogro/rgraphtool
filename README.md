@@ -50,6 +50,8 @@ greedy flat-SBM fit. It is not graph-tool's multilevel optimizer, may find
 worse local optima, and is intended for small graphs. See `?block_state`.
 `compare_blockmodels()` fits both degree-corrected and non-degree-corrected
 flat models and reports which has the smaller description length.
+`refine_blockmodel_dl()` greedily refines a supplied flat partition without
+increasing its description length; it is not graph-tool's merge-split MCMC.
 Hierarchical inference, posterior sampling, and other cookbook datasets are
 not implemented yet. The football network loader and base-R fit/plot example
 are available via `football_network()` and `demo("football")`.

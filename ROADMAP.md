@@ -67,7 +67,9 @@ plots are complete; optimizer scalability/parity remains open.
   minimization, level traversal, and hierarchy summaries.
 - [ ] Load the C. elegans neural network and produce the hierarchy visualization
   and per-level membership examples.
-- [ ] Add merge-split refinement and annealing, with reproducible random seeds.
+- [x] Add greedy single-vertex and group-merge refinement for flat partitions.
+- [ ] Port nested-state merge-split refinement and annealing, with reproducible
+  random seeds. The flat greedy refinement is not a posterior sampler.
 
 **Done when:** the hierarchical cookbook examples run and refinement tests
 verify that zero-temperature accepted moves do not worsen the objective.

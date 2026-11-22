@@ -214,6 +214,83 @@ minimize_blockmodel_dl <- function(graph, degree_corrected = TRUE,
   best$state
 }
 
+refine_blockmodel_dl <- function(graph, state, max_sweeps = 10L,
+                                 degree_prior = NULL) {
+  graph_pointer(graph)
+  validate_block_state(state)
+  max_sweeps <- validate_count(max_sweeps)
+  if (max_sweeps < 1L) {
+    stop("max_sweeps must be positive", call. = FALSE)
+  }
+  if (length(state$blocks) != cpp_num_vertices(graph_pointer(graph))) {
+    stop("graph and state must have the same number of vertices", call. = FALSE)
+  }
+  if (is.null(degree_prior)) degree_prior <- state$degree_prior
+  degree_prior <- match.arg(degree_prior, c("distributed", "uniform"))
+
+  current <- state
+  current$degree_prior <- degree_prior
+  partition_table <- if (state$degree_corrected && degree_prior == "distributed") {
+    block_partition_table(current)
+  } else {
+    NULL
+  }
+  current_score <- block_description_length_impl(current, degree_prior, partition_table)
+  score_state <- function(blocks) {
+    candidate <- block_state(graph, blocks, state$degree_corrected)
+    candidate$degree_prior <- degree_prior
+    list(state = candidate, score = block_description_length_impl(
+      candidate, degree_prior, partition_table))
+  }
+  n <- length(state$blocks)
+  if (n == 0L) return(current)
+
+  for (sweep in seq_len(max_sweeps)) {
+    improved <- FALSE
+    for (v in sample.int(n)) {
+      blocks <- current$blocks
+      candidates <- c(sort(unique(blocks)), max(blocks) + 1L)
+      best <- list(state = current, score = current_score)
+      for (target in sample(candidates, length(candidates))) {
+        if (target == blocks[v]) next
+        proposal <- blocks
+        proposal[v] <- target
+        trial <- score_state(proposal)
+        if (trial$score < best$score - 1e-10) best <- trial
+      }
+      if (best$score < current_score - 1e-10) {
+        current <- best$state
+        current_score <- best$score
+        improved <- TRUE
+      }
+    }
+
+    repeat {
+      labels <- sort(unique(current$blocks))
+      if (length(labels) < 2L) break
+      merged <- FALSE
+      for (i in seq_len(length(labels) - 1L)) {
+        for (j in seq.int(i + 1L, length(labels))) {
+          blocks <- current$blocks
+          blocks[blocks == labels[j]] <- labels[i]
+          trial <- score_state(blocks)
+          if (trial$score < current_score - 1e-10) {
+            current <- trial$state
+            current_score <- trial$score
+            improved <- TRUE
+            merged <- TRUE
+            break
+          }
+        }
+        if (merged) break
+      }
+      if (!merged) break
+    }
+    if (!improved) break
+  }
+  current
+}
+
 compare_blockmodels <- function(graph, restarts = 3L, max_sweeps = 10L,
                                 degree_prior = c("distributed", "uniform")) {
   degree_prior <- match.arg(degree_prior)
