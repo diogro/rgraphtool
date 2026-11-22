@@ -25,22 +25,28 @@ layer.
 - [x] Native directed and undirected multigraph construction and inspection.
 - [x] Fixed-partition block sizes, edge-count matrix, and conditional
   microcanonical likelihood.
-- [ ] Block-model inference, description length, posterior sampling, cookbook
-  datasets, and visualization. The existing block state does **not** fit a
-  model or compute the full description length.
+- [x] Flat block-model description length and experimental greedy fitting.
+- [ ] Hierarchical inference, posterior sampling, cookbook datasets, and
+  visualization. The greedy search is not the upstream multilevel optimizer.
+
+Fixed-partition scores have been checked against graph-tool 2.92, including a
+football-network partition. In one seeded football run, the greedy fit scored
+1869.62 nats versus 1795.95 for an upstream fit; these stochastic results
+illustrate the current optimizer's limitations, not a parity guarantee.
 
 ## Milestones
 
 ### 1. First flat SBM example
 
-- [ ] Port and validate the flat microcanonical SBM description length,
+- [x] Port and validate the flat microcanonical SBM description length,
   including partition, edge-count, and degree-sequence priors. Support both
   degree-corrected and non-degree-corrected models, directed and undirected
   graphs, parallel edges, and self-loops.
-- [ ] Implement native description-length minimization and expose fitted block
+- [ ] Implement scalable native description-length minimization and expose fitted block
   memberships, block sizes, edge counts, and description length. Document the
   search algorithm and its differences from upstream; do not promise a global
-  optimum.
+  optimum. An initial greedy vertex-move and merge search is available, but
+  is slower and can find worse optima than the upstream multilevel optimizer.
 - [ ] Provide a reproducible way to obtain and load the cookbook's football
   graph, including its layout or an explicitly documented R equivalent.
 - [ ] Provide an R example that fits the football graph, inspects memberships

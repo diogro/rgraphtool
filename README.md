@@ -2,22 +2,26 @@
 
 An experimental, incremental native R port of graph-tool. This first milestone
 uses graph-tool's C++ adjacency structure; it is **not** a complete port and
-does not yet implement property maps, filters, SBM inference, file formats,
+does not yet implement property maps, filters, hierarchical inference, file formats,
 or visualization. It does not depend on Python.
 
-The vendored adjacency implementation comes from graph-tool commit
-`2c87c01d121e31a90c6177ed8e1b2b3f758fcd29` (2020-06-08), not the
-current graph-tool release. Its original copyright notices are retained.
-The headers were renamed for R package conventions. graph-tool and this project
-are distributed under LGPL-3.0-or-later; see `COPYING` and `COPYING.LESSER`.
+The active adjacency headers come from graph-tool release 3.9, commit
+`b24bc428e8426d0acb36b2d57bd61633335a3a26`. Their original copyright
+notices are retained. The unused generated `config.h` includes were removed
+from two supporting headers.
+graph-tool and this project are distributed under LGPL-3.0-or-later; see
+`COPYING` and `COPYING.LESSER`.
 
 ## Installation
 
-Install R, a C++17 toolchain, and the R packages `Rcpp` and `BH`, then run:
+Install R with a configured C++23 toolchain, and the R packages `Rcpp` and
+`BH` (version 1.81.0 or later), then run:
 
 ```r
 install.packages(".", repos = NULL, type = "source")
 ```
+
+Not all R platforms currently support C++23.
 
 ## Example
 
@@ -40,10 +44,12 @@ serialization. Keep the edges separately if persistence is needed.
 ## Block-model foundations
 
 `block_state()` records a supplied partition (or a single group by default),
-with block sizes, edge counts, and the conditional microcanonical SBM log
-likelihood. See `?block_state`. These are fixed-partition statistics, not
-inference: fitting, description-length model selection, posterior sampling,
-datasets and drawing needed by the cookbook are not implemented yet.
+with block sizes, edge counts, conditional microcanonical SBM log likelihood,
+and description length. `minimize_blockmodel_dl()` performs an experimental
+greedy flat-SBM fit. It is not graph-tool's multilevel optimizer, may find
+worse local optima, and is intended for small graphs. See `?block_state`.
+Hierarchical inference, posterior sampling, cookbook datasets and drawing are
+not implemented yet.
 
 ```r
 g <- graph_create(3, directed = FALSE)
@@ -51,4 +57,8 @@ graph_add_edges(g, rbind(c(1, 2), c(2, 3)))
 state <- block_state(g, c(1, 1, 2))
 block_edge_counts(state)
 block_log_likelihood(state)
+block_description_length(state)
+set.seed(1)
+fit <- minimize_blockmodel_dl(g)
+block_membership(fit)
 ```

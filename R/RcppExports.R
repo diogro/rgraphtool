@@ -33,3 +33,7 @@ cpp_block_statistics <- function(pointer, blocks, nblocks) {
     .Call(`_graphtool_cpp_block_statistics`, pointer, blocks, nblocks)
 }
 
+cpp_log_partition_table <- function(max_degree, max_vertices) {
+    .Call(`_graphtool_cpp_log_partition_table`, max_degree, max_vertices)
+}
+

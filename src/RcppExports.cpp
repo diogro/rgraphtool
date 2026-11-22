@@ -102,6 +102,18 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_log_partition_table
+Rcpp::NumericMatrix cpp_log_partition_table(int max_degree, int max_vertices);
+RcppExport SEXP _graphtool_cpp_log_partition_table(SEXP max_degreeSEXP, SEXP max_verticesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type max_degree(max_degreeSEXP);
+    Rcpp::traits::input_parameter< int >::type max_vertices(max_verticesSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_log_partition_table(max_degree, max_vertices));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_graphtool_cpp_graph_create", (DL_FUNC) &_graphtool_cpp_graph_create, 2},
@@ -112,6 +124,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_graphtool_cpp_edges", (DL_FUNC) &_graphtool_cpp_edges, 1},
     {"_graphtool_cpp_degree", (DL_FUNC) &_graphtool_cpp_degree, 2},
     {"_graphtool_cpp_block_statistics", (DL_FUNC) &_graphtool_cpp_block_statistics, 3},
+    {"_graphtool_cpp_log_partition_table", (DL_FUNC) &_graphtool_cpp_log_partition_table, 2},
     {NULL, NULL, 0}
 };
 

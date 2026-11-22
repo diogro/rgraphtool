@@ -11,4 +11,4 @@ Imports: Rcpp
 LinkingTo: Rcpp, BH
 Suggests: testthat (>= 3.0.0)
 Config/testthat/edition: 3
-SystemRequirements: C++17
+SystemRequirements: C++23

@@ -2,7 +2,7 @@
 #include <limits>
 #include <map>
 #include <cmath>
-#include "graph_adjacency.h"
+#include "vendor/graph_adjacency.hh"
 
 typedef boost::adj_list<size_t> Adjacency;
 
@@ -113,9 +113,13 @@ Rcpp::List cpp_block_statistics(SEXP pointer, Rcpp::IntegerVector blocks, int nb
             edge_factor += entry.second * std::log(2.0);
     }
     double degree_factor = 0;
+    Rcpp::NumericVector in_degrees(boost::num_vertices(adjacency));
+    Rcpp::NumericVector out_degrees(boost::num_vertices(adjacency));
     for (size_t i = 0; i < boost::num_vertices(adjacency); ++i) {
         size_t in = boost::in_degree(i, adjacency);
         size_t out = boost::out_degree(i, adjacency);
+        in_degrees[i] = graph.directed ? in : in + out;
+        out_degrees[i] = graph.directed ? out : in + out;
         if (graph.directed)
             degree_factor += std::lgamma(static_cast<double>(in) + 1) +
                              std::lgamma(static_cast<double>(out) + 1);
@@ -126,5 +130,35 @@ Rcpp::List cpp_block_statistics(SEXP pointer, Rcpp::IntegerVector blocks, int nb
                               Rcpp::Named("sizes") = sizes,
                               Rcpp::Named("directed") = graph.directed,
                               Rcpp::Named("edge_factor") = edge_factor,
-                              Rcpp::Named("degree_factor") = degree_factor);
+                              Rcpp::Named("degree_factor") = degree_factor,
+                              Rcpp::Named("in_degrees") = in_degrees,
+                              Rcpp::Named("out_degrees") = out_degrees);
+}
+
+// [[Rcpp::export]]
+Rcpp::NumericMatrix cpp_log_partition_table(int max_degree, int max_vertices) {
+    const double cells = (static_cast<double>(max_degree) + 1) *
+                         (static_cast<double>(max_vertices) + 1);
+    if (cells > 10000000)
+        Rcpp::stop("Degree partition table exceeds 10 million entries");
+    Rcpp::NumericMatrix table(max_degree + 1, max_vertices + 1);
+    std::fill(table.begin(), table.end(), R_NegInf);
+    for (int k = 0; k <= max_vertices; ++k)
+        table(0, k) = 0;
+    for (int k = 1; k <= max_vertices; ++k) {
+        Rcpp::checkUserInterrupt();
+        for (int m = 1; m <= max_degree; ++m) {
+            double a = table(m, k - 1);
+            double b = m >= k ? table(m - k, k) : R_NegInf;
+            if (a == R_NegInf)
+                table(m, k) = b;
+            else if (b == R_NegInf)
+                table(m, k) = a;
+            else {
+                double high = std::max(a, b);
+                table(m, k) = high + std::log1p(std::exp(std::min(a, b) - high));
+            }
+        }
+    }
+    return table;
 }
