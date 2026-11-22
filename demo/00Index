@@ -1,2 +1,3 @@
 football   Fit and visualize the cookbook football network
 celegans   Hierarchical partition of the C. elegans neural network
+model_selection   Degree-corrected versus non-degree-corrected nested models

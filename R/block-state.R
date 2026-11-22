@@ -242,14 +242,26 @@ refine_blockmodel_dl <- function(graph, state, degree_prior = NULL, epsilon = 1e
 }
 
 compare_blockmodels <- function(graph, degree_prior = c("distributed", "uniform"),
-                                ...) {
+                                nested = FALSE, nruns = 1L, ...) {
   degree_prior <- match.arg(degree_prior)
+  if (!is.logical(nested) || length(nested) != 1L || is.na(nested)) {
+    stop("nested must be TRUE or FALSE", call. = FALSE)
+  }
+  nruns <- validate_count(nruns)
+  if (nruns < 1L) stop("nruns must be positive", call. = FALSE)
+  fit <- if (nested) minimize_nested_blockmodel_dl else minimize_blockmodel_dl
+  score <- if (nested) nested_description_length else block_description_length
   states <- lapply(c(FALSE, TRUE), function(degree_corrected) {
-    minimize_blockmodel_dl(graph, degree_corrected = degree_corrected,
-                           degree_prior = degree_prior, ...)
+    best <- NULL
+    for (run in seq_len(nruns)) {
+      state <- fit(graph, degree_corrected = degree_corrected,
+                   degree_prior = degree_prior, ...)
+      if (is.null(best) || score(state) < score(best)) best <- state
+    }
+    best
   })
   names(states) <- c("non-degree-corrected", "degree-corrected")
-  scores <- vapply(states, block_description_length, numeric(1))
+  scores <- vapply(states, score, numeric(1))
   comparison <- data.frame(
     model = names(states),
     description_length = unname(scores),
@@ -257,8 +269,23 @@ compare_blockmodels <- function(graph, degree_prior = c("distributed", "uniform"
   )
   winner <- which.min(scores)
   structure(list(comparison = comparison,
+                 log_posterior_odds = unname(scores[2] - scores[1]),
                  best_model = names(states)[winner],
                  best_state = states[[winner]],
-                 states = states),
+                 states = states,
+                 nested = nested),
             class = "graphtool_blockmodel_comparison")
+}
+
+print.graphtool_blockmodel_comparison <- function(x, ...) {
+  cat(sprintf("<%s block model comparison>\n", if (isTRUE(x$nested)) "nested" else "flat"))
+  for (i in seq_len(nrow(x$comparison))) {
+    cat(sprintf("%-22s description length %12.4f nats\n",
+                paste0(x$comparison$model[i], ":"), x$comparison$description_length[i]))
+  }
+  odds <- x$log_posterior_odds
+  cat(sprintf("ln Lambda (NDC vs DC): %.4f, about 10^%.0f in favour of the %s model\n",
+              odds, abs(odds) / log(10),
+              if (odds > 0) "non-degree-corrected" else "degree-corrected"))
+  invisible(x)
 }

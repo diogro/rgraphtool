@@ -108,15 +108,26 @@ tracked under milestone 4.
 
 ### 3. Model selection
 
-- [ ] Support comparing degree-corrected and non-degree-corrected nested models,
-  including description-length differences and log posterior odds. Flat
-  comparison is implemented (`compare_blockmodels()`). Nested fits and scores
-  for both models exist, but there is no comparison helper or posterior-odds
-  report yet.
-- [ ] Run the political blogs and football model-selection examples.
+- [x] Support comparing degree-corrected and non-degree-corrected nested models,
+  including description-length differences and log posterior odds
+  (`compare_blockmodels(nested = TRUE)`, `log_posterior_odds`
+  \(= \Sigma_{DC} - \Sigma_{NDC} = \ln\Lambda\)). `nruns` keeps the best of
+  several fits.
+- [x] Run the political blogs and football model-selection examples
+  (`demo("model_selection")`).
+
+Over 5 seeds on political blogs (1490 vertices, 19090 directed edges),
+graph-tool 3.9 finds 63037.5-63285.8 nats (mean 63148.4) without degree
+correction and 61347.5-61644.1 (mean 61469.2) with it
+(`tools/reference/polblogs_nested_upstream.csv`). The port finds
+62980.2-63107.1 (mean 63043.4) and 61436.5-61558.8 (mean 61484.2), in about
+15 s per fit. Both clearly prefer the degree-corrected model
+(\(\ln\Lambda \approx -1560\) to \(-1680\); the cookbook reports \(-1774\)).
+On football both prefer the non-degree-corrected model by about 48.7 nats.
 
 **Done when:** scores agree with the reference for identical states and the R
-examples report their comparisons without assuming stochastic fits are identical.
+examples report their comparisons without assuming stochastic fits are
+identical. **Complete.**
 
 ### 4. Posterior sampling
 

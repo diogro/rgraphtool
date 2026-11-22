@@ -76,6 +76,11 @@ match graph-tool 3.9 to within 2e-11 nats. `nested_summary()`,
 `collection.ns`. See `demo("celegans")` for the cookbook's hierarchical
 example and `demo("football")` for the flat one.
 
+`compare_blockmodels(graph, nested = TRUE)` fits degree-corrected and
+non-degree-corrected nested models. It reports their description lengths and
+the log posterior odds \(\ln\Lambda = \Sigma_{DC} - \Sigma_{NDC}\); see
+`demo("model_selection")` for the political blogs and football examples.
+
 Posterior sampling and the other cookbook datasets are not implemented yet.
 
 ```r

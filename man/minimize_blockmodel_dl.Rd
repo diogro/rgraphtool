@@ -2,6 +2,7 @@
 \alias{minimize_blockmodel_dl}
 \alias{refine_blockmodel_dl}
 \alias{compare_blockmodels}
+\alias{print.graphtool_blockmodel_comparison}
 \title{Fit a flat stochastic block model by minimum description length}
 \usage{
 minimize_blockmodel_dl(graph, degree_corrected = TRUE,
@@ -9,7 +10,8 @@ minimize_blockmodel_dl(graph, degree_corrected = TRUE,
   refine = TRUE, epsilon = 1e-3, control = list())
 refine_blockmodel_dl(graph, state, degree_prior = NULL, epsilon = 1e-3,
   control = list())
-compare_blockmodels(graph, degree_prior = c("distributed", "uniform"), ...)
+compare_blockmodels(graph, degree_prior = c("distributed", "uniform"),
+  nested = FALSE, nruns = 1L, ...)
 }
 \arguments{
   \item{graph}{A graph created by \code{graph_create()}.}
@@ -23,7 +25,11 @@ compare_blockmodels(graph, degree_prior = c("distributed", "uniform"), ...)
   relative amount of at most \code{epsilon}.}
   \item{control}{Named list of search settings; see Details.}
   \item{state}{A state created by \code{block_state()} or a fitting function.}
-  \item{...}{Passed to \code{minimize_blockmodel_dl()}.}
+  \item{nested}{Whether \code{compare_blockmodels()} fits nested models with
+  \code{\link{minimize_nested_blockmodel_dl}} instead of flat ones.}
+  \item{nruns}{Number of fits per model; the one with the smallest description
+  length is kept.}
+  \item{...}{Passed to the fitting function.}
 }
 \description{
 \code{minimize_blockmodel_dl()} is the R counterpart of graph-tool's
@@ -75,10 +81,17 @@ Run time grows roughly linearly with the number of edges times the number of
 group levels visited. A 3000-vertex, 15000-edge graph takes a few seconds,
 about two to four times as long as graph-tool on one thread.
 
-\code{compare_blockmodels()} fits the non-degree-corrected and
-degree-corrected models and reports which has the smaller description length.
-Description lengths are comparable between the two models because both include
-all priors; the difference is the log posterior odds ratio.
+\code{compare_blockmodels()} fits the non-degree-corrected (NDC) and
+degree-corrected (DC) models and reports which has the smaller description
+length \eqn{\Sigma}. Both description lengths include all priors, so with
+equal prior probabilities for the two models the posterior odds ratio is
+\deqn{\Lambda = \frac{P(b, H_{NDC} \mid A)}{P(b, H_{DC} \mid A)}
+  = e^{-(\Sigma_{NDC} - \Sigma_{DC})},}
+as in the graph-tool cookbook. \code{log_posterior_odds} is
+\eqn{\ln \Lambda = \Sigma_{DC} - \Sigma_{NDC}}, so negative values favour the
+degree-corrected model. (The cookbook prints this difference with the opposite
+sign for the football network.) Because the fits are stochastic local optima,
+increase \code{nruns} before relying on small differences.
 }
 \value{
 \code{minimize_blockmodel_dl()} and \code{refine_blockmodel_dl()} return a
@@ -91,8 +104,9 @@ order visited. The description length of \code{refine_blockmodel_dl()}'s result
 is never higher than that of the input state.
 
 \code{compare_blockmodels()} returns a list with \code{comparison}, a data frame
-of models and description lengths; \code{best_model}; \code{best_state}; and
-\code{states}, both fitted states.
+of models and description lengths; \code{log_posterior_odds};
+\code{best_model}; \code{best_state}; \code{states}, both fitted states; and
+\code{nested}. Printing it shows the description lengths and \eqn{\ln \Lambda}.
 }
 \references{
 Peixoto, T. P. (2014). Efficient Monte Carlo and greedy heuristic for the
