@@ -1,5 +1,7 @@
 #include <Rcpp.h>
 #include <limits>
+#include <map>
+#include <cmath>
 #include "graph_adjacency.h"
 
 typedef boost::adj_list<size_t> Adjacency;
@@ -80,4 +82,49 @@ Rcpp::NumericVector cpp_degree(SEXP pointer, const std::string& mode) {
         result[i] = static_cast<double>(mode == "in" ? in : mode == "out" ? out : in + out);
     }
     return result;
+}
+
+// [[Rcpp::export]]
+Rcpp::List cpp_block_statistics(SEXP pointer, Rcpp::IntegerVector blocks, int nblocks) {
+    Graph& graph = get_graph(pointer);
+    const Adjacency& adjacency = graph.adjacency;
+    Rcpp::NumericMatrix counts(nblocks, nblocks);
+    Rcpp::NumericVector sizes(nblocks);
+    for (R_xlen_t i = 0; i < blocks.size(); ++i)
+        ++sizes[blocks[i] - 1];
+
+    std::map<std::pair<size_t, size_t>, size_t> multiplicities;
+    auto range = boost::edges(adjacency);
+    for (auto it = range.first; it != range.second; ++it) {
+        size_t source = it->s, target = it->t;
+        int r = blocks[source] - 1, s = blocks[target] - 1;
+        ++counts(r, s);
+        if (!graph.directed)
+            ++counts(s, r);
+        if (!graph.directed && source > target)
+            std::swap(source, target);
+        ++multiplicities[std::make_pair(source, target)];
+    }
+
+    double edge_factor = 0;
+    for (const auto& entry : multiplicities) {
+        edge_factor += std::lgamma(static_cast<double>(entry.second) + 1);
+        if (!graph.directed && entry.first.first == entry.first.second)
+            edge_factor += entry.second * std::log(2.0);
+    }
+    double degree_factor = 0;
+    for (size_t i = 0; i < boost::num_vertices(adjacency); ++i) {
+        size_t in = boost::in_degree(i, adjacency);
+        size_t out = boost::out_degree(i, adjacency);
+        if (graph.directed)
+            degree_factor += std::lgamma(static_cast<double>(in) + 1) +
+                             std::lgamma(static_cast<double>(out) + 1);
+        else
+            degree_factor += std::lgamma(static_cast<double>(in + out) + 1);
+    }
+    return Rcpp::List::create(Rcpp::Named("counts") = counts,
+                              Rcpp::Named("sizes") = sizes,
+                              Rcpp::Named("directed") = graph.directed,
+                              Rcpp::Named("edge_factor") = edge_factor,
+                              Rcpp::Named("degree_factor") = degree_factor);
 }

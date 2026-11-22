@@ -29,3 +29,7 @@ cpp_degree <- function(pointer, mode) {
     .Call(`_graphtool_cpp_degree`, pointer, mode)
 }
 
+cpp_block_statistics <- function(pointer, blocks, nblocks) {
+    .Call(`_graphtool_cpp_block_statistics`, pointer, blocks, nblocks)
+}
+

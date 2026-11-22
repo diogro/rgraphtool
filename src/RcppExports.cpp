@@ -89,6 +89,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_block_statistics
+Rcpp::List cpp_block_statistics(SEXP pointer, Rcpp::IntegerVector blocks, int nblocks);
+RcppExport SEXP _graphtool_cpp_block_statistics(SEXP pointerSEXP, SEXP blocksSEXP, SEXP nblocksSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type blocks(blocksSEXP);
+    Rcpp::traits::input_parameter< int >::type nblocks(nblocksSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_block_statistics(pointer, blocks, nblocks));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_graphtool_cpp_graph_create", (DL_FUNC) &_graphtool_cpp_graph_create, 2},
@@ -98,6 +111,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_graphtool_cpp_num_edges", (DL_FUNC) &_graphtool_cpp_num_edges, 1},
     {"_graphtool_cpp_edges", (DL_FUNC) &_graphtool_cpp_edges, 1},
     {"_graphtool_cpp_degree", (DL_FUNC) &_graphtool_cpp_degree, 2},
+    {"_graphtool_cpp_block_statistics", (DL_FUNC) &_graphtool_cpp_block_statistics, 3},
     {NULL, NULL, 0}
 };
 
