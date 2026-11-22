@@ -6,6 +6,7 @@
 \alias{block_log_likelihood}
 \alias{block_description_length}
 \alias{minimize_blockmodel_dl}
+\alias{compare_blockmodels}
 \title{Inspect a fixed block-model partition}
 \usage{
 block_state(graph, blocks = NULL, degree_corrected = TRUE)
@@ -17,6 +18,8 @@ block_description_length(state, degree_prior = NULL)
 minimize_blockmodel_dl(graph, degree_corrected = TRUE,
   degree_prior = c("distributed", "uniform"), restarts = 3L,
   max_sweeps = 10L)
+compare_blockmodels(graph, restarts = 3L, max_sweeps = 10L,
+  degree_prior = c("distributed", "uniform"))
 }
 \arguments{
   \item{graph}{A graph created by \code{graph_create()}.}
@@ -61,6 +64,8 @@ vertex labels, \code{block_sizes()} returns counts by label,
 \code{block_log_likelihood()} returns a numeric scalar in nats.
 \code{block_description_length()} returns the description length in nats,
 and \code{minimize_blockmodel_dl()} returns the best state found.
+\code{compare_blockmodels()} returns both fitted states, a score table, and the
+minimum-description-length winner.
 }
 \examples{
 g <- graph_create(3, directed = FALSE)

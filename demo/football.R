@@ -3,8 +3,9 @@ library(graphtool)
 football <- football_network()
 g <- football$graph
 set.seed(43)
-state <- minimize_blockmodel_dl(g)
-print(block_description_length(state))
+comparison <- compare_blockmodels(g)
+print(comparison$comparison)
+state <- comparison$best_state
 print(block_sizes(state))
 
 pos <- football$positions

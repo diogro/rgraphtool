@@ -1,4 +1,4 @@
-test_that("description lengths match graph-tool 2.92 reference cases", {
+test_that("description lengths match graph-tool 3.9 reference cases", {
   edges <- rbind(c(1, 2), c(1, 2), c(2, 1), c(3, 3), c(3, 2))
   expected <- list(
     c(12.86636600121904, 12.108680299521524, 12.48597453066299),

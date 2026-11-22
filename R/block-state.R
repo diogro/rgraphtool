@@ -213,3 +213,30 @@ minimize_blockmodel_dl <- function(graph, degree_corrected = TRUE,
   }
   best$state
 }
+
+compare_blockmodels <- function(graph, restarts = 3L, max_sweeps = 10L,
+                                degree_prior = c("distributed", "uniform")) {
+  degree_prior <- match.arg(degree_prior)
+  states <- lapply(c(FALSE, TRUE), function(degree_corrected) {
+    minimize_blockmodel_dl(
+      graph,
+      degree_corrected = degree_corrected,
+      degree_prior = degree_prior,
+      restarts = restarts,
+      max_sweeps = max_sweeps
+    )
+  })
+  names(states) <- c("non-degree-corrected", "degree-corrected")
+  scores <- vapply(states, block_description_length, numeric(1))
+  comparison <- data.frame(
+    model = names(states),
+    description_length = unname(scores),
+    row.names = NULL
+  )
+  winner <- which.min(scores)
+  structure(list(comparison = comparison,
+                 best_model = names(states)[winner],
+                 best_state = states[[winner]],
+                 states = states),
+            class = "graphtool_blockmodel_comparison")
+}

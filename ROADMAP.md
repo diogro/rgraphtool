@@ -7,12 +7,13 @@ Build a native R/C++ port that can run R equivalents of the
 following its order from simpler to more advanced examples. Start with block
 models and the inference guide. Python is not a runtime dependency.
 
-The cookbook targets current graph-tool. Use the
-[official upstream](https://git.skewed.de/count0/graph-tool) and a pinned
-release or commit as the reference for each milestone; record any version
-differences. The existing adjacency headers came from a 2020 checkout and
-must not be treated as a current inference backend. Preserve upstream license
-notices and attribution when adapting code or distributing data.
+The target is graph-tool 3.9 from the
+[official upstream](https://git.skewed.de/count0/graph-tool), commit
+`b24bc428e8426d0acb36b2d57bd61633335a3a26`. The active adjacency headers come
+from this release. The flat SBM search is an independent initial
+implementation, not a port of graph-tool's multilevel optimizer. Preserve
+upstream license notices and attribution when adapting code or distributing
+data.
 
 R examples should express equivalent functionality, rather than copying
 Python syntax. Clearly document differences in indexing, mutable state,
@@ -26,13 +27,15 @@ layer.
 - [x] Fixed-partition block sizes, edge-count matrix, and conditional
   microcanonical likelihood.
 - [x] Flat block-model description length and experimental greedy fitting.
-- [ ] Hierarchical inference, posterior sampling, cookbook datasets, and
+- [x] Football cookbook data loader and runnable fit/plot demonstration.
+- [ ] Hierarchical inference, posterior sampling, other cookbook datasets, and
   visualization. The greedy search is not the upstream multilevel optimizer.
 
-Fixed-partition scores have been checked against graph-tool 2.92, including a
-football-network partition. In one seeded football run, the greedy fit scored
-1869.62 nats versus 1795.95 for an upstream fit; these stochastic results
-illustrate the current optimizer's limitations, not a parity guarantee.
+Fixed-partition scores have been checked against graph-tool 3.9, including
+directed and undirected multigraphs and a football-network partition. In one
+seeded football run, the greedy fit scored 1869.62 nats versus 1787.98 for an
+upstream fit; these stochastic results illustrate the current optimizer's
+limitations, not a parity guarantee.
 
 ## Milestones
 
@@ -47,15 +50,16 @@ illustrate the current optimizer's limitations, not a parity guarantee.
   search algorithm and its differences from upstream; do not promise a global
   optimum. An initial greedy vertex-move and merge search is available, but
   is slower and can find worse optima than the upstream multilevel optimizer.
-- [ ] Provide a reproducible way to obtain and load the cookbook's football
+- [x] Provide a reproducible way to obtain and load the cookbook's football
   graph, including its layout or an explicitly documented R equivalent.
-- [ ] Provide an R example that fits the football graph, inspects memberships
+- [x] Provide an R example that fits the football graph, inspects memberships
   and block counts, and produces the partition and affinity-matrix plots.
 
 **Done when:** the example runs end to end; fixed-partition scores agree with
 the pinned upstream reference within stated numerical tolerances; tests cover
 edge cases and compare inferred objective values without requiring identical
-stochastic labels or partitions.
+stochastic labels or partitions. The data, score comparisons, and runnable
+plots are complete; optimizer scalability/parity remains open.
 
 ### 2. Hierarchical partitions and refinement
 
@@ -71,7 +75,9 @@ verify that zero-temperature accepted moves do not worsen the objective.
 ### 3. Model selection
 
 - [ ] Support comparing degree-corrected and non-degree-corrected nested models,
-  including description-length differences and log posterior odds.
+  including description-length differences and log posterior odds. Flat
+  degree-corrected versus non-degree-corrected fitting and score comparison
+  are implemented; nested model comparison remains unimplemented.
 - [ ] Run the political blogs and football model-selection examples.
 
 **Done when:** scores agree with the reference for identical states and the R
