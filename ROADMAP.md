@@ -10,8 +10,10 @@ models and the inference guide. Python is not a runtime dependency.
 The target is graph-tool 3.9 from the
 [official upstream](https://git.skewed.de/count0/graph-tool), commit
 `b24bc428e8426d0acb36b2d57bd61633335a3a26`. The active adjacency headers come
-from this release. The flat SBM search is an independent initial
-implementation, not a port of graph-tool's multilevel optimizer. Preserve
+from this release. The flat SBM entropy and multilevel search are ports of the
+3.9 inference headers (`blockmodel/`, `loops/multilevel.hh`,
+`support/bisection_search.hh`); reference values come from the conda-forge
+3.9 build, run in the pixi environment under `tools/reference/`. Preserve
 upstream license notices and attribution when adapting code or distributing
 data.
 
@@ -26,16 +28,21 @@ layer.
 - [x] Native directed and undirected multigraph construction and inspection.
 - [x] Fixed-partition block sizes, edge-count matrix, and conditional
   microcanonical likelihood.
-- [x] Flat block-model description length and experimental greedy fitting.
+- [x] Native flat block-model description length, with incremental move costs.
+- [x] Native multilevel agglomerative minimization and refinement.
 - [x] Football cookbook data loader and runnable fit/plot demonstration.
 - [ ] Hierarchical inference, posterior sampling, other cookbook datasets, and
-  visualization. The greedy search is not the upstream multilevel optimizer.
+  visualization.
 
-Fixed-partition scores have been checked against graph-tool 3.9, including
-directed and undirected multigraphs and a football-network partition. In one
-seeded football run, the greedy fit scored 1869.62 nats versus 1787.98 for an
-upstream fit; these stochastic results illustrate the current optimizer's
-limitations, not a parity guarantee.
+Fixed-partition scores match graph-tool 3.9 to a relative tolerance of 1e-10 for directed
+and undirected multigraphs with loops, both degree priors, and groups whose
+degree sums exceed the exact integer-partition table (the Szekeres
+approximation is ported). Over 20 seeds on the football network, graph-tool 3.9
+finds 1738.87-1747.64 nats (mean 1740.71) without degree correction and
+1787.36-1794.09 (mean 1789.18) with it. The R port finds 1738.87-1746.92
+(mean 1740.08) and 1787.36-1803.30 (mean 1789.89), in 0.02-0.09 s per fit. On a
+3000-vertex, 15000-edge planted partition both reach 79808.22 nats; the R port
+takes about 6 s against 1.5-3.6 s for graph-tool on one thread.
 
 ## Milestones
 
@@ -45,11 +52,12 @@ limitations, not a parity guarantee.
   including partition, edge-count, and degree-sequence priors. Support both
   degree-corrected and non-degree-corrected models, directed and undirected
   graphs, parallel edges, and self-loops.
-- [ ] Implement scalable native description-length minimization and expose fitted block
+- [x] Implement scalable native description-length minimization and expose fitted block
   memberships, block sizes, edge counts, and description length. Document the
   search algorithm and its differences from upstream; do not promise a global
-  optimum. An initial greedy vertex-move and merge search is available, but
-  is slower and can find worse optima than the upstream multilevel optimizer.
+  optimum. The multilevel search is documented in `?minimize_blockmodel_dl`;
+  it runs sequentially (no OpenMP pseudo-parallel moves) and uses graph-tool's
+  fast neighbour proposal.
 - [x] Provide a reproducible way to obtain and load the cookbook's football
   graph, including its layout or an explicitly documented R equivalent.
 - [x] Provide an R example that fits the football graph, inspects memberships
@@ -58,8 +66,10 @@ limitations, not a parity guarantee.
 **Done when:** the example runs end to end; fixed-partition scores agree with
 the pinned upstream reference within stated numerical tolerances; tests cover
 edge cases and compare inferred objective values without requiring identical
-stochastic labels or partitions. The data, score comparisons, and runnable
-plots are complete; optimizer scalability/parity remains open.
+stochastic labels or partitions. **Complete.** Remaining performance work:
+graph-tool is about 2-4 times faster on mid-sized graphs. The likely causes are
+hash-map edge counts and merge costs computed by trial moves rather than a
+direct group-merge formula.
 
 ### 2. Hierarchical partitions and refinement
 
@@ -67,9 +77,11 @@ plots are complete; optimizer scalability/parity remains open.
   minimization, level traversal, and hierarchy summaries.
 - [ ] Load the C. elegans neural network and produce the hierarchy visualization
   and per-level membership examples.
-- [x] Add greedy single-vertex and group-merge refinement for flat partitions.
+- [x] Port the flat multilevel refinement loop (`refine=True` sweeps with
+  strict merges), seeded by R's RNG.
 - [ ] Port nested-state merge-split refinement and annealing, with reproducible
-  random seeds. The flat greedy refinement is not a posterior sampler.
+  random seeds. Flat refinement is a zero-temperature optimizer, not a
+  posterior sampler.
 
 **Done when:** the hierarchical cookbook examples run and refinement tests
 verify that zero-temperature accepted moves do not worsen the objective.
@@ -79,7 +91,8 @@ verify that zero-temperature accepted moves do not worsen the objective.
 - [ ] Support comparing degree-corrected and non-degree-corrected nested models,
   including description-length differences and log posterior odds. Flat
   degree-corrected versus non-degree-corrected fitting and score comparison
-  are implemented; nested model comparison remains unimplemented.
+  are implemented natively with upstream score parity; nested model comparison
+  remains unimplemented.
 - [ ] Run the political blogs and football model-selection examples.
 
 **Done when:** scores agree with the reference for identical states and the R

@@ -1,0 +1,117 @@
+\name{minimize_blockmodel_dl}
+\alias{minimize_blockmodel_dl}
+\alias{refine_blockmodel_dl}
+\alias{compare_blockmodels}
+\title{Fit a flat stochastic block model by minimum description length}
+\usage{
+minimize_blockmodel_dl(graph, degree_corrected = TRUE,
+  degree_prior = c("distributed", "uniform"), B_min = 1, B_max = Inf,
+  refine = TRUE, epsilon = 1e-3, control = list())
+refine_blockmodel_dl(graph, state, degree_prior = NULL, epsilon = 1e-3,
+  control = list())
+compare_blockmodels(graph, degree_prior = c("distributed", "uniform"), ...)
+}
+\arguments{
+  \item{graph}{A graph created by \code{graph_create()}.}
+  \item{degree_corrected}{Whether to fit the degree-corrected model.}
+  \item{degree_prior}{Degree-sequence prior, \code{"distributed"} (graph-tool's
+  default) or \code{"uniform"}. For \code{refine_blockmodel_dl()}, \code{NULL}
+  uses the prior stored in \code{state}.}
+  \item{B_min, B_max}{Bounds on the number of nonempty groups.}
+  \item{refine}{Whether to run the refinement loop after the multilevel search.}
+  \item{epsilon}{Refinement stops when a pass changes the description length by a
+  relative amount of at most \code{epsilon}.}
+  \item{control}{Named list of search settings; see Details.}
+  \item{state}{A state created by \code{block_state()} or a fitting function.}
+  \item{...}{Passed to \code{minimize_blockmodel_dl()}.}
+}
+\description{
+\code{minimize_blockmodel_dl()} is the R counterpart of graph-tool's
+\code{minimize_blockmodel_dl()} for the flat \code{BlockState}. It runs a native
+multilevel agglomerative search followed by refinement, and returns the
+partition with the smallest description length it found.
+}
+\details{
+The search follows graph-tool 3.9's \code{multilevel_mcmc_sweep()} at zero
+temperature (\eqn{\beta = \infty}) over all groups:
+\enumerate{
+  \item Every vertex starts in its own group. Single-vertex sweeps then move
+  vertices into neighbouring groups, starting at \eqn{\beta =} \code{init_beta}
+  for \code{init_min_iter_beta} sweeps and continuing at zero temperature for at
+  least \code{init_min_iter} sweeps, until a sweep reduces the number of groups
+  by less than a factor of \code{init_r}.
+  \item A bisection search with random midpoints looks for the number of groups
+  \eqn{B} that minimizes the description length. To reach a smaller \eqn{B}
+  from a cached partition, the search alternates merges (each group tries
+  \code{merge_sweeps} neighbour-proposed merge partners, and the best merges are
+  applied until \eqn{B} falls by a factor of \code{r}) with up to
+  \code{mh_sweeps} zero-temperature single-vertex sweeps. Every partition visited
+  is cached by \eqn{B}.
+  \item Refinement repeatedly merges groups when that lowers the description
+  length and sweeps vertices among the existing groups. It stops after a pass
+  whose relative change is at most \code{epsilon}.
+}
+Moves never increase the description length after the initial
+\code{init_beta} sweeps. The result is a local optimum, not a guaranteed
+global one, so run several seeds and keep the smallest description length, as
+the graph-tool documentation recommends.
+
+\code{control} accepts \code{r} (0.9), \code{merge_sweeps} (10),
+\code{mh_sweeps} (10), \code{init_r} (0.99), \code{init_min_iter} (8),
+\code{init_min_iter_beta} (4), \code{init_beta} (1), \code{c} (0.5, the random
+proposal weight used when a group has no neighbour-proposed merge partner),
+\code{max_refine} (1000) and \code{verbose} (\code{FALSE}). The defaults are
+graph-tool's.
+
+Differences from graph-tool: sweeps and merges run sequentially, with merge
+costs re-evaluated lazily (graph-tool's \code{parallel_merge = FALSE} path),
+not with OpenMP pseudo-parallel moves. Vertex proposals use the neighbour of a
+random member of a neighbouring group (graph-tool's fast proposal) rather than
+the edge-weighted group sampler. Randomness comes from R's generator, so results
+are reproducible with \code{set.seed()} but do not reproduce graph-tool's labels
+for the same seed. Refinement only moves vertices among existing groups; it can
+merge groups but never creates new ones. Only the flat model is implemented.
+Run time grows roughly linearly with the number of edges times the number of
+group levels visited. A 3000-vertex, 15000-edge graph takes a few seconds,
+about two to four times as long as graph-tool on one thread.
+
+\code{compare_blockmodels()} fits the non-degree-corrected and
+degree-corrected models and reports which has the smaller description length.
+Description lengths are comparable between the two models because both include
+all priors; the difference is the log posterior odds ratio.
+}
+\value{
+\code{minimize_blockmodel_dl()} and \code{refine_blockmodel_dl()} return a
+block state (see \code{\link{block_state}}) with labels \code{1, ..., B}. Its
+\code{fit} element holds \code{description_length}. For
+\code{minimize_blockmodel_dl()} it also holds
+\code{multilevel_description_length}, the score before refinement, and
+\code{trace}, a data frame of every cached \eqn{(B, \mathrm{DL})} pair in the
+order visited. The description length of \code{refine_blockmodel_dl()}'s result
+is never higher than that of the input state.
+
+\code{compare_blockmodels()} returns a list with \code{comparison}, a data frame
+of models and description lengths; \code{best_model}; \code{best_state}; and
+\code{states}, both fitted states.
+}
+\references{
+Peixoto, T. P. (2014). Efficient Monte Carlo and greedy heuristic for the
+inference of stochastic block models. \emph{Physical Review E} 89, 012804.
+doi:10.1103/PhysRevE.89.012804
+
+Peixoto, T. P. (2017). Nonparametric Bayesian inference of the microcanonical
+stochastic block model. \emph{Physical Review E} 95, 012317.
+doi:10.1103/PhysRevE.95.012317
+}
+\seealso{\code{\link{block_state}}}
+\examples{
+g <- graph_create(12, directed = FALSE)
+graph_add_edges(g, do.call(rbind, lapply(list(1:6, 7:12),
+                                         function(v) t(combn(v, 2)))))
+set.seed(1)
+fit <- minimize_blockmodel_dl(g)
+block_membership(fit)
+block_description_length(fit)
+head(fit$fit$trace)
+compare_blockmodels(g)$comparison
+}

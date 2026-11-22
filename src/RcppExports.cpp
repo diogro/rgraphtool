@@ -10,6 +10,82 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// cpp_sbm_entropy
+double cpp_sbm_entropy(SEXP pointer, Rcpp::IntegerVector blocks, bool degree_corrected, bool distributed, double q_max);
+RcppExport SEXP _graphtool_cpp_sbm_entropy(SEXP pointerSEXP, SEXP blocksSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type blocks(blocksSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_sbm_entropy(pointer, blocks, degree_corrected, distributed, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_sbm_check_moves
+Rcpp::NumericVector cpp_sbm_check_moves(SEXP pointer, Rcpp::IntegerVector blocks, bool degree_corrected, bool distributed, int nmoves, double q_max);
+RcppExport SEXP _graphtool_cpp_sbm_check_moves(SEXP pointerSEXP, SEXP blocksSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP nmovesSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type blocks(blocksSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< int >::type nmoves(nmovesSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_sbm_check_moves(pointer, blocks, degree_corrected, distributed, nmoves, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_sbm_minimize
+Rcpp::List cpp_sbm_minimize(SEXP pointer, bool degree_corrected, bool distributed, Rcpp::List control, bool refine, double q_max);
+RcppExport SEXP _graphtool_cpp_sbm_minimize(SEXP pointerSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP controlSEXP, SEXP refineSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type control(controlSEXP);
+    Rcpp::traits::input_parameter< bool >::type refine(refineSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_sbm_minimize(pointer, degree_corrected, distributed, control, refine, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_sbm_refine
+Rcpp::List cpp_sbm_refine(SEXP pointer, Rcpp::IntegerVector blocks, bool degree_corrected, bool distributed, Rcpp::List control, double q_max);
+RcppExport SEXP _graphtool_cpp_sbm_refine(SEXP pointerSEXP, SEXP blocksSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP controlSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type blocks(blocksSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type control(controlSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_sbm_refine(pointer, blocks, degree_corrected, distributed, control, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_log_q
+double cpp_log_q(double n, double k, double q_max);
+RcppExport SEXP _graphtool_cpp_log_q(SEXP nSEXP, SEXP kSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< double >::type n(nSEXP);
+    Rcpp::traits::input_parameter< double >::type k(kSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_log_q(n, k, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_graph_create
 SEXP cpp_graph_create(int n, bool directed);
 RcppExport SEXP _graphtool_cpp_graph_create(SEXP nSEXP, SEXP directedSEXP) {
@@ -116,6 +192,11 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_graphtool_cpp_sbm_entropy", (DL_FUNC) &_graphtool_cpp_sbm_entropy, 5},
+    {"_graphtool_cpp_sbm_check_moves", (DL_FUNC) &_graphtool_cpp_sbm_check_moves, 6},
+    {"_graphtool_cpp_sbm_minimize", (DL_FUNC) &_graphtool_cpp_sbm_minimize, 6},
+    {"_graphtool_cpp_sbm_refine", (DL_FUNC) &_graphtool_cpp_sbm_refine, 6},
+    {"_graphtool_cpp_log_q", (DL_FUNC) &_graphtool_cpp_log_q, 3},
     {"_graphtool_cpp_graph_create", (DL_FUNC) &_graphtool_cpp_graph_create, 2},
     {"_graphtool_cpp_add_vertices", (DL_FUNC) &_graphtool_cpp_add_vertices, 2},
     {"_graphtool_cpp_add_edges", (DL_FUNC) &_graphtool_cpp_add_edges, 2},

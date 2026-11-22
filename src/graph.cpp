@@ -2,21 +2,7 @@
 #include <limits>
 #include <map>
 #include <cmath>
-#include "vendor/graph_adjacency.hh"
-
-typedef boost::adj_list<size_t> Adjacency;
-
-struct Graph {
-    Adjacency adjacency;
-    bool directed;
-    explicit Graph(bool directed_) : directed(directed_) {}
-};
-
-static Graph& get_graph(SEXP pointer) {
-    if (TYPEOF(pointer) != EXTPTRSXP || R_ExternalPtrAddr(pointer) == NULL)
-        Rcpp::stop("Graph pointer is invalid; graphs cannot be restored from serialized R objects");
-    return *Rcpp::XPtr<Graph>(pointer);
-}
+#include "graph_types.h"
 
 // [[Rcpp::export]]
 SEXP cpp_graph_create(int n, bool directed) {

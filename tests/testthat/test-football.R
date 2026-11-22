@@ -38,3 +38,19 @@ test_that("invalid football inputs fail explicitly", {
   expect_error(football_network(bad_position), "non-numeric node positions")
   expect_error(football_network(bad_edge), "valid 1-based")
 })
+
+test_that("football fits reach graph-tool 3.9 description lengths", {
+  skip_on_cran()
+  football <- tryCatch(football_network(), error = function(e) NULL)
+  skip_if(is.null(football), "football network could not be downloaded")
+  # graph-tool 3.9, 20 seeds (tools/reference/football_upstream.csv):
+  # non-degree-corrected 1738.87-1747.64, degree-corrected 1787.36-1794.09.
+  upstream_max <- c("FALSE" = 1747.64, "TRUE" = 1794.09)
+  for (dc in c(FALSE, TRUE)) {
+    scores <- vapply(1:5, function(seed) {
+      set.seed(seed)
+      block_description_length(minimize_blockmodel_dl(football$graph, degree_corrected = dc))
+    }, numeric(1))
+    expect_lte(min(scores), upstream_max[[as.character(dc)]])
+  }
+})

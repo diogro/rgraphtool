@@ -4,7 +4,7 @@ test_that("flat model comparison returns both fits and the MDL winner", {
     list(1:6, 7:12), function(v) t(combn(v, 2))
   )))
   set.seed(43)
-  result <- compare_blockmodels(g, restarts = 2, max_sweeps = 4)
+  result <- compare_blockmodels(g)
   expect_s3_class(result, "graphtool_blockmodel_comparison")
   expect_equal(result$comparison$model,
                c("non-degree-corrected", "degree-corrected"))
@@ -20,6 +20,6 @@ test_that("flat model comparison returns both fits and the MDL winner", {
 })
 
 test_that("flat model comparison validates search settings", {
-  expect_error(compare_blockmodels(graph_create(2), restarts = 0), "positive")
+  expect_error(compare_blockmodels(graph_create(2), B_min = 0), "B_min")
   expect_error(compare_blockmodels(graph_create(2), degree_prior = "other"), "arg")
 })

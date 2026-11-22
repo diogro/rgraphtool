@@ -17,10 +17,11 @@ block_state <- function(graph, blocks = NULL, degree_corrected = TRUE) {
   labels <- sort(unique(blocks))
   index <- match(blocks, labels)
   statistics <- cpp_block_statistics(pointer, index, length(labels))
+  statistics$num_edges <- cpp_num_edges(pointer)
   dimnames(statistics$counts) <- list(as.character(labels), as.character(labels))
   names(statistics$sizes) <- as.character(labels)
   structure(list(blocks = blocks, labels = labels, statistics = statistics,
-                 degree_corrected = degree_corrected,
+                 graph = graph, degree_corrected = degree_corrected,
                  degree_prior = "distributed"),
             class = "graphtool_block_state")
 }
@@ -141,167 +142,111 @@ block_description_length <- function(state, degree_prior = NULL) {
   validate_block_state(state)
   if (is.null(degree_prior)) degree_prior <- state$degree_prior
   degree_prior <- match.arg(degree_prior, c("distributed", "uniform"))
+  # Graphs only grow, so an unchanged edge count means the snapshot is current.
+  if (!is.null(state$graph) &&
+      graph_num_edges(state$graph) == state$statistics$num_edges &&
+      graph_num_vertices(state$graph) == length(state$blocks)) {
+    return(cpp_sbm_entropy(graph_pointer(state$graph), match(state$blocks, state$labels),
+                           state$degree_corrected, degree_prior == "distributed",
+                           q_cache_max()))
+  }
   block_description_length_impl(state, degree_prior)
+}
+
+q_cache_max <- function() {
+  value <- getOption("graphtool.q_cache_max", 5000)
+  if (!is.numeric(value) || length(value) != 1L || is.na(value) || value < 1) {
+    stop("option graphtool.q_cache_max must be a positive number", call. = FALSE)
+  }
+  as.numeric(value)
+}
+
+multilevel_defaults <- list(
+  r = 0.9, merge_sweeps = 10, mh_sweeps = 10, init_r = 0.99,
+  init_min_iter = 8, init_min_iter_beta = 4, init_beta = 1, c = 0.5,
+  epsilon = 1e-3, max_refine = 1000, verbose = FALSE
+)
+
+multilevel_control <- function(control, B_min = 1, B_max = Inf) {
+  if (!is.list(control) || (length(control) && is.null(names(control))) ||
+      any(!names(control) %in% names(multilevel_defaults))) {
+    stop("control must be a named list with entries among: ",
+         paste(names(multilevel_defaults), collapse = ", "), call. = FALSE)
+  }
+  control <- utils::modifyList(multilevel_defaults, control)
+  for (name in setdiff(names(control), "verbose")) {
+    value <- control[[name]]
+    if (!is.numeric(value) || length(value) != 1L || is.na(value) || value < 0) {
+      stop("control$", name, " must be a non-negative number", call. = FALSE)
+    }
+  }
+  if (control$r <= 0 || control$r >= 1) {
+    stop("control$r must be strictly between 0 and 1", call. = FALSE)
+  }
+  if (!is.numeric(B_min) || length(B_min) != 1L || is.na(B_min) || B_min < 1 ||
+      !is.numeric(B_max) || length(B_max) != 1L || is.na(B_max) || B_max < B_min) {
+    stop("B_min and B_max must satisfy 1 <= B_min <= B_max", call. = FALSE)
+  }
+  control$B_min <- floor(B_min)
+  control$B_max <- if (is.finite(B_max)) floor(B_max) else Inf
+  control$verbose <- isTRUE(control$verbose)
+  control
+}
+
+new_fitted_state <- function(graph, blocks, degree_corrected, degree_prior, entropy,
+                             extra = list()) {
+  state <- block_state(graph, blocks, degree_corrected)
+  state$degree_prior <- degree_prior
+  state$fit <- c(list(description_length = entropy), extra)
+  state
 }
 
 minimize_blockmodel_dl <- function(graph, degree_corrected = TRUE,
                                    degree_prior = c("distributed", "uniform"),
-                                   restarts = 3L, max_sweeps = 10L) {
+                                   B_min = 1, B_max = Inf, refine = TRUE,
+                                   epsilon = 1e-3, control = list()) {
+  pointer <- graph_pointer(graph)
   degree_prior <- match.arg(degree_prior)
-  restarts <- validate_count(restarts)
-  max_sweeps <- validate_count(max_sweeps)
-  if (restarts < 1L || max_sweeps < 1L) {
-    stop("restarts and max_sweeps must be positive", call. = FALSE)
+  if (!is.logical(degree_corrected) || length(degree_corrected) != 1L ||
+      is.na(degree_corrected)) {
+    stop("degree_corrected must be TRUE or FALSE", call. = FALSE)
   }
-  baseline <- block_state(graph, degree_corrected = degree_corrected)
-  baseline$degree_prior <- degree_prior
-  n <- length(baseline$blocks)
-  if (n == 0L) {
-    return(baseline)
+  if (!is.logical(refine) || length(refine) != 1L || is.na(refine)) {
+    stop("refine must be TRUE or FALSE", call. = FALSE)
   }
-  partition_table <- if (degree_corrected && degree_prior == "distributed") {
-    block_partition_table(baseline)
-  } else {
-    NULL
-  }
-  score_state <- function(blocks) {
-    candidate <- block_state(graph, blocks, degree_corrected)
-    candidate$degree_prior <- degree_prior
-    list(state = candidate, score = block_description_length_impl(
-      candidate, degree_prior, partition_table))
-  }
-  best <- list(state = baseline, score = block_description_length_impl(
-    baseline, degree_prior, partition_table))
-  for (restart in seq_len(restarts)) {
-    groups <- max(1L, as.integer(ceiling(sqrt(n))))
-    current <- if (restart == 1L) best else score_state(sample.int(groups, n, replace = TRUE))
-    for (sweep in seq_len(max_sweeps)) {
-      improved <- FALSE
-      for (v in sample.int(n)) {
-        blocks <- current$state$blocks
-        candidates <- c(sort(unique(blocks)), max(blocks) + 1L)
-        for (target in sample(candidates, length(candidates))) {
-          if (target == blocks[v]) next
-          proposal <- blocks
-          proposal[v] <- target
-          trial <- score_state(proposal)
-          if (trial$score < current$score - 1e-10) {
-            current <- trial
-            blocks <- current$state$blocks
-            improved <- TRUE
-          }
-        }
-      }
-      labels <- sort(unique(current$state$blocks))
-      if (length(labels) > 1L) {
-        for (i in seq_len(length(labels) - 1L)) {
-          for (j in seq.int(i + 1L, length(labels))) {
-            blocks <- current$state$blocks
-            if (!any(blocks == labels[i]) || !any(blocks == labels[j])) next
-            blocks[blocks == labels[j]] <- labels[i]
-            trial <- score_state(blocks)
-            if (trial$score < current$score - 1e-10) {
-              current <- trial
-              improved <- TRUE
-            }
-          }
-        }
-      }
-      if (!improved) break
-    }
-    if (current$score < best$score) best <- current
-  }
-  best$state
+  control$epsilon <- epsilon
+  control <- multilevel_control(control, B_min, B_max)
+  result <- cpp_sbm_minimize(pointer, degree_corrected, degree_prior == "distributed",
+                             control, refine, q_cache_max())
+  new_fitted_state(graph, result$blocks, degree_corrected, degree_prior, result$entropy,
+                   list(multilevel_description_length = result$entropy_multilevel,
+                        trace = result$trace))
 }
 
-refine_blockmodel_dl <- function(graph, state, max_sweeps = 10L,
-                                 degree_prior = NULL) {
-  graph_pointer(graph)
+refine_blockmodel_dl <- function(graph, state, degree_prior = NULL, epsilon = 1e-3,
+                                 control = list()) {
+  pointer <- graph_pointer(graph)
   validate_block_state(state)
-  max_sweeps <- validate_count(max_sweeps)
-  if (max_sweeps < 1L) {
-    stop("max_sweeps must be positive", call. = FALSE)
-  }
-  if (length(state$blocks) != cpp_num_vertices(graph_pointer(graph))) {
+  if (length(state$blocks) != cpp_num_vertices(pointer)) {
     stop("graph and state must have the same number of vertices", call. = FALSE)
   }
   if (is.null(degree_prior)) degree_prior <- state$degree_prior
   degree_prior <- match.arg(degree_prior, c("distributed", "uniform"))
-
-  current <- state
-  current$degree_prior <- degree_prior
-  partition_table <- if (state$degree_corrected && degree_prior == "distributed") {
-    block_partition_table(current)
-  } else {
-    NULL
-  }
-  current_score <- block_description_length_impl(current, degree_prior, partition_table)
-  score_state <- function(blocks) {
-    candidate <- block_state(graph, blocks, state$degree_corrected)
-    candidate$degree_prior <- degree_prior
-    list(state = candidate, score = block_description_length_impl(
-      candidate, degree_prior, partition_table))
-  }
-  n <- length(state$blocks)
-  if (n == 0L) return(current)
-
-  for (sweep in seq_len(max_sweeps)) {
-    improved <- FALSE
-    for (v in sample.int(n)) {
-      blocks <- current$blocks
-      candidates <- c(sort(unique(blocks)), max(blocks) + 1L)
-      best <- list(state = current, score = current_score)
-      for (target in sample(candidates, length(candidates))) {
-        if (target == blocks[v]) next
-        proposal <- blocks
-        proposal[v] <- target
-        trial <- score_state(proposal)
-        if (trial$score < best$score - 1e-10) best <- trial
-      }
-      if (best$score < current_score - 1e-10) {
-        current <- best$state
-        current_score <- best$score
-        improved <- TRUE
-      }
-    }
-
-    repeat {
-      labels <- sort(unique(current$blocks))
-      if (length(labels) < 2L) break
-      merged <- FALSE
-      for (i in seq_len(length(labels) - 1L)) {
-        for (j in seq.int(i + 1L, length(labels))) {
-          blocks <- current$blocks
-          blocks[blocks == labels[j]] <- labels[i]
-          trial <- score_state(blocks)
-          if (trial$score < current_score - 1e-10) {
-            current <- trial$state
-            current_score <- trial$score
-            improved <- TRUE
-            merged <- TRUE
-            break
-          }
-        }
-        if (merged) break
-      }
-      if (!merged) break
-    }
-    if (!improved) break
-  }
-  current
+  control$epsilon <- epsilon
+  control <- multilevel_control(control)
+  result <- cpp_sbm_refine(pointer, match(state$blocks, state$labels),
+                           state$degree_corrected, degree_prior == "distributed",
+                           control, q_cache_max())
+  new_fitted_state(graph, result$blocks, state$degree_corrected, degree_prior,
+                   result$entropy)
 }
 
-compare_blockmodels <- function(graph, restarts = 3L, max_sweeps = 10L,
-                                degree_prior = c("distributed", "uniform")) {
+compare_blockmodels <- function(graph, degree_prior = c("distributed", "uniform"),
+                                ...) {
   degree_prior <- match.arg(degree_prior)
   states <- lapply(c(FALSE, TRUE), function(degree_corrected) {
-    minimize_blockmodel_dl(
-      graph,
-      degree_corrected = degree_corrected,
-      degree_prior = degree_prior,
-      restarts = restarts,
-      max_sweeps = max_sweeps
-    )
+    minimize_blockmodel_dl(graph, degree_corrected = degree_corrected,
+                           degree_prior = degree_prior, ...)
   })
   names(states) <- c("non-degree-corrected", "degree-corrected")
   scores <- vapply(states, block_description_length, numeric(1))

@@ -1,9 +1,9 @@
 # graph-tool-R
 
-An experimental, incremental native R port of graph-tool. This first milestone
-uses graph-tool's C++ adjacency structure; it is **not** a complete port and
-does not yet implement property maps, filters, hierarchical inference, file formats,
-or visualization. It does not depend on Python.
+An experimental, incremental native R port of graph-tool. It uses graph-tool's C++
+adjacency structure and implements flat stochastic block model inference; it is
+**not** a complete port and does not yet implement property maps, filters,
+hierarchical inference, file formats, or visualization. It does not depend on Python.
 
 The active adjacency headers come from graph-tool release 3.9, commit
 `b24bc428e8426d0acb36b2d57bd61633335a3a26`. Their original copyright
@@ -41,20 +41,29 @@ a self-loop twice. Graphs are mutable: aliases refer to the same graph.
 External pointers are process-local and cannot be saved and restored with R
 serialization. Keep the edges separately if persistence is needed.
 
-## Block-model foundations
+## Stochastic block models
 
 `block_state()` records a supplied partition (or a single group by default),
 with block sizes, edge counts, conditional microcanonical SBM log likelihood,
-and description length. `minimize_blockmodel_dl()` performs an experimental
-greedy flat-SBM fit. It is not graph-tool's multilevel optimizer, may find
-worse local optima, and is intended for small graphs. See `?block_state`.
-`compare_blockmodels()` fits both degree-corrected and non-degree-corrected
-flat models and reports which has the smaller description length.
-`refine_blockmodel_dl()` greedily refines a supplied flat partition without
-increasing its description length; it is not graph-tool's merge-split MCMC.
-Hierarchical inference, posterior sampling, and other cookbook datasets are
-not implemented yet. The football network loader and base-R fit/plot example
-are available via `football_network()` and `demo("football")`.
+and description length. Description lengths are computed natively and match
+graph-tool 3.9's `BlockState.entropy()` to a relative tolerance of 1e-10, for
+directed and undirected multigraphs, with and without degree correction.
+
+`minimize_blockmodel_dl()` fits a flat SBM with a native port of graph-tool's
+multilevel agglomerative search: vertex sweeps from singleton groups, a
+bisection search over the number of groups with merges and zero-temperature
+sweeps, then refinement. On the cookbook football network it gives the same
+distribution of description lengths as graph-tool 3.9 (best 1738.87 nats
+non-degree-corrected, 1787.36 degree-corrected) in a few hundredths of a
+second. Results are local optima: fit several seeds and keep the smallest
+description length. `refine_blockmodel_dl()` runs only the refinement stage on
+a supplied partition, and `compare_blockmodels()` fits both models and reports
+the one with the smaller description length. See `?minimize_blockmodel_dl` for
+the algorithm and its differences from graph-tool.
+
+Nested (hierarchical) models, posterior sampling, and other cookbook datasets
+are not implemented yet. The football network loader and base-R fit/plot
+example are available via `football_network()` and `demo("football")`.
 
 ```r
 g <- graph_create(3, directed = FALSE)
@@ -63,7 +72,17 @@ state <- block_state(g, c(1, 1, 2))
 block_edge_counts(state)
 block_log_likelihood(state)
 block_description_length(state)
+
+football <- football_network()
 set.seed(1)
-fit <- minimize_blockmodel_dl(g)
-block_membership(fit)
+fit <- minimize_blockmodel_dl(football$graph)
+block_sizes(fit)
+block_description_length(fit)
 ```
+
+## Validation against graph-tool
+
+`tools/reference/` holds a pixi environment pinned to the conda-forge build of
+graph-tool 3.9, plus the scripts that produced the reference values in the
+tests. Python is only needed to regenerate them; see
+`tools/reference/README.md`.

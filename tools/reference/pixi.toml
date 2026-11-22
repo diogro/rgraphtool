@@ -1,0 +1,8 @@
+[workspace]
+name = "graphtool-r-reference"
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "linux-64"]
+
+[dependencies]
+python = "*"
+graph-tool-base = "==3.9"
