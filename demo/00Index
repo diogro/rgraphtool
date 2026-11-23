@@ -11,3 +11,5 @@ ordered_sbm   Ordered (ranked) stochastic block models on C. elegans
 large_networks   Scalable and parallel SBM inference on large networks
 uncertain_reconstruction   Uncertain network reconstruction, latent multigraphs, and edge prediction
 triadic_closure   Disentangling community structure and triadic closure
+dynamics_reconstruction   Network reconstruction from synthetic Ising, epidemic, Gaussian, and Potts dynamics
+empirical_dynamics   Empirical financial partial-correlation network reconstruction via PseudoNormalBlockState

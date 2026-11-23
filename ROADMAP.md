@@ -444,10 +444,58 @@ recovery work end to end, and both cookbook demos run cleanly. **Complete.**
 
 ### 11. Reconstruction from dynamics and behavior
 
-- [ ] Implement the dynamical models and inference operations used by the
-  synthetic and empirical examples, including L1 regularization.
-- [ ] Run the indirect reconstruction examples and document input and
-  preprocessing requirements.
+- [x] Implement native C++ indirect network reconstruction from dynamics and
+  behavior (`src/dynamics.cpp`, `R/dynamics.R`), covering all 10 `graph-tool`
+  dynamical and behavioral models with exact $O(M)$ incremental local-field
+  updates, multi-cascade support, and flat/nested SBM priors:
+  - Ising equilibrium & Glauber dynamics (`pseudo_ising_block_state()`,
+    `ising_glauber_block_state()`, including 3-state `has_zero = TRUE`) and
+    continuous Ising (`pseudo_cising_block_state()`,
+    `cising_glauber_block_state()`).
+  - Compartmental epidemic cascades (`epidemics_block_state()`, supporting
+    SI/SIS/SIR/SIRS and `exposed = TRUE` SEI/SEIR, plus
+    `dynamics_transmission_probs()`).
+  - Continuous Gaussian equilibrium & dynamics (`pseudo_normal_block_state()`
+    with strict diagonal-dominance SPD projection and
+    `dynamics_precision_matrix()`, `normal_glauber_block_state()`, and
+    `linear_normal_block_state()`).
+  - Generalized $q$-state Potts / categorical behavior
+    (`pseudo_potts_block_state()`, `potts_glauber_block_state()`).
+  - L1 (discretized Laplace) regularization (`xl1`, `tl1`), Gaussian weight
+    priors (`normal = TRUE`), and Peixoto (2025 PRX) quantized MDL weight and
+    node-parameter priors (`xdist = TRUE`, `tdist = TRUE`), plus declarative
+    warm-started L1 regularization paths (`reconstruct_l1_path()`), greedy MAP
+    + finite-temperature posterior MCMC (`reconstruct_dynamics()`), and native
+    C++ forward simulators (`simulate_ising()`, `simulate_epidemics()`,
+    `simulate_normal_dynamics()`, `simulate_potts()`).
+- [x] Run the synthetic and empirical indirect reconstruction cookbook demos
+  (`demo("dynamics_reconstruction")`, `demo("empirical_dynamics")`) and document
+  per-model input and preprocessing requirements (log-returns and
+  standardization for Gaussian financial time series, compartment codes for
+  epidemics, spin/category ranges for Ising and Potts).
+
+Exact negative log-likelihoods across all 10 models and all prior components
+(geometric edge-count prior, conditioned and unconditioned L1/Laplace priors,
+and quantized MDL `xdist`/`tdist` priors) match pinned graph-tool 3.9 to
+`< 1.2e-13` (note two intentional behavior improvements over 3.9:
+`epidemics_block_state()` fixes upstream's unbound `directed` variable typo in
+`EpidemicsBlockState.__init__`, and Potts constructors do not silently mutate or
+rescale the user's `f` interaction matrix). Incremental edge, node-parameter,
+and SBM moves match full recomputation to `< 2.1e-13` across all 10 models.
+Both cookbook demos execute end to end offline:
+`demo("dynamics_reconstruction")` (`7.0 s`) achieves `ROC-AUC = 1.000,
+F1 = 1.000` on equilibrium Ising (`26/26`), directed SIS epidemics (`20/20`,
+median `t_hat = 0.450` vs true `0.45`), directed `LinearNormal` (`36/36`), and
+$q = 3$ `PseudoPotts` (`26/26`) while demonstrating how SBM+MDL eliminates pure
+L1's bias-sparsity tradeoff (`F1 = 1.000` vs `0.26`–`0.42`);
+`demo("empirical_dynamics")` (`0.31 s`) reconstructs a strictly SPD partial
+correlation network on `datasets::EuStockMarkets` (`1,859` trading days) and a
+15-asset multi-sector Gaussian network (`20/20` edges).
+
+**Done when:** all 10 dynamical/behavioral models and L1/quantized priors agree
+with pinned graph-tool 3.9 to machine precision, synthetic and empirical
+reconstruction workflows and L1 regularization paths run end to end, and input
+preprocessing is documented. **Complete.**
 
 ### 12. Animation and interactive visualization
 
