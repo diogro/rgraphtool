@@ -1,7 +1,7 @@
 # Model selection between degree-corrected and non-degree-corrected nested SBMs
 # (graph-tool cookbook, "Model selection"). Data are downloaded from
 # Netzschleuder. The political blogs fits take about 15 s each.
-library(graphtool)
+library(rgraphtool)
 
 polblogs <- netzschleuder_network("polblogs")
 set.seed(1)

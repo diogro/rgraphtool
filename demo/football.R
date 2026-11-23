@@ -1,4 +1,4 @@
-library(graphtool)
+library(rgraphtool)
 
 football <- football_network()
 g <- football$graph

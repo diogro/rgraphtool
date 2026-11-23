@@ -32,11 +32,11 @@ new_overlap_state <- function(graph, half_edges, degree_corrected, degree_prior,
     num_vertices = graph_num_vertices(graph),
     num_edges = graph_num_edges(graph),
     fit = fit
-  ), class = "graphtool_overlap_block_state")
+  ), class = "rgraphtool_overlap_block_state")
 }
 
 validate_overlap_state <- function(state) {
-  if (!inherits(state, "graphtool_overlap_block_state")) {
+  if (!inherits(state, "rgraphtool_overlap_block_state")) {
     stop("state must be created by overlap_block_state() or minimize_overlap_blockmodel_dl()",
          call. = FALSE)
   }
@@ -72,7 +72,7 @@ overlap_description_length <- function(state, degree_prior = NULL) {
 }
 
 overlap_groups <- function(state) {
-  if (inherits(state, "graphtool_nested_overlap_block_state")) {
+  if (inherits(state, "rgraphtool_nested_overlap_block_state")) {
     validate_nested_overlap_state(state)
     return(state$overlap)
   }
@@ -84,7 +84,7 @@ overlap_majority_groups <- function(state) {
   overlap_groups(state)$majority
 }
 
-print.graphtool_overlap_block_state <- function(x, ...) {
+print.rgraphtool_overlap_block_state <- function(x, ...) {
   dl <- overlap_description_length(x)
   cat(sprintf("<overlap block state: %s, B = %d, description length %.4f nats>\n",
               if (x$degree_corrected) "degree-corrected" else "non-degree-corrected",
@@ -149,11 +149,11 @@ new_nested_overlap_state <- function(graph, half_edges, upper_levels,
     num_vertices = graph_num_vertices(graph),
     num_edges = graph_num_edges(graph),
     fit = fit
-  ), class = "graphtool_nested_overlap_block_state")
+  ), class = "rgraphtool_nested_overlap_block_state")
 }
 
 validate_nested_overlap_state <- function(state) {
-  if (!inherits(state, "graphtool_nested_overlap_block_state")) {
+  if (!inherits(state, "rgraphtool_nested_overlap_block_state")) {
     stop("state must be created by nested_overlap_block_state() or minimize_nested_overlap_blockmodel_dl()",
          call. = FALSE)
   }
@@ -235,7 +235,7 @@ minimize_nested_overlap_blockmodel_dl <- function(graph, degree_corrected = TRUE
                            fit = list(description_length = res$entropy))
 }
 
-print.graphtool_nested_overlap_block_state <- function(x, ...) {
+print.rgraphtool_nested_overlap_block_state <- function(x, ...) {
   dl <- nested_overlap_description_length(x)
   cat(sprintf("<nested overlap block state: %s, %d levels, B_0 = %d, description length %.4f nats>\n",
               if (x$degree_corrected) "degree-corrected" else "non-degree-corrected",
@@ -246,7 +246,7 @@ print.graphtool_nested_overlap_block_state <- function(x, ...) {
 overlap_mcmc_sweep <- function(state, beta = 1, niter = 1L, c = 0.5, d = 0.01,
                                thin = 1L, collect = FALSE, B_min = 1L,
                                B_max = Inf) {
-  if (inherits(state, "graphtool_nested_overlap_block_state")) {
+  if (inherits(state, "rgraphtool_nested_overlap_block_state")) {
     validate_nested_overlap_state(state)
     res <- cpp_nested_overlap_mcmc(graph_pointer(state$graph), state$half_edges,
                                    state$upper_levels, state$degree_corrected,

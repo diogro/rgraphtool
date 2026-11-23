@@ -10,9 +10,9 @@
 \alias{ranked_edge_directions}
 \alias{ranked_edge_counts}
 \alias{compare_ordered_models}
-\alias{print.graphtool_ranked_block_state}
-\alias{print.graphtool_nested_ranked_block_state}
-\alias{print.graphtool_ordered_model_comparison}
+\alias{print.rgraphtool_ranked_block_state}
+\alias{print.rgraphtool_nested_ranked_block_state}
+\alias{print.rgraphtool_ordered_model_comparison}
 \title{Ordered (ranked) flat and nested stochastic block models}
 \usage{
 ranked_block_state(graph, blocks = NULL, u = NULL, distance = FALSE,
@@ -66,8 +66,8 @@ compare_ordered_models(graph,
   non-degree-corrected (\code{FALSE}) ranked SBM.}
   \item{degree_prior}{Degree sequence hyperprior (\code{"distributed"} or
   \code{"uniform"}).}
-  \item{state}{A flat \code{graphtool_ranked_block_state} or nested
-  \code{graphtool_nested_ranked_block_state} object.}
+  \item{state}{A flat \code{rgraphtool_ranked_block_state} or nested
+  \code{rgraphtool_nested_ranked_block_state} object.}
   \item{label_dl}{Whether to include the rank-label prior term
   \eqn{\ln \binom{M + B - 1}{B}} (when \code{unique = FALSE}).}
   \item{B_min, B_max}{Minimum and maximum number of level-0 occupied groups.}
@@ -114,9 +114,9 @@ Flat and nested ranked states integrate with \code{\link{block_membership}},
 }
 \value{
 \code{ranked_block_state()} and \code{minimize_ranked_blockmodel_dl()} return a
-\code{graphtool_ranked_block_state} list. \code{nested_ranked_block_state()} and
+\code{rgraphtool_ranked_block_state} list. \code{nested_ranked_block_state()} and
 \code{minimize_nested_ranked_blockmodel_dl()} return a
-\code{graphtool_nested_ranked_block_state} list.
+\code{rgraphtool_nested_ranked_block_state} list.
 
 \code{ranked_description_length()} and \code{nested_ranked_description_length()}
 return total description lengths in nats; \code{nested_ranked_level_entropy()}
@@ -130,7 +130,7 @@ returns per-level contributions.
 \code{lateral}, \code{downstream}, and \code{internal}.
 
 \code{compare_ordered_models()} returns a
-\code{graphtool_ordered_model_comparison} list with ranked \code{summary},
+\code{rgraphtool_ordered_model_comparison} list with ranked \code{summary},
 \code{best_model}, \code{best_state}, \code{states}, optional \code{evidences},
 and \code{log_bayes_factors}.
 }

@@ -1,12 +1,16 @@
-Package: graphtool
+Package: rgraphtool
 Type: Package
-Title: Native R Interface to graph-tool Graphs
+Title: Native R/C++ Port of the Python 'graph-tool' Library
 Version: 0.3.0
 Authors@R: person("Diogo", "Melo", role = c("aut", "cre"), email = "diogro@users.noreply.github.com")
-Description: An initial R interface to the graph-tool C++ adjacency
-    structure for constructing and inspecting multigraphs, with native flat
-    and nested stochastic block model scoring and multilevel
-    description-length minimization ported from graph-tool 3.9.
+Description: A standalone native R/C++ port of the Python 'graph-tool' network
+    analysis library (<https://graph-tool.skewed.de/>), derived from 'graph-tool'
+    release 3.9 without any Python runtime dependency. Incorporates 'graph-tool's
+    C++ adjacency structure and provides native C++ implementations of Bayesian
+    stochastic block model (SBM) inference, including flat, nested, overlapping,
+    weighted, layered, planted-partition, and ordered (ranked) SBMs, merge-split
+    MCMC posterior sampling, partition mode clustering, and Bayesian model
+    selection.
 License: LGPL (>= 3)
 Encoding: UTF-8
 Imports: Rcpp

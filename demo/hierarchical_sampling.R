@@ -1,7 +1,7 @@
 # Hierarchical posterior sampling and nested mode characterization
 # (graph-tool cookbook, "Sampling from the posterior distribution" - hierarchical
 # section). Data are downloaded from Netzschleuder (lesmis).
-library(graphtool)
+library(rgraphtool)
 
 lesmis <- netzschleuder_network("lesmis")
 g <- lesmis$graph

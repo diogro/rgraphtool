@@ -1,6 +1,6 @@
 \name{compare_layered_models}
 \alias{compare_layered_models}
-\alias{print.graphtool_layered_model_comparison}
+\alias{print.rgraphtool_layered_model_comparison}
 \title{Compare edge-covariate and independent-layers SBM variants}
 \usage{
 compare_layered_models(graph, layers,
@@ -44,7 +44,7 @@ non-degree-corrected variants and using either MAP description lengths or full
 Bayesian posterior marginal evidence.
 }
 \value{
-A \code{graphtool_layered_model_comparison} list containing:
+A \code{rgraphtool_layered_model_comparison} list containing:
 \itemize{
   \item \code{summary}: ranked data frame with \code{model}, \code{independent},
   \code{degree_corrected}, \code{B}, \code{description_length},
@@ -53,7 +53,7 @@ A \code{graphtool_layered_model_comparison} list containing:
   \item \code{best_model}: name of the winning layered model.
   \item \code{best_state}: fitted layered state for the winning model.
   \item \code{states}: named list of fitted states ordered from best to worst.
-  \item \code{evidences}: named list of \code{graphtool_model_evidence} objects
+  \item \code{evidences}: named list of \code{rgraphtool_model_evidence} objects
   (when \code{method = "posterior"}).
   \item \code{log_bayes_factors}: pairwise matrix of log Bayes factors.
 }

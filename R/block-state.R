@@ -23,29 +23,29 @@ block_state <- function(graph, blocks = NULL, degree_corrected = TRUE) {
   structure(list(blocks = blocks, labels = labels, statistics = statistics,
                  graph = graph, degree_corrected = degree_corrected,
                  degree_prior = "distributed"),
-            class = "graphtool_block_state")
+            class = "rgraphtool_block_state")
 }
 
 validate_block_state <- function(state) {
-  if (!inherits(state, "graphtool_block_state")) {
+  if (!inherits(state, "rgraphtool_block_state")) {
     stop("state must be created by block_state()", call. = FALSE)
   }
 }
 
 block_membership <- function(state) {
-  if (inherits(state, "graphtool_weighted_block_state")) {
+  if (inherits(state, "rgraphtool_weighted_block_state")) {
     validate_weighted_state(state)
     return(state$blocks)
   }
-  if (inherits(state, "graphtool_layered_block_state")) {
+  if (inherits(state, "rgraphtool_layered_block_state")) {
     validate_layered_state(state)
     return(state$blocks)
   }
-  if (inherits(state, "graphtool_pp_block_state")) {
+  if (inherits(state, "rgraphtool_pp_block_state")) {
     validate_pp_state(state)
     return(state$blocks)
   }
-  if (inherits(state, "graphtool_ranked_block_state")) {
+  if (inherits(state, "rgraphtool_ranked_block_state")) {
     validate_ranked_state(state)
     return(state$blocks)
   }
@@ -54,19 +54,19 @@ block_membership <- function(state) {
 }
 
 block_sizes <- function(state) {
-  if (inherits(state, "graphtool_weighted_block_state")) {
+  if (inherits(state, "rgraphtool_weighted_block_state")) {
     validate_weighted_state(state)
     return(as.numeric(tabulate(state$blocks, nbins = max(state$blocks, 0L))))
   }
-  if (inherits(state, "graphtool_layered_block_state")) {
+  if (inherits(state, "rgraphtool_layered_block_state")) {
     validate_layered_state(state)
     return(as.numeric(tabulate(state$blocks, nbins = max(state$blocks, 0L))))
   }
-  if (inherits(state, "graphtool_pp_block_state")) {
+  if (inherits(state, "rgraphtool_pp_block_state")) {
     validate_pp_state(state)
     return(as.numeric(tabulate(state$blocks, nbins = max(state$blocks, 0L))))
   }
-  if (inherits(state, "graphtool_ranked_block_state")) {
+  if (inherits(state, "rgraphtool_ranked_block_state")) {
     validate_ranked_state(state)
     return(as.numeric(tabulate(state$blocks, nbins = max(state$blocks, 0L))))
   }
@@ -186,9 +186,9 @@ block_description_length <- function(state, degree_prior = NULL) {
 }
 
 q_cache_max <- function() {
-  value <- getOption("graphtool.q_cache_max", 5000)
+  value <- getOption("rgraphtool.q_cache_max", 5000)
   if (!is.numeric(value) || length(value) != 1L || is.na(value) || value < 1) {
-    stop("option graphtool.q_cache_max must be a positive number", call. = FALSE)
+    stop("option rgraphtool.q_cache_max must be a positive number", call. = FALSE)
   }
   as.numeric(value)
 }
@@ -306,10 +306,10 @@ compare_blockmodels <- function(graph, degree_prior = c("distributed", "uniform"
                  best_state = states[[winner]],
                  states = states,
                  nested = nested),
-            class = "graphtool_blockmodel_comparison")
+            class = "rgraphtool_blockmodel_comparison")
 }
 
-print.graphtool_blockmodel_comparison <- function(x, ...) {
+print.rgraphtool_blockmodel_comparison <- function(x, ...) {
   cat(sprintf("<%s block model comparison>\n", if (isTRUE(x$nested)) "nested" else "flat"))
   for (i in seq_len(nrow(x$comparison))) {
     cat(sprintf("%-22s description length %12.4f nats\n",

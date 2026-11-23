@@ -7,7 +7,7 @@ validate_count <- function(n) {
 }
 
 graph_pointer <- function(graph) {
-  if (!inherits(graph, "graphtool_graph") || typeof(graph$pointer) != "externalptr") {
+  if (!inherits(graph, "rgraphtool_graph") || typeof(graph$pointer) != "externalptr") {
     stop("graph must be a graph created by graph_create()", call. = FALSE)
   }
   graph$pointer
@@ -19,7 +19,7 @@ graph_create <- function(n = 0L, directed = TRUE) {
     stop("directed must be TRUE or FALSE", call. = FALSE)
   }
   structure(list(pointer = cpp_graph_create(n, directed), directed = directed),
-            class = "graphtool_graph")
+            class = "rgraphtool_graph")
 }
 
 graph_add_vertices <- function(graph, n = 1L) {

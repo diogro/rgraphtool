@@ -15,7 +15,7 @@ test_that("native description lengths match graph-tool 3.9 on a larger multigrap
     "TRUE" = list(b7 = c(31209.882382833843, 30585.907881270374, 32484.836649346966),
                   b1 = c(30112.022541507242, 28948.702463654743, 31402.346837379966))
   )
-  old <- options(graphtool.q_cache_max = 10000)
+  old <- options(rgraphtool.q_cache_max = 10000)
   on.exit(options(old))
   for (directed in c(FALSE, TRUE)) {
     g <- deterministic_graph(directed)
@@ -39,7 +39,7 @@ test_that("native and R description lengths agree on random multigraphs", {
     for (dc in c(FALSE, TRUE)) for (prior in c("distributed", "uniform")) {
       state <- block_state(g, b, dc)
       expect_equal(block_description_length(state, prior),
-                   graphtool:::block_description_length_impl(state, prior),
+                   rgraphtool:::block_description_length_impl(state, prior),
                    tolerance = 1e-10)
     }
   }
@@ -52,7 +52,7 @@ test_that("integer-partition approximation matches graph-tool's log_q_approx", {
                  c(50000, 100, 353.11435660817136), c(13188, 4941, 283.1508623375297),
                  c(13188, 13188, 283.1508623375297), c(50000, 40000, 560.8183421646834))
   for (i in seq_len(nrow(cases))) {
-    expect_equal(graphtool:::cpp_log_q(cases[i, 1], cases[i, 2], 100), cases[i, 3],
+    expect_equal(rgraphtool:::cpp_log_q(cases[i, 1], cases[i, 2], 100), cases[i, 3],
                  tolerance = 1e-10)
   }
 })
@@ -64,7 +64,7 @@ test_that("incremental move costs equal recomputed description lengths", {
     graph_add_edges(g, rbind(cbind(sample(25, 90, TRUE), sample(25, 90, TRUE)),
                              c(1, 1), c(1, 1), c(2, 3), c(2, 3)))
     for (dc in c(FALSE, TRUE)) for (dist in c(FALSE, TRUE)) {
-      err <- graphtool:::cpp_sbm_check_moves(graphtool:::graph_pointer(g),
+      err <- rgraphtool:::cpp_sbm_check_moves(rgraphtool:::graph_pointer(g),
                                              sample(4, 25, TRUE), dc, dist, 400L, 5000)
       expect_lt(max(abs(err)), 1e-8)
     }

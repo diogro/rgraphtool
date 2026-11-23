@@ -23,7 +23,7 @@ test_that("description length covers empty graphs and isolated vertices", {
     expect_equal(block_description_length(state), log(2))
     expect_equal(block_description_length(state, "uniform"), log(2))
   }
-  expect_error(graphtool:::cpp_log_partition_table(10000L, 1000L), "10 million")
+  expect_error(rgraphtool:::cpp_log_partition_table(10000L, 1000L), "10 million")
 })
 
 test_that("multilevel fitting is reproducible and improves on one group", {

@@ -2,7 +2,7 @@
 # model selection on Les Miserables (graph-tool cookbook, "Layered networks").
 # Data are downloaded from Netzschleuder (lesmis: 77 characters, 254 edges
 # stratified across discrete scene co-occurrence layers "value").
-library(graphtool)
+library(rgraphtool)
 
 lesmis <- netzschleuder_network("lesmis")
 g <- lesmis$graph

@@ -1,6 +1,6 @@
 # Hierarchical partition of the C. elegans neural network (graph-tool cookbook,
 # "Hierarchical partitions"). The data are downloaded from Netzschleuder.
-library(graphtool)
+library(rgraphtool)
 
 celegans <- netzschleuder_network("celegansneural")
 g <- celegans$graph

@@ -4,8 +4,8 @@
 \alias{pp_assortativity}
 \alias{minimize_pp_blockmodel_dl}
 \alias{compare_assortative_models}
-\alias{print.graphtool_pp_block_state}
-\alias{print.graphtool_assortative_model_comparison}
+\alias{print.rgraphtool_pp_block_state}
+\alias{print.rgraphtool_assortative_model_comparison}
 \title{Assortative planted-partition stochastic block model}
 \usage{
 pp_block_state(graph, blocks = NULL, uniform = FALSE,
@@ -35,7 +35,7 @@ compare_assortative_models(graph,
   non-degree-corrected (\code{FALSE}) planted-partition model.}
   \item{degree_prior}{Degree sequence hyperprior (\code{"distributed"} or
   \code{"uniform"}).}
-  \item{state}{A \code{graphtool_pp_block_state} created by
+  \item{state}{A \code{rgraphtool_pp_block_state} created by
   \code{pp_block_state()} or \code{minimize_pp_blockmodel_dl()}.}
   \item{B_min, B_max}{Minimum and maximum number of occupied groups.}
   \item{refine}{Whether to run greedy refinement sweeps after merge-split
@@ -74,7 +74,7 @@ Planted-partition states work directly with \code{\link{block_membership}},
 }
 \value{
 \code{pp_block_state()} and \code{minimize_pp_blockmodel_dl()} return a
-\code{graphtool_pp_block_state} list with \code{blocks}, \code{graph},
+\code{rgraphtool_pp_block_state} list with \code{blocks}, \code{graph},
 \code{uniform}, \code{degree_corrected}, \code{degree_prior}, \code{B}, and
 optional \code{fit}.
 
@@ -86,7 +86,7 @@ length in nats.
 and per-group internal edge counts \code{err}.
 
 \code{compare_assortative_models()} returns a
-\code{graphtool_assortative_model_comparison} list with ranked \code{summary},
+\code{rgraphtool_assortative_model_comparison} list with ranked \code{summary},
 \code{best_model}, \code{best_state}, \code{states}, optional \code{evidences},
 and \code{log_bayes_factors}.
 }

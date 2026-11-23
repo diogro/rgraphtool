@@ -35,11 +35,11 @@ new_ranked_state <- function(graph, blocks, u, distance, unique, M,
     num_edges = graph_num_edges(graph),
     B = length(unique(blocks)),
     fit = fit
-  ), class = "graphtool_ranked_block_state")
+  ), class = "rgraphtool_ranked_block_state")
 }
 
 validate_ranked_state <- function(state) {
-  if (!inherits(state, "graphtool_ranked_block_state")) {
+  if (!inherits(state, "rgraphtool_ranked_block_state")) {
     stop("state must be created by ranked_block_state() or minimize_ranked_blockmodel_dl()",
          call. = FALSE)
   }
@@ -135,7 +135,7 @@ minimize_ranked_blockmodel_dl <- function(graph, distance = FALSE, unique = FALS
                    fit = list(description_length = res$entropy))
 }
 
-print.graphtool_ranked_block_state <- function(x, ...) {
+print.rgraphtool_ranked_block_state <- function(x, ...) {
   dl <- ranked_description_length(x)
   ec <- ranked_edge_counts(x)
   cat(sprintf("<ranked block state: %s, B = %d, %d upstream / %d lateral / %d downstream, DL = %.4f nats>\n",
@@ -162,11 +162,11 @@ new_nested_ranked_state <- function(graph, levels, u, distance, unique, M,
     num_edges = graph_num_edges(graph),
     B = vapply(levels, function(b) length(unique(b)), integer(1)),
     fit = fit
-  ), class = "graphtool_nested_ranked_block_state")
+  ), class = "rgraphtool_nested_ranked_block_state")
 }
 
 validate_nested_ranked_state <- function(state) {
-  if (!inherits(state, "graphtool_nested_ranked_block_state")) {
+  if (!inherits(state, "rgraphtool_nested_ranked_block_state")) {
     stop("state must be created by nested_ranked_block_state() or minimize_nested_ranked_blockmodel_dl()",
          call. = FALSE)
   }
@@ -283,7 +283,7 @@ minimize_nested_ranked_blockmodel_dl <- function(graph, distance = FALSE,
                                      level_entropy = res$level_entropy))
 }
 
-print.graphtool_nested_ranked_block_state <- function(x, ...) {
+print.rgraphtool_nested_ranked_block_state <- function(x, ...) {
   dl <- nested_ranked_description_length(x)
   ec <- ranked_edge_counts(x)
   cat(sprintf("<nested ranked block state: %s, %d levels, B = %s, %d up / %d lat / %d down, DL = %.4f nats>\n",
@@ -297,7 +297,7 @@ print.graphtool_nested_ranked_block_state <- function(x, ...) {
 # Inspection helpers for flat and nested ranked states
 
 ranked_base_blocks <- function(state) {
-  if (inherits(state, "graphtool_nested_ranked_block_state")) {
+  if (inherits(state, "rgraphtool_nested_ranked_block_state")) {
     validate_nested_ranked_state(state)
     return(state$levels[[1L]])
   }
@@ -483,10 +483,10 @@ compare_ordered_models <- function(graph,
     degree_prior = degree_prior,
     method = method,
     evidence_method = if (method == "posterior") evidence_method else NULL
-  ), class = "graphtool_ordered_model_comparison")
+  ), class = "rgraphtool_ordered_model_comparison")
 }
 
-print.graphtool_ordered_model_comparison <- function(x, ...) {
+print.rgraphtool_ordered_model_comparison <- function(x, ...) {
   cat(sprintf("<ordered (ranked) vs. unordered SBM comparison (%s, %s)>\n",
               if (x$degree_corrected) "DC" else "NDC",
               if (x$method == "posterior") paste0("posterior/", x$evidence_method) else "MAP"))

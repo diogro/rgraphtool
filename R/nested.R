@@ -26,11 +26,11 @@ new_nested_state <- function(graph, levels, degree_corrected, degree_prior,
   structure(list(levels = levels, graph = graph, degree_corrected = degree_corrected,
                  degree_prior = degree_prior, num_edges = graph_num_edges(graph),
                  fit = fit),
-            class = "graphtool_nested_block_state")
+            class = "rgraphtool_nested_block_state")
 }
 
 validate_nested_state <- function(state) {
-  if (!inherits(state, "graphtool_nested_block_state")) {
+  if (!inherits(state, "rgraphtool_nested_block_state")) {
     stop("state must be created by nested_block_state() or minimize_nested_blockmodel_dl()",
          call. = FALSE)
   }
@@ -68,15 +68,15 @@ nested_description_length <- function(state, degree_prior = NULL) {
 }
 
 nested_levels <- function(state) {
-  if (inherits(state, "graphtool_nested_weighted_block_state")) {
+  if (inherits(state, "rgraphtool_nested_weighted_block_state")) {
     validate_nested_weighted_state(state)
     return(state$levels)
   }
-  if (inherits(state, "graphtool_nested_layered_block_state")) {
+  if (inherits(state, "rgraphtool_nested_layered_block_state")) {
     validate_nested_layered_state(state)
     return(state$levels)
   }
-  if (inherits(state, "graphtool_nested_ranked_block_state")) {
+  if (inherits(state, "rgraphtool_nested_ranked_block_state")) {
     validate_nested_ranked_state(state)
     return(state$levels)
   }
@@ -85,11 +85,11 @@ nested_levels <- function(state) {
 }
 
 nested_project <- function(state, level = 0L) {
-  if (inherits(state, "graphtool_nested_weighted_block_state")) {
+  if (inherits(state, "rgraphtool_nested_weighted_block_state")) {
     validate_nested_weighted_state(state)
-  } else if (inherits(state, "graphtool_nested_layered_block_state")) {
+  } else if (inherits(state, "rgraphtool_nested_layered_block_state")) {
     validate_nested_layered_state(state)
-  } else if (inherits(state, "graphtool_nested_ranked_block_state")) {
+  } else if (inherits(state, "rgraphtool_nested_ranked_block_state")) {
     validate_nested_ranked_state(state)
   } else {
     validate_nested_state(state)
@@ -114,13 +114,13 @@ nested_level_state <- function(state, level = 0L) {
 }
 
 nested_summary <- function(state) {
-  if (inherits(state, "graphtool_nested_weighted_block_state")) {
+  if (inherits(state, "rgraphtool_nested_weighted_block_state")) {
     validate_nested_weighted_state(state)
     lv_ent <- nested_weighted_level_entropy(state)
-  } else if (inherits(state, "graphtool_nested_layered_block_state")) {
+  } else if (inherits(state, "rgraphtool_nested_layered_block_state")) {
     validate_nested_layered_state(state)
     lv_ent <- nested_layered_level_entropy(state)
-  } else if (inherits(state, "graphtool_nested_ranked_block_state")) {
+  } else if (inherits(state, "rgraphtool_nested_ranked_block_state")) {
     validate_nested_ranked_state(state)
     lv_ent <- nested_ranked_level_entropy(state)
   } else {
@@ -137,7 +137,7 @@ nested_summary <- function(state) {
   out
 }
 
-print.graphtool_nested_block_state <- function(x, ...) {
+print.rgraphtool_nested_block_state <- function(x, ...) {
   summary <- nested_summary(x)
   cat(sprintf("<nested block state: %s, %d levels, description length %.4f nats>\n",
               if (x$degree_corrected) "degree-corrected" else "non-degree-corrected",

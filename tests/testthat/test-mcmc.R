@@ -4,16 +4,16 @@ test_that("exact MCMC proposal probabilities normalize and match post-move rever
     g <- graph_create(20, directed = directed)
     graph_add_edges(g, rbind(cbind(sample(20, 80, TRUE), sample(20, 80, TRUE)),
                              c(1, 1), c(1, 1), c(2, 3), c(2, 3)))
-    p_flat <- graphtool:::cpp_sbm_check_move_prob(
-      graphtool:::graph_pointer(g), sample(5, 20, TRUE), 0.5, 400L
+    p_flat <- rgraphtool:::cpp_sbm_check_move_prob(
+      rgraphtool:::graph_pointer(g), sample(5, 20, TRUE), 0.5, 400L
     )
     expect_lt(max(p_flat), 1e-12)
 
-    lv <- graphtool:::validate_hierarchy(
+    lv <- rgraphtool:::validate_hierarchy(
       list(sample(6, 20, TRUE), c(1, 1, 2, 2, 3, 3), c(1, 1, 2), c(1, 1)), 20
     )
-    p_nested <- graphtool:::cpp_nested_check_move_prob(
-      graphtool:::graph_pointer(g), lv, 1.0, 400L
+    p_nested <- rgraphtool:::cpp_nested_check_move_prob(
+      rgraphtool:::graph_pointer(g), lv, 1.0, 400L
     )
     expect_lt(max(p_nested), 1e-12)
   }
@@ -159,7 +159,7 @@ test_that("mcmc_sweep, mcmc_equilibrate, and mcmc_anneal respect bounds, seeds, 
   nst <- minimize_nested_blockmodel_dl(g)
   ann <- mcmc_anneal(nst, beta_range = c(1, 5), niter = 5L, history = TRUE,
                      mcmc_equilibrate_args = list(force_niter = 2L))
-  expect_true(inherits(ann$state, "graphtool_nested_block_state"))
+  expect_true(inherits(ann$state, "rgraphtool_nested_block_state"))
   expect_equal(ann$entropy, nested_description_length(ann$state), tolerance = 1e-8)
   expect_true(is.data.frame(ann$history))
   expect_equal(min(ann$history$beta), 1, tolerance = 1e-8)

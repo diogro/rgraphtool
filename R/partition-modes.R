@@ -74,7 +74,7 @@ nested_partition_overlap <- function(x, y, norm = TRUE) {
 }
 
 wrap_partition_mode <- function(raw) {
-  structure(raw, class = "graphtool_partition_mode")
+  structure(raw, class = "rgraphtool_partition_mode")
 }
 
 partition_mode_state <- function(partitions, relabel = TRUE, nested = NULL,
@@ -91,7 +91,7 @@ partition_mode_state <- function(partitions, relabel = TRUE, nested = NULL,
 }
 
 validate_partition_mode <- function(mode) {
-  if (!inherits(mode, "graphtool_partition_mode")) {
+  if (!inherits(mode, "rgraphtool_partition_mode")) {
     stop("mode must be created by partition_mode_state()", call. = FALSE)
   }
 }
@@ -130,7 +130,7 @@ mode_entropy <- function(mode, mle = TRUE) {
   if (!is.logical(mle) || length(mle) != 1L || is.na(mle)) {
     stop("mle must be TRUE or FALSE", call. = FALSE)
   }
-  if (inherits(mode, "graphtool_mode_cluster")) {
+  if (inherits(mode, "rgraphtool_mode_cluster")) {
     return(if (isTRUE(mle)) mode$posterior_entropy else mode$posterior_entropy_mean)
   }
   validate_partition_mode(mode)
@@ -161,7 +161,7 @@ mode_lprob <- function(mode, partition, mle = TRUE, align = FALSE) {
 
 cluster_lprob <- function(cluster, partition, mode = NULL, mle = TRUE,
                           align = FALSE) {
-  if (!inherits(cluster, "graphtool_mode_cluster")) {
+  if (!inherits(cluster, "rgraphtool_mode_cluster")) {
     stop("cluster must be created by mode_cluster_state()", call. = FALSE)
   }
   if (!is.logical(mle) || length(mle) != 1L || is.na(mle)) {
@@ -191,7 +191,7 @@ cluster_lprob <- function(cluster, partition, mode = NULL, mle = TRUE,
   m + log(sum(exp(lps - m)))
 }
 
-print.graphtool_partition_mode <- function(x, ...) {
+print.rgraphtool_partition_mode <- function(x, ...) {
   if (isTRUE(x$nested)) {
     cat(sprintf("<nested partition mode: M = %d, B = %s, uncertainty = %.4f, DL = %.4f nats>\n",
                 x$M, paste(x$B, collapse = "-"), x$posterior_cdev, x$entropy))
@@ -225,11 +225,11 @@ mode_cluster_state <- function(partitions, nested = NULL, b = NULL, relabel = TR
                           as.integer(niter), isTRUE(converge))
   res$modes <- lapply(res$modes, wrap_partition_mode)
   res$nested <- nested
-  structure(res, class = "graphtool_mode_cluster")
+  structure(res, class = "rgraphtool_mode_cluster")
 }
 
 mode_summary <- function(cluster) {
-  if (!inherits(cluster, "graphtool_mode_cluster")) {
+  if (!inherits(cluster, "rgraphtool_mode_cluster")) {
     stop("cluster must be created by mode_cluster_state()", call. = FALSE)
   }
   modes <- cluster$modes
@@ -245,7 +245,7 @@ mode_summary <- function(cluster) {
   )
 }
 
-print.graphtool_mode_cluster <- function(x, ...) {
+print.rgraphtool_mode_cluster <- function(x, ...) {
   cat(sprintf("<%s mode cluster state: K = %d modes (Be = %.2f), M = %d partitions, DL = %.4f nats>\n",
               if (isTRUE(x$nested)) "nested" else "flat",
               x$K, x$Be, length(x$clusters), x$entropy))

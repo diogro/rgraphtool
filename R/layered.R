@@ -49,11 +49,11 @@ new_layered_state <- function(graph, blocks, layer_info, independent,
     num_edges = graph_num_edges(graph),
     B = length(unique(blocks)),
     fit = fit
-  ), class = "graphtool_layered_block_state")
+  ), class = "rgraphtool_layered_block_state")
 }
 
 validate_layered_state <- function(state) {
-  if (!inherits(state, "graphtool_layered_block_state")) {
+  if (!inherits(state, "rgraphtool_layered_block_state")) {
     stop("state must be created by layered_block_state() or minimize_layered_blockmodel_dl()",
          call. = FALSE)
   }
@@ -126,7 +126,7 @@ minimize_layered_blockmodel_dl <- function(graph, layers, independent = TRUE,
                     degree_prior, fit = list(description_length = res$entropy))
 }
 
-print.graphtool_layered_block_state <- function(x, ...) {
+print.rgraphtool_layered_block_state <- function(x, ...) {
   dl <- layered_description_length(x)
   cat(sprintf("<layered block state: %s, %d %s layer%s, B = %d, description length %.4f nats>\n",
               if (x$degree_corrected) "degree-corrected" else "non-degree-corrected",
@@ -153,11 +153,11 @@ new_nested_layered_state <- function(graph, levels, layer_info, independent,
     num_edges = graph_num_edges(graph),
     B = vapply(levels, function(b) length(unique(b)), integer(1)),
     fit = fit
-  ), class = "graphtool_nested_layered_block_state")
+  ), class = "rgraphtool_nested_layered_block_state")
 }
 
 validate_nested_layered_state <- function(state) {
-  if (!inherits(state, "graphtool_nested_layered_block_state")) {
+  if (!inherits(state, "rgraphtool_nested_layered_block_state")) {
     stop("state must be created by nested_layered_block_state() or minimize_nested_layered_blockmodel_dl()",
          call. = FALSE)
   }
@@ -254,7 +254,7 @@ minimize_nested_layered_blockmodel_dl <- function(graph, layers, independent = T
                                       level_entropy = res$level_entropy))
 }
 
-print.graphtool_nested_layered_block_state <- function(x, ...) {
+print.rgraphtool_nested_layered_block_state <- function(x, ...) {
   dl <- nested_layered_description_length(x)
   cat(sprintf("<nested layered block state: %s, %d %s layer%s, %d levels, B = %s, description length %.4f nats>\n",
               if (x$degree_corrected) "degree-corrected" else "non-degree-corrected",
@@ -411,10 +411,10 @@ compare_layered_models <- function(graph, layers,
     degree_prior = degree_prior,
     method = method,
     evidence_method = if (method == "posterior") evidence_method else NULL
-  ), class = "graphtool_layered_model_comparison")
+  ), class = "rgraphtool_layered_model_comparison")
 }
 
-print.graphtool_layered_model_comparison <- function(x, ...) {
+print.rgraphtool_layered_model_comparison <- function(x, ...) {
   cat(sprintf("<layered SBM model comparison (%s, %d layers, %s)>\n",
               if (x$nested) "nested" else "flat",
               x$C,

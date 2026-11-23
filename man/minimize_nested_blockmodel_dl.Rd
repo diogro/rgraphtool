@@ -7,7 +7,7 @@
 \alias{nested_project}
 \alias{nested_level_state}
 \alias{nested_summary}
-\alias{print.graphtool_nested_block_state}
+\alias{print.rgraphtool_nested_block_state}
 \title{Hierarchical (nested) stochastic block models}
 \usage{
 minimize_nested_blockmodel_dl(graph, degree_corrected = TRUE,

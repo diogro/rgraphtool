@@ -8,7 +8,7 @@ plot_marginals(graph, mode, positions = NULL, radius = 0.04,
 }
 \arguments{
   \item{graph}{A graph created by \code{\link{graph_create}}.}
-  \item{mode}{A \code{graphtool_partition_mode} from
+  \item{mode}{A \code{rgraphtool_partition_mode} from
   \code{\link{partition_mode_state}} or \code{\link{mode_cluster_state}}, or an
   \eqn{N \times B} numeric matrix of marginal counts or probabilities.}
   \item{positions}{Optional \eqn{N \times 2} matrix of vertex coordinates. When

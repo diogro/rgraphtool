@@ -44,7 +44,7 @@ The distributed degree prior needs the number of integer partitions
 \eqn{q(m, n)}. As in graph-tool, exact values are tabulated up to
 \eqn{\min(\max(2E, 100), 10000)} and an asymptotic approximation is used
 above that. The exact table needs about \eqn{4 n^2} bytes, so this package caps
-it at \code{getOption("graphtool.q_cache_max", 5000)} (about 100 MB); raise
+it at \code{getOption("rgraphtool.q_cache_max", 5000)} (about 100 MB); raise
 the option to 10000 for exact agreement with graph-tool whenever a group's
 degree sum lies between 5000 and 10000. The table is kept for the session.
 

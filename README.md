@@ -1,17 +1,24 @@
-# graph-tool-R
+# rgraphtool
 
-An experimental, incremental native R port of graph-tool. It uses graph-tool's C++
-adjacency structure and implements flat and nested (hierarchical) stochastic
-block model inference; it is **not** a complete port and does not yet implement
-property maps, filters, posterior sampling, file formats, or general graph
-drawing. It does not depend on Python.
+`rgraphtool` is an experimental, incremental **native R/C++ port** of the Python
+[graph-tool](https://graph-tool.skewed.de/) library (originally developed by
+Tiago P. Peixoto). It incorporates `graph-tool`'s C++ adjacency structure and
+ports its Bayesian stochastic block model (SBM) inference engines into native
+C++ for R, with **no Python runtime dependency**.
 
-The active adjacency headers come from graph-tool release 3.9, commit
+Because `rgraphtool` translates `graph-tool`'s C++ data structures and
+algorithms to R's native ecosystem (rather than wrapping Python via
+`reticulate` or maintaining a Python fork), it is best described as a native
+R/C++ **port** of Python `graph-tool`. It is **not** yet a complete port of
+all `graph-tool` submodules (see `ROADMAP.md` for completed and planned
+milestones, including large-network scaling and uncertain network
+reconstruction).
+
+The active adjacency headers come from `graph-tool` release 3.9, commit
 `b24bc428e8426d0acb36b2d57bd61633335a3a26`. Their original copyright
 notices are retained. The unused generated `config.h` includes were removed
-from two supporting headers.
-graph-tool and this project are distributed under LGPL-3.0-or-later; see
-`COPYING` and `COPYING.LESSER`.
+from two supporting headers. `graph-tool` and this project are distributed
+under LGPL-3.0-or-later; see `COPYING` and `COPYING.LESSER`.
 
 ## Installation
 
@@ -27,7 +34,7 @@ Not all R platforms currently support C++23.
 ## Example
 
 ```r
-library(graphtool)
+library(rgraphtool)
 g <- graph_create(3)
 graph_add_edges(g, rbind(c(1, 2), c(2, 3), c(2, 3)))
 graph_num_edges(g)             # 3
@@ -42,48 +49,47 @@ a self-loop twice. Graphs are mutable: aliases refer to the same graph.
 External pointers are process-local and cannot be saved and restored with R
 serialization. Keep the edges separately if persistence is needed.
 
-## Stochastic block models
+## Implemented inference models
 
-`block_state()` records a supplied partition (or a single group by default),
-with block sizes, edge counts, conditional microcanonical SBM log likelihood,
-and description length. Description lengths are computed natively and match
-graph-tool 3.9's `BlockState.entropy()` to a relative tolerance of 1e-10, for
-directed and undirected multigraphs, with and without degree correction.
+All description lengths are verified to machine precision (`< 1e-11`) against
+pinned `graph-tool` 3.9 reference outputs:
 
-`minimize_blockmodel_dl()` fits a flat SBM with a native port of graph-tool's
-multilevel agglomerative search: vertex sweeps from singleton groups, a
-bisection search over the number of groups with merges and zero-temperature
-sweeps, then refinement. On the cookbook football network it gives the same
-distribution of description lengths as graph-tool 3.9 (best 1738.87 nats
-non-degree-corrected, 1787.36 degree-corrected) in a few hundredths of a
-second. Results are local optima: fit several seeds and keep the smallest
-description length. `refine_blockmodel_dl()` runs only the refinement stage on
-a supplied partition, and `compare_blockmodels()` fits both models and reports
-the one with the smaller description length. See `?minimize_blockmodel_dl` for
-the algorithm and its differences from graph-tool.
+- **Flat and nested (hierarchical) SBMs**: `block_state()`,
+  `minimize_blockmodel_dl()`, `nested_block_state()`,
+  `minimize_nested_blockmodel_dl()`, `compare_blockmodels()`,
+  `plot_hierarchy()`. See `demo("football")`, `demo("celegans")`,
+  `demo("model_selection")`.
+- **MCMC posterior sampling & partition modes**: `mcmc_sweep()`,
+  `mcmc_equilibrate()`, `mcmc_anneal()`, `sample_posterior()`,
+  `partition_mode_state()`, `mode_cluster_state()`, `plot_marginals()`. See
+  `demo("posterior_sampling")`, `demo("hierarchical_sampling")`.
+- **Overlapping SBMs & Bayesian model class selection**:
+  `overlap_block_state()`, `minimize_overlap_blockmodel_dl()`,
+  `nested_overlap_block_state()`, `minimize_nested_overlap_blockmodel_dl()`,
+  `model_evidence()`, `compare_model_classes()`. See
+  `demo("model_class_selection")`.
+- **Weighted / edge-covariate SBMs**: edge property maps
+  (`graph_set_edge_property()`, `graph_edge_property()`),
+  `weighted_block_state()`, `minimize_weighted_blockmodel_dl()`,
+  `nested_weighted_block_state()`, `minimize_nested_weighted_blockmodel_dl()`,
+  `transform_weights()`, `compare_weight_models()`. See `demo("weighted_sbm")`.
+- **Layered SBMs**: `layered_block_state()`, `minimize_layered_blockmodel_dl()`,
+  `nested_layered_block_state()`, `minimize_nested_layered_blockmodel_dl()`,
+  `compare_layered_models()`. See `demo("layered_sbm")`.
+- **Assortative (planted-partition) & ordered (ranked) SBMs**:
+  `pp_block_state()`, `minimize_pp_blockmodel_dl()`,
+  `compare_assortative_models()`, `ranked_block_state()`,
+  `minimize_ranked_blockmodel_dl()`, `nested_ranked_block_state()`,
+  `minimize_nested_ranked_blockmodel_dl()`, `compare_ordered_models()`,
+  `plot_ranked_hierarchy()`. See `demo("assortative_sbm")`,
+  `demo("ordered_sbm")`.
 
-## Hierarchical block models
-
-`minimize_nested_blockmodel_dl()` fits the nested SBM with graph-tool's
-level-by-level multilevel search and refinement. Moves account for the change
-in description length at every level above. `nested_block_state()` scores a
-supplied hierarchy; on fitted football and C. elegans hierarchies the scores
-match graph-tool 3.9 to within 2e-11 nats. `nested_summary()`,
-`nested_project()` and `nested_level_state()` inspect the levels, and
-`plot_hierarchy()` draws a radial hierarchy with bundled edges.
 `netzschleuder_network()` downloads any network from the
-[Netzschleuder](https://networks.skewed.de) repository used by graph-tool's
-`collection.ns`. See `demo("celegans")` for the cookbook's hierarchical
-example and `demo("football")` for the flat one.
-
-`compare_blockmodels(graph, nested = TRUE)` fits degree-corrected and
-non-degree-corrected nested models. It reports their description lengths and
-the log posterior odds \(\ln\Lambda = \Sigma_{DC} - \Sigma_{NDC}\); see
-`demo("model_selection")` for the political blogs and football examples.
-
-Posterior sampling and the other cookbook datasets are not implemented yet.
+[Netzschleuder](https://networks.skewed.de) repository used by `graph-tool`'s
+`collection.ns`.
 
 ```r
+library(rgraphtool)
 g <- graph_create(3, directed = FALSE)
 graph_add_edges(g, rbind(c(1, 2), c(2, 3)))
 state <- block_state(g, c(1, 1, 2))
@@ -99,13 +105,13 @@ block_description_length(fit)
 
 celegans <- netzschleuder_network("celegansneural")
 nested <- minimize_nested_blockmodel_dl(celegans$graph)
-nested                          # l: 0, N: 297, B: ...
+nested
 plot_hierarchy(nested)
 ```
 
 ## Validation against graph-tool
 
 `tools/reference/` holds a pixi environment pinned to the conda-forge build of
-graph-tool 3.9, plus the scripts that produced the reference values in the
+`graph-tool` 3.9, plus the scripts that produced the reference values in the
 tests. Python is only needed to regenerate them; see
 `tools/reference/README.md`.

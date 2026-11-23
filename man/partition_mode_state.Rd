@@ -12,8 +12,8 @@
 \alias{partition_overlap}
 \alias{align_nested_partition_labels}
 \alias{nested_partition_overlap}
-\alias{print.graphtool_partition_mode}
-\alias{print.graphtool_mode_cluster}
+\alias{print.rgraphtool_partition_mode}
+\alias{print.rgraphtool_mode_cluster}
 \title{Partition label alignment, vertex marginals, consensus, and posterior modes}
 \usage{
 align_partition_labels(x, y)
@@ -47,7 +47,7 @@ mode_summary(cluster)
   model description length converges.}
   \item{mode}{A partition mode object returned by \code{partition_mode_state()}
   or stored inside \code{mode_cluster_state()$modes}. For \code{mode_entropy()},
-  a \code{graphtool_mode_cluster} object is also accepted. For
+  a \code{rgraphtool_mode_cluster} object is also accepted. For
   \code{cluster_lprob()}, an optional 1-based mode index (or \code{NULL} for the
   full mode-mixture log-probability).}
   \item{partition}{A flat integer label vector or nested list of label vectors
@@ -87,11 +87,11 @@ random label model description length, sorts the discovered modes by decreasing
 weight, and aligns secondary modes to the dominant mode.
 }
 \value{
-\code{partition_mode_state()} returns a \code{graphtool_partition_mode} list
+\code{partition_mode_state()} returns a \code{rgraphtool_partition_mode} list
 with \code{M}, \code{B}, \code{entropy}, \code{posterior_entropy},
 \code{posterior_cdev}, \code{marginals}, \code{consensus}, and aligned
 \code{partitions}. \code{mode_cluster_state()} returns a
-\code{graphtool_mode_cluster} list with total \code{entropy}, \code{clusters},
+\code{rgraphtool_mode_cluster} list with total \code{entropy}, \code{clusters},
 number of modes \code{K}, effective number of modes \code{Be}, \code{weights},
 and \code{modes}. \code{mode_summary()} formats the modes as a data frame.
 }

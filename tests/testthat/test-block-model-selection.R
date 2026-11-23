@@ -5,7 +5,7 @@ test_that("flat model comparison returns both fits and the MDL winner", {
   )))
   set.seed(43)
   result <- compare_blockmodels(g)
-  expect_s3_class(result, "graphtool_blockmodel_comparison")
+  expect_s3_class(result, "rgraphtool_blockmodel_comparison")
   expect_equal(result$comparison$model,
                c("non-degree-corrected", "degree-corrected"))
   expect_equal(result$best_model,
@@ -30,7 +30,7 @@ test_that("nested comparisons report log posterior odds", {
   set.seed(4)
   result <- compare_blockmodels(g, nested = TRUE, nruns = 2)
   expect_true(result$nested)
-  expect_s3_class(result$states[[1]], "graphtool_nested_block_state")
+  expect_s3_class(result$states[[1]], "rgraphtool_nested_block_state")
   dl <- vapply(result$states, nested_description_length, numeric(1))
   expect_equal(result$comparison$description_length, unname(dl))
   expect_equal(result$log_posterior_odds, unname(dl[2] - dl[1]))

@@ -152,7 +152,7 @@ test_that("minimize_overlap_blockmodel_dl and nested overlap recover planted ove
   set.seed(42)
   st_ov <- minimize_overlap_blockmodel_dl(g, degree_corrected = FALSE)
   st_one <- overlap_block_state(g, degree_corrected = FALSE)
-  expect_s3_class(st_ov, "graphtool_overlap_block_state")
+  expect_s3_class(st_ov, "rgraphtool_overlap_block_state")
   expect_lt(overlap_description_length(st_ov), overlap_description_length(st_one))
 
   # Overlap model should strongly beat non-overlapping flat NDC SBM and detect overlapping vertices
@@ -164,7 +164,7 @@ test_that("minimize_overlap_blockmodel_dl and nested overlap recover planted ove
   # Nested overlap minimization
   set.seed(42)
   nst_ov <- minimize_nested_overlap_blockmodel_dl(g, degree_corrected = TRUE)
-  expect_s3_class(nst_ov, "graphtool_nested_overlap_block_state")
+  expect_s3_class(nst_ov, "rgraphtool_nested_overlap_block_state")
   expect_true(is.finite(nested_overlap_description_length(nst_ov)))
   expect_gte(length(nst_ov$upper_levels), 1L)
 
@@ -188,7 +188,7 @@ test_that("overlap_mcmc_sweep collects valid samples and entropies", {
   set.seed(42)
   st <- minimize_overlap_blockmodel_dl(g, degree_corrected = TRUE)
   res <- overlap_mcmc_sweep(st, beta = 1, niter = 20L, thin = 2L, collect = TRUE)
-  expect_s3_class(res$state, "graphtool_overlap_block_state")
+  expect_s3_class(res$state, "rgraphtool_overlap_block_state")
   expect_length(res$majority_samples, 10L)
   expect_length(res$entropies, 10L)
   expect_true(all(is.finite(res$entropies)))

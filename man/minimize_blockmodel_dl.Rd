@@ -2,7 +2,7 @@
 \alias{minimize_blockmodel_dl}
 \alias{refine_blockmodel_dl}
 \alias{compare_blockmodels}
-\alias{print.graphtool_blockmodel_comparison}
+\alias{print.rgraphtool_blockmodel_comparison}
 \title{Fit a flat stochastic block model by minimum description length}
 \usage{
 minimize_blockmodel_dl(graph, degree_corrected = TRUE,

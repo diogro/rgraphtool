@@ -6,8 +6,8 @@
 \alias{nested_layered_level_entropy}
 \alias{nested_layered_description_length}
 \alias{minimize_nested_layered_blockmodel_dl}
-\alias{print.graphtool_layered_block_state}
-\alias{print.graphtool_nested_layered_block_state}
+\alias{print.rgraphtool_layered_block_state}
+\alias{print.rgraphtool_nested_layered_block_state}
 \title{Flat and nested layered stochastic block models}
 \usage{
 layered_block_state(graph, layers, independent = TRUE, blocks = NULL,
@@ -42,8 +42,8 @@ minimize_nested_layered_blockmodel_dl(graph, layers, independent = TRUE,
   non-degree-corrected model (\code{FALSE}).}
   \item{degree_prior}{Degree sequence hyperprior (\code{"distributed"} or
   \code{"uniform"}).}
-  \item{state}{A \code{graphtool_layered_block_state} or
-  \code{graphtool_nested_layered_block_state} object.}
+  \item{state}{A \code{rgraphtool_layered_block_state} or
+  \code{rgraphtool_nested_layered_block_state} object.}
   \item{lmemb}{Whether to include the layer-membership description length term
   (applicable when \code{independent = TRUE}).}
   \item{B_min, B_max}{Minimum and maximum number of occupied level-0 groups.}
@@ -71,9 +71,9 @@ Layered states integrate directly with \code{\link{block_membership}},
 \code{\link{sample_posterior}}, and \code{\link{model_evidence}}.
 }
 \value{
-Flat constructors and minimizers return a \code{graphtool_layered_block_state};
+Flat constructors and minimizers return a \code{rgraphtool_layered_block_state};
 nested constructors and minimizers return a
-\code{graphtool_nested_layered_block_state}. Description length functions return
+\code{rgraphtool_nested_layered_block_state}. Description length functions return
 a numeric scalar (or per-level numeric vector for
 \code{nested_layered_level_entropy()}).
 }

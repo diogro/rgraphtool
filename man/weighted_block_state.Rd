@@ -6,8 +6,8 @@
 \alias{nested_weighted_level_entropy}
 \alias{nested_weighted_description_length}
 \alias{minimize_nested_weighted_blockmodel_dl}
-\alias{print.graphtool_weighted_block_state}
-\alias{print.graphtool_nested_weighted_block_state}
+\alias{print.rgraphtool_weighted_block_state}
+\alias{print.rgraphtool_nested_weighted_block_state}
 \title{Flat and nested weighted stochastic block models with edge covariates}
 \usage{
 weighted_block_state(graph, weights, types, params = "microcanonical",
@@ -54,8 +54,8 @@ minimize_nested_weighted_blockmodel_dl(graph, weights, types,
   non-degree-corrected (\code{FALSE}) topology model.}
   \item{degree_prior}{Degree sequence hyperprior (\code{"distributed"} or
   \code{"uniform"}).}
-  \item{state}{A \code{graphtool_weighted_block_state} or
-  \code{graphtool_nested_weighted_block_state} object.}
+  \item{state}{A \code{rgraphtool_weighted_block_state} or
+  \code{rgraphtool_nested_weighted_block_state} object.}
   \item{rec}{Whether to include the edge-covariate log-likelihood term.}
   \item{rec_dl}{Whether to include the global covariate hyperprior description
   length term.}
@@ -86,9 +86,9 @@ Weighted states integrate directly with \code{\link{block_membership}},
 \code{\link{sample_posterior}}, and \code{\link{model_evidence}}.
 }
 \value{
-Flat constructors and minimizers return a \code{graphtool_weighted_block_state};
+Flat constructors and minimizers return a \code{rgraphtool_weighted_block_state};
 nested constructors and minimizers return a
-\code{graphtool_nested_weighted_block_state}. Description length functions return
+\code{rgraphtool_nested_weighted_block_state}. Description length functions return
 a numeric scalar (or per-level numeric vector for
 \code{nested_weighted_level_entropy()}).
 }

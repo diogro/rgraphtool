@@ -1,45 +1,45 @@
 is_nested_state <- function(state) {
-  inherits(state, "graphtool_nested_block_state") ||
-    inherits(state, "graphtool_nested_weighted_block_state") ||
-    inherits(state, "graphtool_nested_layered_block_state") ||
-    inherits(state, "graphtool_nested_ranked_block_state")
+  inherits(state, "rgraphtool_nested_block_state") ||
+    inherits(state, "rgraphtool_nested_weighted_block_state") ||
+    inherits(state, "rgraphtool_nested_layered_block_state") ||
+    inherits(state, "rgraphtool_nested_ranked_block_state")
 }
 
 is_weighted_state <- function(state) {
-  inherits(state, "graphtool_weighted_block_state") ||
-    inherits(state, "graphtool_nested_weighted_block_state")
+  inherits(state, "rgraphtool_weighted_block_state") ||
+    inherits(state, "rgraphtool_nested_weighted_block_state")
 }
 
 is_layered_state <- function(state) {
-  inherits(state, "graphtool_layered_block_state") ||
-    inherits(state, "graphtool_nested_layered_block_state")
+  inherits(state, "rgraphtool_layered_block_state") ||
+    inherits(state, "rgraphtool_nested_layered_block_state")
 }
 
 is_pp_state <- function(state) {
-  inherits(state, "graphtool_pp_block_state")
+  inherits(state, "rgraphtool_pp_block_state")
 }
 
 is_ranked_state <- function(state) {
-  inherits(state, "graphtool_ranked_block_state") ||
-    inherits(state, "graphtool_nested_ranked_block_state")
+  inherits(state, "rgraphtool_ranked_block_state") ||
+    inherits(state, "rgraphtool_nested_ranked_block_state")
 }
 
 validate_mcmc_state <- function(state) {
-  if (inherits(state, "graphtool_nested_weighted_block_state")) {
+  if (inherits(state, "rgraphtool_nested_weighted_block_state")) {
     validate_nested_weighted_state(state)
-  } else if (inherits(state, "graphtool_weighted_block_state")) {
+  } else if (inherits(state, "rgraphtool_weighted_block_state")) {
     validate_weighted_state(state)
-  } else if (inherits(state, "graphtool_nested_layered_block_state")) {
+  } else if (inherits(state, "rgraphtool_nested_layered_block_state")) {
     validate_nested_layered_state(state)
-  } else if (inherits(state, "graphtool_layered_block_state")) {
+  } else if (inherits(state, "rgraphtool_layered_block_state")) {
     validate_layered_state(state)
-  } else if (inherits(state, "graphtool_pp_block_state")) {
+  } else if (inherits(state, "rgraphtool_pp_block_state")) {
     validate_pp_state(state)
-  } else if (inherits(state, "graphtool_nested_ranked_block_state")) {
+  } else if (inherits(state, "rgraphtool_nested_ranked_block_state")) {
     validate_nested_ranked_state(state)
-  } else if (inherits(state, "graphtool_ranked_block_state")) {
+  } else if (inherits(state, "rgraphtool_ranked_block_state")) {
     validate_ranked_state(state)
-  } else if (inherits(state, "graphtool_nested_block_state")) {
+  } else if (inherits(state, "rgraphtool_nested_block_state")) {
     validate_nested_state(state)
   } else {
     validate_block_state(state)

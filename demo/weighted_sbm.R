@@ -2,7 +2,7 @@
 # Miserables (graph-tool cookbook, "Edge weights and covariates").
 # Data are downloaded from Netzschleuder (lesmis: 77 characters, 254 weighted
 # co-occurrence edges with integer edge property "value").
-library(graphtool)
+library(rgraphtool)
 
 lesmis <- netzschleuder_network("lesmis")
 g <- lesmis$graph

@@ -88,7 +88,7 @@ test_that("model_evidence works across flat, nested, overlap, and nested overlap
   set.seed(42)
   st_flat <- minimize_blockmodel_dl(g, degree_corrected = TRUE)
   ev_flat <- model_evidence(st_flat, nsamples = 40L, thin = 2L, burnin = 10L)
-  expect_s3_class(ev_flat, "graphtool_model_evidence")
+  expect_s3_class(ev_flat, "rgraphtool_model_evidence")
   expect_true(is.finite(ev_flat$log_evidence))
   expect_true(is.finite(ev_flat$importance_log_evidence))
   expect_equal(ev_flat$neg_log_evidence, -ev_flat$log_evidence)
@@ -140,7 +140,7 @@ test_that("compare_model_classes ranks all 8 models and computes Bayes factors",
 
   set.seed(42)
   cmp_map <- compare_model_classes(g, method = "map", nruns = 1L)
-  expect_s3_class(cmp_map, "graphtool_model_class_comparison")
+  expect_s3_class(cmp_map, "rgraphtool_model_class_comparison")
   expect_equal(nrow(cmp_map$summary), 8L)
   expect_equal(cmp_map$summary$delta[1L], 0)
   expect_true(all(diff(cmp_map$summary$neg_log_evidence) >= -1e-12))

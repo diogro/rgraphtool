@@ -33,8 +33,8 @@ test_that("PPBlockState matches pinned graph-tool 3.9 values across all 16 confi
                          degree_corrected = r$dc, degree_prior = r$dk)
     expect_equal(pp_description_length(st), r$S, tolerance = 1e-10)
     set.seed(11L)
-    errs <- graphtool:::cpp_pp_check_moves(
-      graphtool:::graph_pointer(g), st$blocks, st$uniform, st$degree_corrected,
+    errs <- rgraphtool:::cpp_pp_check_moves(
+      rgraphtool:::graph_pointer(g), st$blocks, st$uniform, st$degree_corrected,
       r$dk == "distributed", 30L, 1000
     )
     expect_lt(max(errs), 1e-9)
@@ -66,7 +66,7 @@ test_that("planted-partition recovers assortative communities and rejects disass
 
   # Assortative model comparison favors PP on a pure planted-partition graph
   cmp_a <- compare_assortative_models(g_assort, method = "map")
-  expect_s3_class(cmp_a, "graphtool_assortative_model_comparison")
+  expect_s3_class(cmp_a, "rgraphtool_assortative_model_comparison")
   expect_true(cmp_a$best_model %in% c("pp", "pp_uniform"))
   expect_equal(sum(cmp_a$summary$posterior_weight), 1, tolerance = 1e-9)
   expect_output(print(cmp_a), "Best model:")
@@ -102,22 +102,22 @@ test_that("PPBlockState supports MCMC, posterior sampling, model_evidence, and v
   st <- minimize_pp_blockmodel_dl(g)
 
   sw <- mcmc_sweep(st, beta = 1.0, niter = 10L)
-  expect_s3_class(sw$state, "graphtool_pp_block_state")
+  expect_s3_class(sw$state, "rgraphtool_pp_block_state")
   expect_equal(sw$entropy, pp_description_length(sw$state), tolerance = 1e-9)
 
   eq <- mcmc_equilibrate(st, wait = 5L, nbreaks = 1L, max_niter = 15L)
-  expect_s3_class(eq$state, "graphtool_pp_block_state")
+  expect_s3_class(eq$state, "rgraphtool_pp_block_state")
 
   an <- mcmc_anneal(st, beta_range = c(1, 5), niter = 3L,
                     mcmc_equilibrate_args = list(wait = 3L, max_niter = 6L))
-  expect_s3_class(an$state, "graphtool_pp_block_state")
+  expect_s3_class(an$state, "rgraphtool_pp_block_state")
 
   post <- sample_posterior(st, nsamples = 20L, burnin = 15L, thin = 2L)
   expect_equal(length(post$samples), 20L)
   expect_false(post$nested)
 
   ev <- model_evidence(st, nsamples = 20L, burnin = 15L, thin = 2L)
-  expect_s3_class(ev, "graphtool_model_evidence")
+  expect_s3_class(ev, "rgraphtool_model_evidence")
   expect_true(is.finite(ev$log_evidence))
 
   cmp_p <- compare_assortative_models(g, models = c("pp", "sbm_flat"),

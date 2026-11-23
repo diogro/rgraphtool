@@ -209,8 +209,8 @@ test_that("incremental weighted virtual_move/move deltas match full entropy reco
       for (pm in c("microcanonical", "bayesian")) {
         st <- weighted_block_state(g, weights = w_list[[tp]], types = tp,
                                    params = pm, blocks = b0)
-        errs <- graphtool:::cpp_weighted_check_moves(
-          graphtool:::graph_pointer(g), st$blocks, st$weights, st$types,
+        errs <- rgraphtool:::cpp_weighted_check_moves(
+          rgraphtool:::graph_pointer(g), st$blocks, st$weights, st$types,
           st$cpp_params, st$degree_corrected, TRUE, 40L, 1000
         )
         expect_lt(max(errs), 1e-9)
@@ -285,29 +285,29 @@ test_that("weighted MCMC, posterior sampling, and model_evidence work for flat a
   # Flat weighted MCMC + equilibration + annealing + evidence
   st <- minimize_weighted_blockmodel_dl(g, weights = "w", types = "real-exponential")
   sw <- mcmc_sweep(st, beta = 1.0, niter = 10L)
-  expect_s3_class(sw$state, "graphtool_weighted_block_state")
+  expect_s3_class(sw$state, "rgraphtool_weighted_block_state")
   expect_equal(sw$entropy, weighted_description_length(sw$state), tolerance = 1e-9)
 
   eq <- mcmc_equilibrate(st, wait = 5L, nbreaks = 1L, max_niter = 15L)
-  expect_s3_class(eq$state, "graphtool_weighted_block_state")
+  expect_s3_class(eq$state, "rgraphtool_weighted_block_state")
 
   an <- mcmc_anneal(st, beta_range = c(1, 5), niter = 3L,
                     mcmc_equilibrate_args = list(wait = 3L, max_niter = 6L))
-  expect_s3_class(an$state, "graphtool_weighted_block_state")
+  expect_s3_class(an$state, "rgraphtool_weighted_block_state")
 
   post <- sample_posterior(st, nsamples = 20L, burnin = 15L, thin = 2L)
   expect_equal(length(post$samples), 20L)
   expect_false(post$nested)
 
   ev <- model_evidence(st, nsamples = 20L, burnin = 15L, thin = 2L)
-  expect_s3_class(ev, "graphtool_model_evidence")
+  expect_s3_class(ev, "rgraphtool_model_evidence")
   expect_true(is.finite(ev$log_evidence))
   expect_true(ev$posterior_entropy >= 0)
 
   # Nested weighted MCMC + posterior + evidence
   nst <- minimize_nested_weighted_blockmodel_dl(g, weights = "w", types = "real-exponential")
   nsw <- mcmc_sweep(nst, beta = 1.0, niter = 10L)
-  expect_s3_class(nsw$state, "graphtool_nested_weighted_block_state")
+  expect_s3_class(nsw$state, "rgraphtool_nested_weighted_block_state")
   expect_equal(nsw$entropy, nested_weighted_description_length(nsw$state), tolerance = 1e-9)
 
   npost <- sample_posterior(nst, nsamples = 15L, burnin = 15L, thin = 2L)
@@ -315,7 +315,7 @@ test_that("weighted MCMC, posterior sampling, and model_evidence work for flat a
   expect_true(npost$nested)
 
   nev <- model_evidence(nst, nsamples = 15L, burnin = 15L, thin = 2L)
-  expect_s3_class(nev, "graphtool_model_evidence")
+  expect_s3_class(nev, "rgraphtool_model_evidence")
   expect_true(is.finite(nev$log_evidence))
 })
 
@@ -339,7 +339,7 @@ test_that("compare_weight_models selects true weight model with Jacobian adjustm
                        properties = list(w = w_ln))
 
   cmp <- compare_weight_models(g, weights = "w", nested = FALSE, method = "map")
-  expect_s3_class(cmp, "graphtool_weight_model_comparison")
+  expect_s3_class(cmp, "rgraphtool_weight_model_comparison")
   expect_equal(cmp$best_model, "log-normal")
   expect_equal(sum(cmp$summary$posterior_weight), 1, tolerance = 1e-9)
   ln_row <- cmp$summary[cmp$summary$model == "log-normal", ]

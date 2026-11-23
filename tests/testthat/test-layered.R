@@ -84,8 +84,8 @@ test_that("flat and nested layered SBM matches pinned graph-tool 3.9 values acro
 
     # Incremental move deltas match full recomputation
     set.seed(11L)
-    errs <- graphtool:::cpp_layered_check_moves(
-      graphtool:::graph_pointer(g), st$blocks, st$layers, st$independent,
+    errs <- rgraphtool:::cpp_layered_check_moves(
+      rgraphtool:::graph_pointer(g), st$blocks, st$layers, st$independent,
       st$degree_corrected, r$dk == "distributed", 30L, 1000
     )
     expect_lt(max(errs), 1e-9)
@@ -206,29 +206,29 @@ test_that("layered MCMC, posterior sampling, model_evidence, and plot_hierarchy 
 
   st <- minimize_layered_blockmodel_dl(g, layers = "layer", independent = TRUE)
   sw <- mcmc_sweep(st, beta = 1.0, niter = 10L)
-  expect_s3_class(sw$state, "graphtool_layered_block_state")
+  expect_s3_class(sw$state, "rgraphtool_layered_block_state")
   expect_equal(sw$entropy, layered_description_length(sw$state), tolerance = 1e-9)
 
   eq <- mcmc_equilibrate(st, wait = 5L, nbreaks = 1L, max_niter = 15L)
-  expect_s3_class(eq$state, "graphtool_layered_block_state")
+  expect_s3_class(eq$state, "rgraphtool_layered_block_state")
 
   an <- mcmc_anneal(st, beta_range = c(1, 5), niter = 3L,
                     mcmc_equilibrate_args = list(wait = 3L, max_niter = 6L))
-  expect_s3_class(an$state, "graphtool_layered_block_state")
+  expect_s3_class(an$state, "rgraphtool_layered_block_state")
 
   post <- sample_posterior(st, nsamples = 20L, burnin = 15L, thin = 2L)
   expect_equal(length(post$samples), 20L)
   expect_false(post$nested)
 
   ev <- model_evidence(st, nsamples = 20L, burnin = 15L, thin = 2L)
-  expect_s3_class(ev, "graphtool_model_evidence")
+  expect_s3_class(ev, "rgraphtool_model_evidence")
   expect_true(is.finite(ev$log_evidence))
   expect_true(ev$posterior_entropy >= 0)
 
   # Nested layered MCMC + posterior + evidence + plot_hierarchy
   nst <- minimize_nested_layered_blockmodel_dl(g, layers = "layer", independent = TRUE)
   nsw <- mcmc_sweep(nst, beta = 1.0, niter = 10L)
-  expect_s3_class(nsw$state, "graphtool_nested_layered_block_state")
+  expect_s3_class(nsw$state, "rgraphtool_nested_layered_block_state")
   expect_equal(nsw$entropy, nested_layered_description_length(nsw$state), tolerance = 1e-9)
 
   npost <- sample_posterior(nst, nsamples = 15L, burnin = 15L, thin = 2L)
@@ -236,7 +236,7 @@ test_that("layered MCMC, posterior sampling, model_evidence, and plot_hierarchy 
   expect_true(npost$nested)
 
   nev <- model_evidence(nst, nsamples = 15L, burnin = 15L, thin = 2L)
-  expect_s3_class(nev, "graphtool_model_evidence")
+  expect_s3_class(nev, "rgraphtool_model_evidence")
   expect_true(is.finite(nev$log_evidence))
 
   tf <- tempfile(fileext = ".pdf")
@@ -267,7 +267,7 @@ test_that("compare_layered_models distinguishes independent layers from edge cov
 
   cmp_map <- compare_layered_models(g_indep, layers = "layer", nested = TRUE,
                                     method = "map")
-  expect_s3_class(cmp_map, "graphtool_layered_model_comparison")
+  expect_s3_class(cmp_map, "rgraphtool_layered_model_comparison")
   expect_equal(cmp_map$best_model, "independent_layers")
   expect_equal(sum(cmp_map$summary$posterior_weight), 1, tolerance = 1e-9)
   expect_output(print(cmp_map), "Best layered model: independent_layers")

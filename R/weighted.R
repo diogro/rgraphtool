@@ -181,11 +181,11 @@ new_weighted_state <- function(graph, blocks, weights, spec, degree_corrected,
     num_edges = graph_num_edges(graph),
     B = length(unique(blocks)),
     fit = fit
-  ), class = "graphtool_weighted_block_state")
+  ), class = "rgraphtool_weighted_block_state")
 }
 
 validate_weighted_state <- function(state) {
-  if (!inherits(state, "graphtool_weighted_block_state")) {
+  if (!inherits(state, "rgraphtool_weighted_block_state")) {
     stop("state must be created by weighted_block_state() or minimize_weighted_blockmodel_dl()",
          call. = FALSE)
   }
@@ -258,7 +258,7 @@ minimize_weighted_blockmodel_dl <- function(graph, weights, types,
                      degree_prior, fit = list(description_length = res$entropy))
 }
 
-print.graphtool_weighted_block_state <- function(x, ...) {
+print.rgraphtool_weighted_block_state <- function(x, ...) {
   dl <- weighted_description_length(x)
   cat(sprintf("<weighted block state: %s, %s, B = %d, description length %.4f nats>\n",
               if (x$degree_corrected) "degree-corrected" else "non-degree-corrected",
@@ -282,11 +282,11 @@ new_nested_weighted_state <- function(graph, levels, weights, spec,
     num_edges = graph_num_edges(graph),
     B = vapply(levels, function(b) length(unique(b)), integer(1)),
     fit = fit
-  ), class = "graphtool_nested_weighted_block_state")
+  ), class = "rgraphtool_nested_weighted_block_state")
 }
 
 validate_nested_weighted_state <- function(state) {
-  if (!inherits(state, "graphtool_nested_weighted_block_state")) {
+  if (!inherits(state, "rgraphtool_nested_weighted_block_state")) {
     stop("state must be created by nested_weighted_block_state() or minimize_nested_weighted_blockmodel_dl()",
          call. = FALSE)
   }
@@ -381,7 +381,7 @@ minimize_nested_weighted_blockmodel_dl <- function(graph, weights, types,
                                        level_entropy = res$level_entropy))
 }
 
-print.graphtool_nested_weighted_block_state <- function(x, ...) {
+print.rgraphtool_nested_weighted_block_state <- function(x, ...) {
   dl <- nested_weighted_description_length(x)
   cat(sprintf("<nested weighted block state: %s, %s, %d levels, B = %s, description length %.4f nats>\n",
               if (x$degree_corrected) "degree-corrected" else "non-degree-corrected",
@@ -569,10 +569,10 @@ compare_weight_models <- function(graph, weights, candidates = NULL,
     degree_prior = degree_prior,
     method = method,
     evidence_method = if (method == "posterior") evidence_method else NULL
-  ), class = "graphtool_weight_model_comparison")
+  ), class = "rgraphtool_weight_model_comparison")
 }
 
-print.graphtool_weight_model_comparison <- function(x, ...) {
+print.rgraphtool_weight_model_comparison <- function(x, ...) {
   cat(sprintf("<weighted SBM model comparison (%s, %s, %s)>\n",
               if (x$nested) "nested" else "flat",
               if (x$degree_corrected) "DC" else "NDC",

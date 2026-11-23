@@ -9,8 +9,8 @@
 \alias{nested_overlap_description_length}
 \alias{minimize_nested_overlap_blockmodel_dl}
 \alias{overlap_mcmc_sweep}
-\alias{print.graphtool_overlap_block_state}
-\alias{print.graphtool_nested_overlap_block_state}
+\alias{print.rgraphtool_overlap_block_state}
+\alias{print.rgraphtool_nested_overlap_block_state}
 \title{Flat and hierarchical overlapping stochastic block models}
 \usage{
 overlap_block_state(graph, half_edges = NULL, degree_corrected = TRUE,
@@ -81,10 +81,10 @@ pie-chart nodes via \code{\link{plot_marginals}}.
 }
 \value{
 \code{overlap_block_state()} and \code{minimize_overlap_blockmodel_dl()} return
-a \code{graphtool_overlap_block_state} object containing \code{half_edges},
+a \code{rgraphtool_overlap_block_state} object containing \code{half_edges},
 \code{overlap}, and model settings. \code{nested_overlap_block_state()} and
 \code{minimize_nested_overlap_blockmodel_dl()} return a
-\code{graphtool_nested_overlap_block_state} object adding \code{upper_levels}.
+\code{rgraphtool_nested_overlap_block_state} object adding \code{upper_levels}.
 \code{overlap_groups()} returns a list with per-vertex \code{groups},
 \code{out_degrees}, \code{in_degrees}, \code{total_degrees}, half-edge count
 \code{matrix}, \code{majority} group vector, and occupied group count \code{B}.

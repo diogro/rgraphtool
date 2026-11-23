@@ -1,8 +1,8 @@
 \name{compare_model_classes}
 \alias{compare_model_classes}
 \alias{model_evidence}
-\alias{print.graphtool_model_evidence}
-\alias{print.graphtool_model_class_comparison}
+\alias{print.rgraphtool_model_evidence}
+\alias{print.rgraphtool_model_class_comparison}
 \title{Posterior model evidence and SBM model class selection}
 \usage{
 model_evidence(state, nsamples = 200L, thin = 5L, burnin = NULL,
@@ -20,16 +20,16 @@ compare_model_classes(graph,
   B_min = 1L, B_max = Inf, refine = TRUE)
 }
 \arguments{
-  \item{state}{A fitted \code{graphtool_block_state},
-  \code{graphtool_nested_block_state}, \code{graphtool_overlap_block_state},
-  \code{graphtool_nested_overlap_block_state},
-  \code{graphtool_weighted_block_state},
-  \code{graphtool_nested_weighted_block_state},
-  \code{graphtool_layered_block_state},
-  \code{graphtool_nested_layered_block_state},
-  \code{graphtool_pp_block_state},
-  \code{graphtool_ranked_block_state}, or
-  \code{graphtool_nested_ranked_block_state} object.}
+  \item{state}{A fitted \code{rgraphtool_block_state},
+  \code{rgraphtool_nested_block_state}, \code{rgraphtool_overlap_block_state},
+  \code{rgraphtool_nested_overlap_block_state},
+  \code{rgraphtool_weighted_block_state},
+  \code{rgraphtool_nested_weighted_block_state},
+  \code{rgraphtool_layered_block_state},
+  \code{rgraphtool_nested_layered_block_state},
+  \code{rgraphtool_pp_block_state},
+  \code{rgraphtool_ranked_block_state}, or
+  \code{rgraphtool_nested_ranked_block_state} object.}
   \item{graph}{A graph created by \code{\link{graph_create}}.}
   \item{models}{Character vector naming a subset of the 8 SBM model classes:
   \code{"flat_ndc"}, \code{"flat_dc"}, \code{"nested_ndc"}, \code{"nested_dc"},
@@ -83,13 +83,13 @@ from per-vertex majority-group samples rather than full half-edge trajectories,
 providing a conservative lower bound on the half-edge posterior entropy.
 }
 \value{
-\code{model_evidence()} returns a \code{graphtool_model_evidence} list with
+\code{model_evidence()} returns a \code{rgraphtool_model_evidence} list with
 \code{log_evidence}, \code{neg_log_evidence}, \code{variational_log_evidence},
 \code{importance_log_evidence}, \code{mean_dl}, \code{sd_dl}, \code{map_dl},
 \code{posterior_entropy}, \code{cluster}, \code{samples}, \code{entropies}, and
 \code{state}.
 
-\code{compare_model_classes()} returns a \code{graphtool_model_class_comparison}
+\code{compare_model_classes()} returns a \code{rgraphtool_model_class_comparison}
 list with ranked \code{summary} data frame, \code{best_model},
 \code{best_state}, named list of fitted \code{states}, optional
 \code{evidences}, and pairwise \code{log_bayes_factors} matrix.

@@ -1,8 +1,9 @@
-# graph-tool-R roadmap
+# rgraphtool (graph-tool-R) roadmap
 
 ## Goal and scope
 
-Build a native R/C++ port that can run R equivalents of the
+Build `rgraphtool`, a standalone native R/C++ port of the Python `graph-tool`
+library that can run R equivalents of the
 [graph-tool cookbook](https://graph-tool.skewed.de/static/docs/stable/demos/index.html),
 following its order from simpler to more advanced examples. Start with block
 models and the inference guide. Python is not a runtime dependency.

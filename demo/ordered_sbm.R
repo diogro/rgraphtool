@@ -3,7 +3,7 @@
 # Peixoto 2022).
 # Data are downloaded from Netzschleuder (celegansneural: 297 neurons,
 # 2,359 directed synaptic connections).
-library(graphtool)
+library(rgraphtool)
 
 celegans <- netzschleuder_network("celegansneural")
 g <- celegans$graph

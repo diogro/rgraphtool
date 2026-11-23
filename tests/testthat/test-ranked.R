@@ -61,8 +61,8 @@ test_that("flat and nested RankedBlockState matches pinned graph-tool 3.9 values
 
     # Incremental vertex moves AND rank relabels match full recomputation
     set.seed(11L)
-    errs <- graphtool:::cpp_ranked_check_moves(
-      graphtool:::graph_pointer(g), st$blocks, st$u, st$distance, st$unique,
+    errs <- rgraphtool:::cpp_ranked_check_moves(
+      rgraphtool:::graph_pointer(g), st$blocks, st$u, st$distance, st$unique,
       as.numeric(st$M), st$degree_corrected, TRUE, 36L, 1000
     )
     expect_lt(max(errs), 1e-9)
@@ -109,7 +109,7 @@ test_that("ranked SBM recovers ordered feed-forward hierarchy and beats unordere
 
   # Ordered model beats unordered SBM on an ordered community hierarchy
   cmp <- compare_ordered_models(g, method = "map")
-  expect_s3_class(cmp, "graphtool_ordered_model_comparison")
+  expect_s3_class(cmp, "rgraphtool_ordered_model_comparison")
   expect_true(cmp$best_model %in% c("ranked_flat", "ranked_nested"))
   expect_equal(sum(cmp$summary$posterior_weight), 1, tolerance = 1e-9)
   expect_output(print(cmp), "Best model:")
@@ -131,31 +131,31 @@ test_that("ranked MCMC, posterior sampling, model_evidence, and ranked layouts w
 
   st <- minimize_ranked_blockmodel_dl(g)
   sw <- mcmc_sweep(st, beta = 1.0, niter = 10L)
-  expect_s3_class(sw$state, "graphtool_ranked_block_state")
+  expect_s3_class(sw$state, "rgraphtool_ranked_block_state")
   expect_equal(sw$entropy, ranked_description_length(sw$state), tolerance = 1e-9)
 
   eq <- mcmc_equilibrate(st, wait = 5L, nbreaks = 1L, max_niter = 15L)
-  expect_s3_class(eq$state, "graphtool_ranked_block_state")
+  expect_s3_class(eq$state, "rgraphtool_ranked_block_state")
 
   an <- mcmc_anneal(st, beta_range = c(1, 5), niter = 3L,
                     mcmc_equilibrate_args = list(wait = 3L, max_niter = 6L))
-  expect_s3_class(an$state, "graphtool_ranked_block_state")
+  expect_s3_class(an$state, "rgraphtool_ranked_block_state")
 
   post <- sample_posterior(st, nsamples = 20L, burnin = 15L, thin = 2L)
   expect_equal(length(post$samples), 20L)
   expect_false(post$nested)
 
   ev <- model_evidence(st, nsamples = 20L, burnin = 15L, thin = 2L)
-  expect_s3_class(ev, "graphtool_model_evidence")
+  expect_s3_class(ev, "rgraphtool_model_evidence")
   expect_true(is.finite(ev$log_evidence))
 
   nst <- minimize_nested_ranked_blockmodel_dl(g)
   nsw <- mcmc_sweep(nst, beta = 1.0, niter = 10L)
-  expect_s3_class(nsw$state, "graphtool_nested_ranked_block_state")
+  expect_s3_class(nsw$state, "rgraphtool_nested_ranked_block_state")
   expect_equal(nsw$entropy, nested_ranked_description_length(nsw$state), tolerance = 1e-9)
 
   nev <- model_evidence(nst, nsamples = 15L, burnin = 15L, thin = 2L)
-  expect_s3_class(nev, "graphtool_model_evidence")
+  expect_s3_class(nev, "rgraphtool_model_evidence")
   expect_true(is.finite(nev$log_evidence))
 
   cmp_p <- compare_ordered_models(g, models = c("unordered_flat", "ranked_flat"),

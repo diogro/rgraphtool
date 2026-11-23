@@ -10,11 +10,11 @@ new_pp_state <- function(graph, blocks, uniform, degree_corrected, degree_prior,
     num_edges = graph_num_edges(graph),
     B = length(unique(blocks)),
     fit = fit
-  ), class = "graphtool_pp_block_state")
+  ), class = "rgraphtool_pp_block_state")
 }
 
 validate_pp_state <- function(state) {
-  if (!inherits(state, "graphtool_pp_block_state")) {
+  if (!inherits(state, "rgraphtool_pp_block_state")) {
     stop("state must be created by pp_block_state() or minimize_pp_blockmodel_dl()",
          call. = FALSE)
   }
@@ -108,7 +108,7 @@ minimize_pp_blockmodel_dl <- function(graph, uniform = FALSE,
                fit = list(description_length = res$entropy))
 }
 
-print.graphtool_pp_block_state <- function(x, ...) {
+print.rgraphtool_pp_block_state <- function(x, ...) {
   dl <- pp_description_length(x)
   asrt <- pp_assortativity(x)
   cat(sprintf("<planted-partition block state: %s, %s assortativity, B = %d (Be = %.2f), E_in/E = %.1f%%, DL = %.4f nats>\n",
@@ -242,10 +242,10 @@ compare_assortative_models <- function(graph,
     degree_prior = degree_prior,
     method = method,
     evidence_method = if (method == "posterior") evidence_method else NULL
-  ), class = "graphtool_assortative_model_comparison")
+  ), class = "rgraphtool_assortative_model_comparison")
 }
 
-print.graphtool_assortative_model_comparison <- function(x, ...) {
+print.rgraphtool_assortative_model_comparison <- function(x, ...) {
   cat(sprintf("<assortative vs. general SBM comparison (%s, %s)>\n",
               if (x$degree_corrected) "DC" else "NDC",
               if (x$method == "posterior") paste0("posterior/", x$evidence_method) else "MAP"))

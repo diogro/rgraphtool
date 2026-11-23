@@ -1,7 +1,7 @@
 # Posterior sampling, vertex marginals, and posterior modes on Les Miserables
 # (graph-tool cookbook, "Sampling from the posterior distribution").
 # Data are downloaded from Netzschleuder (lesmis: 77 characters, 254 edges).
-library(graphtool)
+library(rgraphtool)
 
 lesmis <- netzschleuder_network("lesmis")
 g <- lesmis$graph

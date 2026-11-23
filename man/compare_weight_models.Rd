@@ -1,6 +1,6 @@
 \name{compare_weight_models}
 \alias{compare_weight_models}
-\alias{print.graphtool_weight_model_comparison}
+\alias{print.rgraphtool_weight_model_comparison}
 \title{Compare weighted SBM covariate distributions and transformations}
 \usage{
 compare_weight_models(graph, weights, candidates = NULL, nested = TRUE,
@@ -67,7 +67,7 @@ density functions live on different reference measures; by default
 models and continuous weights against continuous models.
 }
 \value{
-A \code{graphtool_weight_model_comparison} list containing:
+A \code{rgraphtool_weight_model_comparison} list containing:
 \itemize{
   \item \code{summary}: ranked data frame with \code{model}, \code{type},
   \code{transform}, \code{B}, \code{raw_dl}, \code{jacobian_adj},
@@ -76,7 +76,7 @@ A \code{graphtool_weight_model_comparison} list containing:
   \item \code{best_model}: name of the winning candidate.
   \item \code{best_state}: fitted weighted state for the winning candidate.
   \item \code{states}: named list of fitted states ordered from best to worst.
-  \item \code{evidences}: named list of \code{graphtool_model_evidence} objects
+  \item \code{evidences}: named list of \code{rgraphtool_model_evidence} objects
   (when \code{method = "posterior"}).
   \item \code{log_bayes_factors}: pairwise matrix of log Bayes factors.
 }

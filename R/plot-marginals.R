@@ -86,7 +86,7 @@ plot_marginals <- function(graph, mode, positions = NULL, radius = 0.04,
                            main = NULL, ...) {
   graph_pointer(graph)
   n <- graph_num_vertices(graph)
-  if (inherits(mode, "graphtool_partition_mode")) {
+  if (inherits(mode, "rgraphtool_partition_mode")) {
     probs <- mode_marginals(mode, probability = TRUE, level = 0L)
     cons <- if (isTRUE(mode$nested)) mode_consensus(mode)[[1L]] else mode_consensus(mode)
   } else if (is.matrix(mode) && is.numeric(mode)) {

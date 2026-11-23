@@ -1,9 +1,9 @@
 hierarchy_layout <- function(state) {
-  if (inherits(state, "graphtool_nested_weighted_block_state")) {
+  if (inherits(state, "rgraphtool_nested_weighted_block_state")) {
     validate_nested_weighted_state(state)
-  } else if (inherits(state, "graphtool_nested_layered_block_state")) {
+  } else if (inherits(state, "rgraphtool_nested_layered_block_state")) {
     validate_nested_layered_state(state)
-  } else if (inherits(state, "graphtool_nested_ranked_block_state")) {
+  } else if (inherits(state, "rgraphtool_nested_ranked_block_state")) {
     validate_nested_ranked_state(state)
   } else {
     validate_nested_state(state)

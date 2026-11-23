@@ -2,7 +2,7 @@
 # comparison against the general SBM on Les Miserables (graph-tool cookbook,
 # "Assortative community structure"; Zhang & Peixoto 2020).
 # Data are downloaded from Netzschleuder (lesmis: 77 characters, 254 edges).
-library(graphtool)
+library(rgraphtool)
 
 lesmis <- netzschleuder_network("lesmis")
 g <- lesmis$graph

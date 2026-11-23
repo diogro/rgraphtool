@@ -7,85 +7,85 @@ logsumexp_vec <- function(x) {
 }
 
 state_description_length <- function(state) {
-  if (inherits(state, "graphtool_block_state")) {
+  if (inherits(state, "rgraphtool_block_state")) {
     return(block_description_length(state))
   }
-  if (inherits(state, "graphtool_nested_block_state")) {
+  if (inherits(state, "rgraphtool_nested_block_state")) {
     return(nested_description_length(state))
   }
-  if (inherits(state, "graphtool_overlap_block_state")) {
+  if (inherits(state, "rgraphtool_overlap_block_state")) {
     return(overlap_description_length(state))
   }
-  if (inherits(state, "graphtool_nested_overlap_block_state")) {
+  if (inherits(state, "rgraphtool_nested_overlap_block_state")) {
     return(nested_overlap_description_length(state))
   }
-  if (inherits(state, "graphtool_weighted_block_state")) {
+  if (inherits(state, "rgraphtool_weighted_block_state")) {
     return(weighted_description_length(state))
   }
-  if (inherits(state, "graphtool_nested_weighted_block_state")) {
+  if (inherits(state, "rgraphtool_nested_weighted_block_state")) {
     return(nested_weighted_description_length(state))
   }
-  if (inherits(state, "graphtool_layered_block_state")) {
+  if (inherits(state, "rgraphtool_layered_block_state")) {
     return(layered_description_length(state))
   }
-  if (inherits(state, "graphtool_nested_layered_block_state")) {
+  if (inherits(state, "rgraphtool_nested_layered_block_state")) {
     return(nested_layered_description_length(state))
   }
-  if (inherits(state, "graphtool_pp_block_state")) {
+  if (inherits(state, "rgraphtool_pp_block_state")) {
     return(pp_description_length(state))
   }
-  if (inherits(state, "graphtool_ranked_block_state")) {
+  if (inherits(state, "rgraphtool_ranked_block_state")) {
     return(ranked_description_length(state))
   }
-  if (inherits(state, "graphtool_nested_ranked_block_state")) {
+  if (inherits(state, "rgraphtool_nested_ranked_block_state")) {
     return(nested_ranked_description_length(state))
   }
   stop("state must be a supported block state object", call. = FALSE)
 }
 
 state_num_groups <- function(state) {
-  if (inherits(state, "graphtool_block_state")) {
+  if (inherits(state, "rgraphtool_block_state")) {
     return(length(unique(block_membership(state))))
   }
-  if (inherits(state, "graphtool_nested_block_state")) {
+  if (inherits(state, "rgraphtool_nested_block_state")) {
     return(length(unique(nested_levels(state)[[1L]])))
   }
-  if (inherits(state, "graphtool_overlap_block_state") ||
-      inherits(state, "graphtool_nested_overlap_block_state")) {
+  if (inherits(state, "rgraphtool_overlap_block_state") ||
+      inherits(state, "rgraphtool_nested_overlap_block_state")) {
     return(as.integer(overlap_groups(state)$B))
   }
-  if (inherits(state, "graphtool_weighted_block_state") ||
-      inherits(state, "graphtool_layered_block_state") ||
-      inherits(state, "graphtool_pp_block_state") ||
-      inherits(state, "graphtool_ranked_block_state")) {
+  if (inherits(state, "rgraphtool_weighted_block_state") ||
+      inherits(state, "rgraphtool_layered_block_state") ||
+      inherits(state, "rgraphtool_pp_block_state") ||
+      inherits(state, "rgraphtool_ranked_block_state")) {
     return(as.integer(state$B))
   }
-  if (inherits(state, "graphtool_nested_weighted_block_state") ||
-      inherits(state, "graphtool_nested_layered_block_state") ||
-      inherits(state, "graphtool_nested_ranked_block_state")) {
+  if (inherits(state, "rgraphtool_nested_weighted_block_state") ||
+      inherits(state, "rgraphtool_nested_layered_block_state") ||
+      inherits(state, "rgraphtool_nested_ranked_block_state")) {
     return(as.integer(state$B[1L]))
   }
   NA_integer_
 }
 
 state_num_levels <- function(state) {
-  if (inherits(state, "graphtool_block_state") ||
-      inherits(state, "graphtool_overlap_block_state") ||
-      inherits(state, "graphtool_weighted_block_state") ||
-      inherits(state, "graphtool_layered_block_state") ||
-      inherits(state, "graphtool_pp_block_state") ||
-      inherits(state, "graphtool_ranked_block_state")) {
+  if (inherits(state, "rgraphtool_block_state") ||
+      inherits(state, "rgraphtool_overlap_block_state") ||
+      inherits(state, "rgraphtool_weighted_block_state") ||
+      inherits(state, "rgraphtool_layered_block_state") ||
+      inherits(state, "rgraphtool_pp_block_state") ||
+      inherits(state, "rgraphtool_ranked_block_state")) {
     return(1L)
   }
-  if (inherits(state, "graphtool_nested_block_state")) {
+  if (inherits(state, "rgraphtool_nested_block_state")) {
     return(length(nested_levels(state)))
   }
-  if (inherits(state, "graphtool_nested_overlap_block_state")) {
+  if (inherits(state, "rgraphtool_nested_overlap_block_state")) {
     return(length(state$upper_levels) + 1L)
   }
-  if (inherits(state, "graphtool_nested_weighted_block_state") ||
-      inherits(state, "graphtool_nested_layered_block_state") ||
-      inherits(state, "graphtool_nested_ranked_block_state")) {
+  if (inherits(state, "rgraphtool_nested_weighted_block_state") ||
+      inherits(state, "rgraphtool_nested_layered_block_state") ||
+      inherits(state, "rgraphtool_nested_ranked_block_state")) {
     return(length(state$levels))
   }
   NA_integer_
@@ -116,17 +116,17 @@ model_evidence <- function(state, nsamples = 200L, thin = 5L, burnin = NULL,
     stop("beta must be a positive number", call. = FALSE)
   }
 
-  is_flat <- inherits(state, "graphtool_block_state") ||
-    inherits(state, "graphtool_weighted_block_state") ||
-    inherits(state, "graphtool_layered_block_state") ||
-    inherits(state, "graphtool_pp_block_state") ||
-    inherits(state, "graphtool_ranked_block_state")
-  is_nested <- inherits(state, "graphtool_nested_block_state") ||
-    inherits(state, "graphtool_nested_weighted_block_state") ||
-    inherits(state, "graphtool_nested_layered_block_state") ||
-    inherits(state, "graphtool_nested_ranked_block_state")
-  is_ov_flat <- inherits(state, "graphtool_overlap_block_state")
-  is_ov_nested <- inherits(state, "graphtool_nested_overlap_block_state")
+  is_flat <- inherits(state, "rgraphtool_block_state") ||
+    inherits(state, "rgraphtool_weighted_block_state") ||
+    inherits(state, "rgraphtool_layered_block_state") ||
+    inherits(state, "rgraphtool_pp_block_state") ||
+    inherits(state, "rgraphtool_ranked_block_state")
+  is_nested <- inherits(state, "rgraphtool_nested_block_state") ||
+    inherits(state, "rgraphtool_nested_weighted_block_state") ||
+    inherits(state, "rgraphtool_nested_layered_block_state") ||
+    inherits(state, "rgraphtool_nested_ranked_block_state")
+  is_ov_flat <- inherits(state, "rgraphtool_overlap_block_state")
+  is_ov_nested <- inherits(state, "rgraphtool_nested_overlap_block_state")
   if (!is_flat && !is_nested && !is_ov_flat && !is_ov_nested) {
     stop("state must be a supported block state object", call. = FALSE)
   }
@@ -166,7 +166,7 @@ model_evidence <- function(state, nsamples = 200L, thin = 5L, burnin = NULL,
           samples = list(),
           entropies = numeric(0),
           state = state
-        ), class = "graphtool_model_evidence"))
+        ), class = "rgraphtool_model_evidence"))
       }
       burn_n <- if (is.null(burnin)) 30L else as.integer(floor(burnin))
       cur_state <- if (burn_n > 0L) {
@@ -246,10 +246,10 @@ model_evidence <- function(state, nsamples = 200L, thin = 5L, burnin = NULL,
     samples = samples,
     entropies = entropies,
     state = final_state
-  ), class = "graphtool_model_evidence")
+  ), class = "rgraphtool_model_evidence")
 }
 
-print.graphtool_model_evidence <- function(x, ...) {
+print.rgraphtool_model_evidence <- function(x, ...) {
   cat(sprintf("<model evidence (%s, M = %d samples)>\n", x$method, x$nsamples))
   cat(sprintf("  log P(A)          : %.4f nats  (-log P(A) = %.4f)\n",
               x$log_evidence, x$neg_log_evidence))
@@ -414,10 +414,10 @@ compare_model_classes <- function(graph,
     method = method,
     evidence_method = if (method == "posterior") evidence_method else NULL,
     degree_prior = degree_prior
-  ), class = "graphtool_model_class_comparison")
+  ), class = "rgraphtool_model_class_comparison")
 }
 
-print.graphtool_model_class_comparison <- function(x, ...) {
+print.rgraphtool_model_class_comparison <- function(x, ...) {
   cat(sprintf("<SBM model class comparison (%s, %s degree prior)>\n",
               if (x$method == "posterior") paste0("posterior/", x$evidence_method) else "MAP description length",
               x$degree_prior))

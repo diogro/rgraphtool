@@ -1,3 +1,3 @@
 library(testthat)
-library(graphtool)
-test_check("graphtool")
+library(rgraphtool)
+test_check("rgraphtool")

@@ -13,7 +13,7 @@ test_that("nested description lengths match graph-tool 3.9", {
     "FALSE" = c(27066.766756086003, 27091.122493312316, 27866.430056014018),
     "TRUE" = c(31231.814072219378, 30607.839570655913, 32506.768338732512)
   )
-  old <- options(graphtool.q_cache_max = 10000)
+  old <- options(rgraphtool.q_cache_max = 10000)
   on.exit(options(old))
   for (directed in c(FALSE, TRUE)) {
     g <- deterministic_graph(directed)
@@ -41,9 +41,9 @@ test_that("incremental moves at every level equal recomputed nested scores", {
     graph_add_edges(g, rbind(cbind(sample(60, 250, TRUE), sample(60, 250, TRUE)),
                              c(1, 1), c(2, 2), c(3, 4), c(3, 4)))
     levels <- list(sample(8, 60, TRUE), c(1, 1, 2, 2, 3, 3, 1, 2), c(1, 1, 2), c(1, 1), 1)
-    levels <- graphtool:::validate_hierarchy(levels, 60)
+    levels <- rgraphtool:::validate_hierarchy(levels, 60)
     for (dc in c(FALSE, TRUE)) for (dist in c(FALSE, TRUE)) {
-      err <- graphtool:::cpp_nested_check_moves(graphtool:::graph_pointer(g), levels,
+      err <- rgraphtool:::cpp_nested_check_moves(rgraphtool:::graph_pointer(g), levels,
                                                 dc, dist, 1000L, 5000)
       expect_lt(max(abs(err)), 1e-8)
     }
