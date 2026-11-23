@@ -49,7 +49,8 @@ test_that("integer-partition approximation matches graph-tool's log_q_approx", {
   # graph_tool.inference.libgraph_tool_inference.log_q_approx(n, k), graph-tool 3.9
   cases <- rbind(c(12000, 500, 269.42500134819056), c(30000, 3000, 432.0437406347449),
                  c(12000, 5, 29.604268704426026), c(20000, 20, 106.59874044010199),
-                 c(50000, 100, 353.11435660817136))
+                 c(50000, 100, 353.11435660817136), c(13188, 4941, 283.1508623375297),
+                 c(13188, 13188, 283.1508623375297), c(50000, 40000, 560.8183421646834))
   for (i in seq_len(nrow(cases))) {
     expect_equal(graphtool:::cpp_log_q(cases[i, 1], cases[i, 2], 100), cases[i, 3],
                  tolerance = 1e-10)
@@ -126,4 +127,17 @@ test_that("states from grown graphs fall back to their stored snapshot", {
   before <- block_description_length(state)
   graph_add_edges(g, rbind(c(1, 3)))
   expect_equal(block_description_length(state), before, tolerance = 1e-10)
+})
+
+test_that("merge_sweep does not stall on disconnected high-degree components", {
+  g <- graph_create(120, directed = FALSE)
+  edges <- do.call(rbind, lapply(0:3, function(k) {
+    v <- k * 30L + seq_len(30L)
+    t(combn(v, 2L))
+  }))
+  graph_add_edges(g, edges)
+  set.seed(1)
+  fit <- minimize_blockmodel_dl(g, B_min = 2, B_max = 2, control = list(c = 0.01))
+  expect_equal(length(block_sizes(fit)), 2L)
+  expect_true(is.finite(block_description_length(fit)))
 })

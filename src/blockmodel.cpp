@@ -19,18 +19,19 @@
 #include <R_ext/Random.h>
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <map>
 #include <numeric>
 #include <queue>
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
 #include "graph_types.h"
+#include "vendor/hash_map_wrap.hh"
 
 namespace {
 
 constexpr double inf = std::numeric_limits<double>::infinity();
+constexpr double LOG2 = 0.693147180559945309417232121458176568;
 
 // ---------------------------------------------------------------------------
 // Random numbers come from R's generator so that set.seed() controls the search.
@@ -48,7 +49,57 @@ struct RRng {
 };
 
 // ---------------------------------------------------------------------------
-// Special functions
+// Fast integer special-function tables (exact IEEE-754 match to std::lgamma /
+// std::log for cached integer arguments).
+
+struct MathTables {
+    static constexpr size_t MAX_TABLE = 524288;
+    std::vector<double> lgamma_tab;
+    std::vector<double> log_tab;
+
+    void ensure(size_t n) {
+        size_t target = std::min(n + 1, MAX_TABLE);
+        if (target <= lgamma_tab.size())
+            return;
+        size_t old = lgamma_tab.size();
+        size_t cap = std::max<size_t>(4096, old);
+        while (cap < target)
+            cap = std::min(cap * 2, MAX_TABLE);
+        lgamma_tab.resize(cap);
+        log_tab.resize(cap);
+        for (size_t i = old; i < cap; ++i) {
+            lgamma_tab[i] = (i == 0) ? inf : std::lgamma(static_cast<double>(i));
+            log_tab[i] = (i == 0) ? -inf : std::log(static_cast<double>(i));
+        }
+    }
+};
+
+MathTables& math_tables() {
+    static MathTables t;
+    return t;
+}
+
+inline double lgam_int(int64_t x) {
+    const auto& tab = math_tables().lgamma_tab;
+    if (x >= 1 && static_cast<size_t>(x) < tab.size())
+        return tab[static_cast<size_t>(x)];
+    return std::lgamma(static_cast<double>(x));
+}
+
+inline double log_int(int64_t x) {
+    const auto& tab = math_tables().log_tab;
+    if (x >= 1 && static_cast<size_t>(x) < tab.size())
+        return tab[static_cast<size_t>(x)];
+    return std::log(static_cast<double>(x));
+}
+
+inline double lbinom_int(int64_t n, int64_t k) {
+    if (k == 0 || n == k)
+        return 0;
+    if (n < k || k < 0)
+        return 0;
+    return lgam_int(n + 1) - lgam_int(k + 1) - lgam_int(n - k + 1);
+}
 
 inline double lgam(double x) { return std::lgamma(x); }
 
@@ -60,9 +111,14 @@ inline double lbinom(double n, double k) {
     return lgam(n + 1) - lgam(k + 1) - lgam(n - k + 1);
 }
 
+// Fast integer pair key mixer for flat hash maps.
+inline uint64_t pair_key(uint64_t a, uint64_t b) {
+    return (a << 32) | (b & 0xffffffffULL);
+}
+
 // log of the number of partitions of n into at most k parts. Exact values are
 // tabulated (as in graph-tool's q cache) and an asymptotic approximation is used
-// beyond the table.
+// beyond the table (memoized in a bounded flat hash table).
 class LogQ {
 public:
     void ensure(size_t n_max) {
@@ -89,7 +145,15 @@ public:
             return -inf;
         if (static_cast<size_t>(n) <= _n_max)
             return get(n, k);
-        return approx(n, k);
+        uint64_t key = pair_key(static_cast<uint64_t>(n), static_cast<uint64_t>(k));
+        auto it = _approx_cache.find(key);
+        if (it != _approx_cache.end())
+            return it->second;
+        double val = approx(static_cast<double>(n), static_cast<double>(k));
+        if (_approx_cache.size() >= 65536)
+            _approx_cache.clear();
+        _approx_cache.emplace(key, val);
+        return val;
     }
     // graph-tool's log_q_approx: the Szekeres saddle-point formula, with the
     // small-k limit for k < n^(1/4).
@@ -104,17 +168,25 @@ public:
             v = n_v;
         }
         double lf = std::log(v) - std::log1p(-std::exp(-v) * (1 + u * u / 2)) / 2 -
-                    std::log(2.0) * 3 / 2. - std::log(u) - std::log(M_PI);
+                    LOG2 * 1.5 - std::log(u) - std::log(M_PI);
         double g = 2 * v / u - u * std::log1p(-std::exp(-v));
         return lf - std::log(n) + std::sqrt(n) * g;
     }
-    // spence(x) = Li2(1 - x) for 0 < x <= 1 (scipy/cephes convention)
+    // spence(x) = Li2(1 - x) for 0 <= x <= 1 (scipy/cephes convention)
     static double spence(double x) {
+        if (x <= 0)
+            return M_PI * M_PI / 6;
+        if (x >= 1)
+            return 0;
+        if (x < 0.5)
+            return M_PI * M_PI / 6 - std::log1p(-x) * std::log(x) - dilog(x);
         return dilog(1 - x);
     }
     static double dilog(double z) {
-        if (z == 0)
+        if (z <= 0)
             return 0;
+        if (z >= 1)
+            return M_PI * M_PI / 6;
         if (z > 0.5)
             return M_PI * M_PI / 6 - std::log(z) * std::log1p(-z) - dilog(1 - z);
         double sum = 0, term = z;
@@ -130,6 +202,7 @@ public:
 private:
     size_t _n_max = 0;
     std::vector<double> _table;
+    mutable gt_hash_map<uint64_t, double> _approx_cache;
     double& at(size_t n, size_t k) { return _table[n * (n - 1) / 2 + (k - 1)]; }
     double get(size_t n, size_t k) const { return _table[n * (n - 1) / 2 + (k - 1)]; }
     double get_raw(size_t n, size_t k) const {
@@ -161,13 +234,16 @@ public:
         const Adjacency& g = graph.adjacency;
         _N = static_cast<int>(boost::num_vertices(g));
         _E = static_cast<long>(boost::num_edges(g));
+        math_tables().ensure(static_cast<size_t>(std::max<int64_t>(2 * _E + _N + 16, 4096)));
+
         _out.resize(_N);
         _in.resize(_N);
         _all.resize(_N);
         _loops.assign(_N, 0);
         _kout.assign(_N, 0);
         _kin.assign(_N, 0);
-        std::map<std::pair<size_t, size_t>, long> mult;
+        gt_hash_map<uint64_t, long> mult;
+        mult.reserve(static_cast<size_t>(_E));
         auto range = boost::edges(g);
         for (auto it = range.first; it != range.second; ++it) {
             int s = static_cast<int>(it->s), t = static_cast<int>(it->t);
@@ -192,27 +268,50 @@ public:
                 _kout[s]++;
                 _kout[t]++;
             }
-            size_t a = s, c = t;
+            uint64_t a = static_cast<uint64_t>(s), c = static_cast<uint64_t>(t);
             if (!_directed && a > c)
                 std::swap(a, c);
-            mult[{a, c}]++;
+            mult[pair_key(a, c)]++;
         }
         _const = 0;
-        for (auto& [key, m] : mult) {
-            _const += lgam(m + 1);
-            if (!_directed && key.first == key.second)
-                _const += m * std::log(2.0);
+        for (const auto& [key, m] : mult) {
+            _const += lgam_int(m + 1);
+            if (!_directed && (key >> 32) == (key & 0xffffffffULL))
+                _const += m * LOG2;
         }
         if (_dc) {
             for (int v = 0; v < _N; ++v)
-                _const -= lgam(_kout[v] + 1) + (_directed ? lgam(_kin[v] + 1) : 0);
+                _const -= lgam_int(_kout[v] + 1) + (_directed ? lgam_int(_kin[v] + 1) : 0);
         }
         if (_dc && _dist) {
             size_t n_max = std::min<size_t>(std::max<long>(2 * _E, 100), 10000);
             n_max = std::min(n_max, q_cache_max);
             log_q_cache().ensure(n_max);
         }
-        _key.reserve(64);
+
+        // Pre-allocate state storage once; set_partition() resets only occupied groups.
+        _b.assign(_N, 0);
+        _wr.assign(_N, 0);
+        _ep.assign(_N, 0);
+        _em.assign(_N, 0);
+        _m_out.resize(_N);
+        if (_directed)
+            _m_in.resize(_N);
+        if (_dc && _dist) {
+            _h_out.resize(_N);
+            if (_directed)
+                _h_in.resize(_N);
+        }
+        _members.resize(_N);
+        _pos.assign(_N, 0);
+        _occ_pos.assign(_N, -1);
+        _empty_pos.assign(_N, -1);
+        _empty.reserve(_N);
+        for (int r = _N - 1; r >= 0; --r)
+            push_empty(r);
+        _cnt_out.assign(_N, 0);
+        if (_directed)
+            _cnt_in.assign(_N, 0);
     }
 
     int N() const { return _N; }
@@ -225,87 +324,91 @@ public:
     bool directed() const { return _directed; }
     long E() const { return _E; }
     // Group-level statistics, used as the adjacency of the level above.
-    const std::vector<std::unordered_map<int, long>>& m_out() const { return _m_out; }
-    const std::vector<std::unordered_map<int, long>>& m_in() const { return _m_in; }
+    const std::vector<gt_hash_map<int, long>>& m_out() const { return _m_out; }
+    const std::vector<gt_hash_map<int, long>>& m_in() const { return _m_in; }
     const std::vector<long>& ep() const { return _ep; }
     const std::vector<long>& em() const { return _em; }
     const std::vector<int>& wr() const { return _wr; }
-    // Group-pair count changes of the last virtual_move() or move().
+    // Group-pair count changes of the last virtual_move(), move(), virtual_merge(), or merge().
     const std::vector<Delta>& deltas() const { return _deltas; }
 
     void set_partition(const std::vector<int>& b) {
-        _b = b;
-        _wr.assign(_N, 0);
-        _ep.assign(_N, 0);
-        _em.assign(_N, 0);
-        _m_out.assign(_N, {});
-        if (_directed)
-            _m_in.assign(_N, {});
-        _h_out.assign(_N, {});
-        if (_directed)
-            _h_in.assign(_N, {});
-        _members.assign(_N, {});
-        _pos.assign(_N, 0);
-        _occ_pos.assign(_N, -1);
+        invalidate_cache();
+        for (int r : _occupied) {
+            _wr[r] = 0;
+            _ep[r] = 0;
+            _em[r] = 0;
+            _m_out[r].clear();
+            if (_directed)
+                _m_in[r].clear();
+            if (_dc && _dist) {
+                _h_out[r].clear();
+                if (_directed)
+                    _h_in[r].clear();
+            }
+            _members[r].clear();
+            _occ_pos[r] = -1;
+            push_empty(r);
+        }
         _occupied.clear();
+        _b = b;
         for (int v = 0; v < _N; ++v) {
             int r = _b[v];
             if (r < 0 || r >= _N)
                 Rcpp::stop("Internal error: block label out of range");
+            if (_wr[r] == 0)
+                take_empty(r);
             add_member(v, r);
             _ep[r] += _kout[v];
             _em[r] += _kin[v];
-            _h_out[r][_kout[v]]++;
-            if (_directed)
-                _h_in[r][_kin[v]]++;
+            if (_dc && _dist) {
+                _h_out[r][_kout[v]]++;
+                if (_directed)
+                    _h_in[r][_kin[v]]++;
+            }
         }
         for (int v = 0; v < _N; ++v) {
             int r = _b[v];
+            auto& row = _m_out[r];
             for (int u : _out[v]) {
-                if (_directed) {
-                    _m_out[r][_b[u]]++;
-                    _m_in[_b[u]][r]++;
-                } else {
-                    _m_out[r][_b[u]]++;  // each undirected edge is seen from both ends
-                }
+                int bu = _b[u];
+                row[bu]++;
+                if (_directed)
+                    _m_in[bu][r]++;
             }
             if (_loops[v] > 0) {
                 if (_directed) {
-                    _m_out[r][r] += _loops[v];
+                    row[r] += _loops[v];
                     _m_in[r][r] += _loops[v];
                 } else {
-                    _m_out[r][r] += 2 * _loops[v];
+                    row[r] += 2 * _loops[v];
                 }
             }
         }
-        _empty.clear();
-        for (int r = _N - 1; r >= 0; --r)
-            if (_wr[r] == 0)
-                _empty.push_back(r);
     }
 
     double global_term(long B) const {
         if (_N == 0)
             return 0;
-        double pairs = _directed ? double(B) * B : double(B) * (B + 1) / 2;
-        return lbinom(_N - 1, B - 1) + lgam(_N + 1) + std::log(double(_N)) +
-               (_edges_dl ? lbinom(pairs + _E - 1, _E) : 0);
+        int64_t pairs = _directed ? int64_t(B) * B : int64_t(B) * (B + 1) / 2;
+        return lbinom_int(_N - 1, B - 1) + lgam_int(_N + 1) + log_int(_N) +
+               (_edges_dl ? lbinom_int(pairs + _E - 1, _E) : 0);
     }
 
     double group_term(long n, long ep, long em) const {
         if (n == 0)
             return 0;
-        double S = -lgam(n + 1);
+        double S = -lgam_int(n + 1);
         if (_dc) {
-            S += lgam(ep + 1) + (_directed ? lgam(em + 1) : 0);
+            S += lgam_int(ep + 1) + (_directed ? lgam_int(em + 1) : 0);
             if (_dist) {
                 const LogQ& q = log_q_cache();
-                S += q(ep, n) + (_directed ? q(em, n) + 2 * lgam(n + 1) : lgam(n + 1));
+                S += q(ep, n) + (_directed ? q(em, n) + 2 * lgam_int(n + 1) : lgam_int(n + 1));
             } else {
-                S += lbinom(n + ep - 1, ep) + (_directed ? lbinom(n + em - 1, em) : 0);
+                S += lbinom_int(n + ep - 1, ep) + (_directed ? lbinom_int(n + em - 1, em) : 0);
             }
         } else {
-            S += (ep + (_directed ? em : 0)) * std::log(double(n));
+            S += (ep + (_directed ? em : 0)) * log_int(n);
         }
         return S;
     }
@@ -313,9 +416,11 @@ public:
     double edge_term(int x, int y, long m) const {
         if (m <= 0)
             return 0;
-        if (!_directed && x == y)
-            return lgam(m / 2.0 + 1) + (m / 2.0) * std::log(2.0);
-        return lgam(m + 1);
+        if (!_directed && x == y) {
+            long half = m >> 1;
+            return lgam_int(half + 1) + half * LOG2;
+        }
+        return lgam_int(m + 1);
     }
 
     long get_m(int x, int y) const {
@@ -331,13 +436,13 @@ public:
         for (int r : _occupied) {
             S += group_term(_wr[r], _ep[r], _em[r]);
             if (_dc && _dist) {
-                for (auto& kc : _h_out[r])
-                    S -= lgam(kc.second + 1);
+                for (const auto& kc : _h_out[r])
+                    S -= lgam_int(kc.second + 1);
                 if (_directed)
-                    for (auto& kc : _h_in[r])
-                        S -= lgam(kc.second + 1);
+                    for (const auto& kc : _h_in[r])
+                        S -= lgam_int(kc.second + 1);
             }
-            for (auto& [t, m] : _m_out[r])
+            for (const auto& [t, m] : _m_out[r])
                 if (_directed || t >= r)
                     S -= edge_term(r, t, m);
         }
@@ -363,9 +468,11 @@ public:
                 dS += hist_delta(_h_in, r, s, ki);
         }
         collect_deltas(v, r, s);
+        _last_v = v;
+        _last_r = r;
+        _last_s = s;
+        _last_mr = -1;
         for (const Delta& e : _deltas) {
-            if (e.d == 0)
-                continue;
             long m = get_m(e.x, e.y);
             dS -= edge_term(e.x, e.y, m + e.d) - edge_term(e.x, e.y, m);
         }
@@ -376,10 +483,10 @@ public:
         int r = _b[v];
         if (r == s)
             return;
-        collect_deltas(v, r, s);
+        if (_last_v != v || _last_r != r || _last_s != s)
+            collect_deltas(v, r, s);
+        invalidate_cache();
         for (const Delta& e : _deltas) {
-            if (e.d == 0)
-                continue;
             add_m(_m_out[e.x], e.y, e.d);
             if (_directed)
                 add_m(_m_in[e.y], e.x, e.d);
@@ -391,16 +498,102 @@ public:
         _em[r] -= ki;
         _ep[s] += ko;
         _em[s] += ki;
-        hist_move(_h_out, r, s, ko);
-        if (_directed)
-            hist_move(_h_in, r, s, ki);
+        if (_dc && _dist) {
+            hist_move(_h_out, r, s, ko);
+            if (_directed)
+                hist_move(_h_in, r, s, ki);
+        }
         remove_member(v, r);
         if (_wr[s] == 0)
             take_empty(s);
         add_member(v, s);
         _b[v] = s;
         if (_wr[r] == 0)
-            _empty.push_back(r);
+            push_empty(r);
+    }
+
+    // Direct O(deg_group(r) + |hist(r)|) evaluation of merging group r into s.
+    double virtual_merge(int r, int s) {
+        if (r == s)
+            return 0;
+        double dS = global_term(B() - 1) - global_term(B());
+        dS += group_term(_wr[s] + _wr[r], _ep[s] + _ep[r], _em[s] + _em[r]) -
+              group_term(_wr[s], _ep[s], _em[s]) -
+              group_term(_wr[r], _ep[r], _em[r]);
+        if (_dc && _dist) {
+            for (const auto& [k, cr] : _h_out[r]) {
+                auto it = _h_out[s].find(k);
+                if (it != _h_out[s].end()) {
+                    long cs = it->second;
+                    dS += lgam_int(cr + 1) + lgam_int(cs + 1) - lgam_int(cr + cs + 1);
+                }
+            }
+            if (_directed) {
+                for (const auto& [k, cr] : _h_in[r]) {
+                    auto it = _h_in[s].find(k);
+                    if (it != _h_in[s].end()) {
+                        long cs = it->second;
+                        dS += lgam_int(cr + 1) + lgam_int(cs + 1) - lgam_int(cr + cs + 1);
+                    }
+                }
+            }
+        }
+        collect_merge_deltas(r, s);
+        _last_v = -1;
+        _last_mr = r;
+        _last_ms = s;
+        for (const Delta& e : _deltas) {
+            if (e.d < 0) {
+                // Every negative merge delta zeroes out an edge incident to r.
+                dS += edge_term(e.x, e.y, -e.d);
+            } else {
+                long m = get_m(e.x, e.y);
+                dS -= edge_term(e.x, e.y, m + e.d) - edge_term(e.x, e.y, m);
+            }
+        }
+        return dS;
+    }
+
+    void merge(int r, int s) {
+        if (r == s)
+            return;
+        if (_last_mr != r || _last_ms != s)
+            collect_merge_deltas(r, s);
+        invalidate_cache();
+        for (const Delta& e : _deltas) {
+            add_m(_m_out[e.x], e.y, e.d);
+            if (_directed)
+                add_m(_m_in[e.y], e.x, e.d);
+            else if (e.x != e.y)
+                add_m(_m_out[e.y], e.x, e.d);
+        }
+        _ep[s] += _ep[r];
+        _em[s] += _em[r];
+        _ep[r] = 0;
+        _em[r] = 0;
+        if (_dc && _dist) {
+            for (const auto& [k, cr] : _h_out[r])
+                _h_out[s][k] += cr;
+            _h_out[r].clear();
+            if (_directed) {
+                for (const auto& [k, cr] : _h_in[r])
+                    _h_in[s][k] += cr;
+                _h_in[r].clear();
+            }
+        }
+        auto& vr = _members[r];
+        auto& vs = _members[s];
+        vs.reserve(vs.size() + vr.size());
+        for (int v : vr) {
+            _pos[v] = static_cast<int>(vs.size());
+            vs.push_back(v);
+            _b[v] = s;
+        }
+        _wr[s] += _wr[r];
+        vr.clear();
+        _wr[r] = 0;
+        remove_occupied(r);
+        push_empty(r);
     }
 
     int random_occupied(RRng& rng) const { return _occupied[rng.index(_occupied.size())]; }
@@ -438,16 +631,24 @@ private:
     std::vector<std::vector<int>> _out, _in, _all;
     std::vector<long> _loops, _kout, _kin;
 
-    std::vector<int> _b, _wr, _pos, _occ_pos, _occupied, _empty;
+    std::vector<int> _b, _wr, _pos, _occ_pos, _occupied, _empty, _empty_pos;
     std::vector<long> _ep, _em;
-    std::vector<std::unordered_map<int, long>> _m_out, _m_in;
-    std::vector<std::unordered_map<long, long>> _h_out, _h_in;
+    std::vector<gt_hash_map<int, long>> _m_out, _m_in;
+    std::vector<gt_hash_map<long, long>> _h_out, _h_in;
     std::vector<std::vector<int>> _members;
 
     std::vector<Delta> _deltas;
-    std::unordered_map<long long, size_t> _key;
+    std::vector<long> _cnt_out, _cnt_in;
+    std::vector<int> _touched_out, _touched_in;
+    int _last_v = -1, _last_r = -1, _last_s = -1;
+    int _last_mr = -1, _last_ms = -1;
 
-    static void add_m(std::unordered_map<int, long>& row, int y, long d) {
+    void invalidate_cache() {
+        _last_v = -1;
+        _last_mr = -1;
+    }
+
+    static void add_m(gt_hash_map<int, long>& row, int y, long d) {
         auto it = row.find(y);
         if (it == row.end()) {
             row.emplace(y, d);
@@ -458,18 +659,17 @@ private:
         }
     }
 
-    double hist_delta(const std::vector<std::unordered_map<long, long>>& h,
+    double hist_delta(const std::vector<gt_hash_map<long, long>>& h,
                       int r, int s, long k) const {
-        auto count = [&](int x) {
-            auto it = h[x].find(k);
-            return it == h[x].end() ? 0L : it->second;
-        };
-        long cr = count(r), cs = count(s);
-        // the histogram term enters with a negative sign
-        return -(lgam(cr) - lgam(cr + 1)) - (lgam(cs + 2) - lgam(cs + 1));
+        auto itr = h[r].find(k);
+        long cr = itr == h[r].end() ? 0L : itr->second;
+        auto its = h[s].find(k);
+        long cs = its == h[s].end() ? 0L : its->second;
+        // -(lgam(cr) - lgam(cr + 1)) - (lgam(cs + 2) - lgam(cs + 1)) = log(cr) - log(cs + 1)
+        return log_int(cr) - log_int(cs + 1);
     }
 
-    static void hist_move(std::vector<std::unordered_map<long, long>>& h,
+    static void hist_move(std::vector<gt_hash_map<long, long>>& h,
                           int r, int s, long k) {
         auto it = h[r].find(k);
         if (--(it->second) == 0)
@@ -487,69 +687,167 @@ private:
         _wr[r]++;
     }
 
+    void remove_occupied(int r) {
+        int i = _occ_pos[r];
+        int other = _occupied.back();
+        _occupied[i] = other;
+        _occ_pos[other] = i;
+        _occupied.pop_back();
+        _occ_pos[r] = -1;
+    }
+
     void remove_member(int v, int r) {
         auto& vs = _members[r];
         int last = vs.back();
         vs[_pos[v]] = last;
         _pos[last] = _pos[v];
         vs.pop_back();
-        if (--_wr[r] == 0) {
-            int i = _occ_pos[r];
-            int other = _occupied.back();
-            _occupied[i] = other;
-            _occ_pos[other] = i;
-            _occupied.pop_back();
-            _occ_pos[r] = -1;
-        }
+        if (--_wr[r] == 0)
+            remove_occupied(r);
+    }
+
+    void push_empty(int r) {
+        _empty_pos[r] = static_cast<int>(_empty.size());
+        _empty.push_back(r);
     }
 
     void take_empty(int s) {
-        auto it = std::find(_empty.rbegin(), _empty.rend(), s);
-        if (it != _empty.rend())
-            _empty.erase(std::next(it).base());
-    }
-
-    void add_delta(int x, int y, long d) {
-        if (!_directed && x > y)
-            std::swap(x, y);
-        long long key = static_cast<long long>(x) * _N + y;
-        auto it = _key.find(key);
-        if (it == _key.end()) {
-            _key.emplace(key, _deltas.size());
-            _deltas.push_back({x, y, d});
-        } else {
-            _deltas[it->second].d += d;
+        int i = _empty_pos[s];
+        if (i >= 0) {
+            int last = _empty.back();
+            _empty[i] = last;
+            _empty_pos[last] = i;
+            _empty.pop_back();
+            _empty_pos[s] = -1;
         }
     }
 
     void collect_deltas(int v, int r, int s) {
         _deltas.clear();
-        _key.clear();
+        _touched_out.clear();
         if (_directed) {
+            _touched_in.clear();
             for (int u : _out[v]) {
                 int t = _b[u];
-                add_delta(r, t, -1);
-                add_delta(s, t, +1);
+                if (_cnt_out[t] == 0)
+                    _touched_out.push_back(t);
+                _cnt_out[t]++;
             }
             for (int u : _in[v]) {
                 int t = _b[u];
-                add_delta(t, r, -1);
-                add_delta(t, s, +1);
+                if (_cnt_in[t] == 0)
+                    _touched_in.push_back(t);
+                _cnt_in[t]++;
             }
-            if (_loops[v] > 0) {
-                add_delta(r, r, -_loops[v]);
-                add_delta(s, s, +_loops[v]);
+            long co_r = _cnt_out[r], co_s = _cnt_out[s];
+            long ci_r = _cnt_in[r], ci_s = _cnt_in[s];
+            long lp = _loops[v];
+            for (int t : _touched_out) {
+                long c = _cnt_out[t];
+                _cnt_out[t] = 0;
+                if (t == r || t == s)
+                    continue;
+                _deltas.push_back({r, t, -c});
+                _deltas.push_back({s, t, c});
             }
+            for (int t : _touched_in) {
+                long c = _cnt_in[t];
+                _cnt_in[t] = 0;
+                if (t == r || t == s)
+                    continue;
+                _deltas.push_back({t, r, -c});
+                _deltas.push_back({t, s, c});
+            }
+            long d_rr = -co_r - ci_r - lp;
+            long d_rs = -co_s + ci_r;
+            long d_sr = co_r - ci_s;
+            long d_ss = co_s + ci_s + lp;
+            if (d_rr != 0) _deltas.push_back({r, r, d_rr});
+            if (d_rs != 0) _deltas.push_back({r, s, d_rs});
+            if (d_sr != 0) _deltas.push_back({s, r, d_sr});
+            if (d_ss != 0) _deltas.push_back({s, s, d_ss});
         } else {
             for (int u : _out[v]) {
                 int t = _b[u];
-                add_delta(r, t, t == r ? -2 : -1);
-                add_delta(s, t, t == s ? +2 : +1);
+                if (_cnt_out[t] == 0)
+                    _touched_out.push_back(t);
+                _cnt_out[t]++;
             }
-            if (_loops[v] > 0) {
-                add_delta(r, r, -2 * _loops[v]);
-                add_delta(s, s, +2 * _loops[v]);
+            long cr = _cnt_out[r];
+            long cs = _cnt_out[s];
+            long lp = _loops[v];
+            for (int t : _touched_out) {
+                long c = _cnt_out[t];
+                _cnt_out[t] = 0;
+                if (t == r || t == s)
+                    continue;
+                int x1 = r < t ? r : t, y1 = r < t ? t : r;
+                int x2 = s < t ? s : t, y2 = s < t ? t : s;
+                _deltas.push_back({x1, y1, -c});
+                _deltas.push_back({x2, y2, c});
             }
+            long d_rr = -2 * cr - 2 * lp;
+            long d_rs = cr - cs;
+            long d_ss = 2 * cs + 2 * lp;
+            if (d_rr != 0) _deltas.push_back({r, r, d_rr});
+            if (d_rs != 0) {
+                int x = r < s ? r : s, y = r < s ? s : r;
+                _deltas.push_back({x, y, d_rs});
+            }
+            if (d_ss != 0) _deltas.push_back({s, s, d_ss});
+        }
+    }
+
+    void collect_merge_deltas(int r, int s) {
+        _deltas.clear();
+        if (_directed) {
+            long m_rr = 0, m_rs = 0, m_sr = 0;
+            for (const auto& [t, m] : _m_out[r]) {
+                if (t == r) {
+                    m_rr = m;
+                } else if (t == s) {
+                    m_rs = m;
+                } else {
+                    _deltas.push_back({r, t, -m});
+                    _deltas.push_back({s, t, m});
+                }
+            }
+            for (const auto& [t, m] : _m_in[r]) {
+                if (t == r) {
+                    continue;
+                } else if (t == s) {
+                    m_sr = m;
+                } else {
+                    _deltas.push_back({t, r, -m});
+                    _deltas.push_back({t, s, m});
+                }
+            }
+            if (m_rr != 0) _deltas.push_back({r, r, -m_rr});
+            if (m_rs != 0) _deltas.push_back({r, s, -m_rs});
+            if (m_sr != 0) _deltas.push_back({s, r, -m_sr});
+            long d_ss = m_rr + m_rs + m_sr;
+            if (d_ss != 0) _deltas.push_back({s, s, d_ss});
+        } else {
+            long m_rr = 0, m_rs = 0;
+            for (const auto& [t, m] : _m_out[r]) {
+                if (t == r) {
+                    m_rr = m;
+                } else if (t == s) {
+                    m_rs = m;
+                } else {
+                    int x1 = r < t ? r : t, y1 = r < t ? t : r;
+                    int x2 = s < t ? s : t, y2 = s < t ? t : s;
+                    _deltas.push_back({x1, y1, -m});
+                    _deltas.push_back({x2, y2, m});
+                }
+            }
+            if (m_rr != 0) _deltas.push_back({r, r, -m_rr});
+            if (m_rs != 0) {
+                int x = r < s ? r : s, y = r < s ? s : r;
+                _deltas.push_back({x, y, -m_rs});
+            }
+            long d_ss = m_rr + 2 * m_rs;
+            if (d_ss != 0) _deltas.push_back({s, s, d_ss});
         }
     }
 };
@@ -567,10 +865,10 @@ private:
 // Accumulates group-pair count changes, normalising undirected keys to x <= y.
 class DeltaAcc {
 public:
-    void reset(int n, bool directed) {
-        _n = n;
+    void reset(bool directed) {
         _directed = directed;
         clear();
+        _idx.reserve(64);
     }
     void clear() {
         _v.clear();
@@ -579,7 +877,7 @@ public:
     void add(int x, int y, long d) {
         if (!_directed && x > y)
             std::swap(x, y);
-        long long key = static_cast<long long>(x) * _n + y;
+        uint64_t key = pair_key(static_cast<uint64_t>(x), static_cast<uint64_t>(y));
         auto it = _idx.find(key);
         if (it == _idx.end()) {
             _idx.emplace(key, _v.size());
@@ -590,10 +888,9 @@ public:
     }
     const std::vector<Delta>& items() const { return _v; }
 private:
-    int _n = 0;
     bool _directed = false;
     std::vector<Delta> _v;
-    std::unordered_map<long long, size_t> _idx;
+    gt_hash_map<uint64_t, size_t> _idx;
 };
 
 // Changes passed from one level to the level above: group-pair count changes
@@ -610,19 +907,27 @@ struct ChangeSet {
 
 // The statistics of the level below, which form this level's weighted graph.
 struct LowerView {
-    const std::vector<std::unordered_map<int, long>>* m_out;
-    const std::vector<std::unordered_map<int, long>>* m_in;
+    const std::vector<gt_hash_map<int, long>>* m_out;
+    const std::vector<gt_hash_map<int, long>>* m_in;
     const std::vector<long>* ep;
     const std::vector<long>* em;
     const std::vector<int>* wr;
+    const std::vector<int>* occupied;
 };
 
 class BlockLevel {
 public:
     BlockLevel(int cap, bool directed, long E, bool top)
-        : _cap(cap), _directed(directed), _top(top), _E(E) {
-        _acc.reset(cap, directed);
-        _pairs.reset(cap, directed);
+        : _cap(cap), _directed(directed), _top(top), _E(E),
+          _b(cap, 0), _wr(cap, 0), _pos(cap, 0), _occ_pos(cap, -1),
+          _empty_pos(cap, -1), _ep(cap, 0), _em(cap, 0),
+          _m_out(cap), _m_in(directed ? cap : 0), _members(cap),
+          _cnt_out(cap, 0), _cnt_in(directed ? cap : 0) {
+        _acc.reset(directed);
+        _pairs.reset(directed);
+        _empty.reserve(cap);
+        for (int r = _cap - 1; r >= 0; --r)
+            push_empty(r);
     }
 
     int B() const { return static_cast<int>(_occupied.size()); }
@@ -635,34 +940,36 @@ public:
     int empty_group() const { return _empty.empty() ? -1 : _empty.back(); }
     int random_occupied(RRng& rng) const { return _occupied[rng.index(_occupied.size())]; }
 
-    LowerView view() const { return {&_m_out, &_m_in, &_ep, &_em, &_wr}; }
+    LowerView view() const { return {&_m_out, &_m_in, &_ep, &_em, &_wr, &_occupied}; }
 
     void build(const std::vector<int>& b, const LowerView& lower) {
-        _b = b;
-        _wr.assign(_cap, 0);
-        _ep.assign(_cap, 0);
-        _em.assign(_cap, 0);
-        _m_out.assign(_cap, {});
-        if (_directed)
-            _m_in.assign(_cap, {});
-        _members.assign(_cap, {});
-        _pos.assign(_cap, 0);
-        _occ_pos.assign(_cap, -1);
-        _occupied.clear();
-        _N = 0;
-        for (int x = 0; x < _cap; ++x) {
-            if ((*lower.wr)[x] > 0) {
-                add_member(x, _b[x]);
-                ++_N;
-            }
+        for (int r : _occupied) {
+            _wr[r] = 0;
+            _ep[r] = 0;
+            _em[r] = 0;
+            _m_out[r].clear();
+            if (_directed)
+                _m_in[r].clear();
+            _members[r].clear();
+            _occ_pos[r] = -1;
+            push_empty(r);
         }
-        for (int x = 0; x < _cap; ++x) {
-            if ((*lower.wr)[x] == 0)
-                continue;
+        _occupied.clear();
+        _b = b;
+        _N = 0;
+        for (int x : *lower.occupied) {
             int g = _b[x];
-            for (auto& [y, val] : (*lower.m_out)[x]) {
+            if (_wr[g] == 0)
+                take_empty(g);
+            add_member(x, g);
+            ++_N;
+        }
+        for (int x : *lower.occupied) {
+            int g = _b[x];
+            auto& row = _m_out[g];
+            for (const auto& [y, val] : (*lower.m_out)[x]) {
                 int h = _b[y];
-                _m_out[g][h] += val;
+                row[h] += val;
                 _ep[g] += val;
                 if (_directed) {
                     _m_in[h][g] += val;
@@ -670,36 +977,32 @@ public:
                 }
             }
         }
-        _empty.clear();
-        for (int r = _cap - 1; r >= 0; --r)
-            if (_wr[r] == 0)
-                _empty.push_back(r);
     }
 
     double partition_term(long N, long B) const {
         if (N == 0)
             return 0;
-        return lbinom(N - 1, B - 1) + lgam(N + 1) + std::log(double(N));
+        return lbinom_int(N - 1, B - 1) + lgam_int(N + 1) + log_int(N);
     }
 
     double edges_term(long B) const {
         if (!_top)
             return 0;
-        double pairs = _directed ? double(B) * B : double(B) * (B + 1) / 2;
-        return lbinom(pairs + _E - 1, _E);
+        int64_t pairs = _directed ? int64_t(B) * B : int64_t(B) * (B + 1) / 2;
+        return lbinom_int(pairs + _E - 1, _E);
     }
 
     double dense_term(int x, int y, long m, long wx, long wy) const {
         if (m <= 0)
             return 0;
-        double nn, e = m;
+        int64_t nn, e = m;
         if (_directed || x != y) {
-            nn = double(wx) * wy;
+            nn = int64_t(wx) * wy;
         } else {
-            nn = double(wx) * (wx + 1) / 2;
-            e = m / 2.0;
+            nn = int64_t(wx) * (wx + 1) / 2;
+            e = m >> 1;
         }
-        return lbinom(nn + e - 1, e);
+        return lbinom_int(nn + e - 1, e);
     }
 
     long get_m(int x, int y) const {
@@ -710,8 +1013,8 @@ public:
     double entropy() const {
         double S = partition_term(_N, B()) + edges_term(B());
         for (int r : _occupied) {
-            S -= lgam(_wr[r] + 1);
-            for (auto& [t, m] : _m_out[r])
+            S -= lgam_int(_wr[r] + 1);
+            for (const auto& [t, m] : _m_out[r])
                 if (_directed || t >= r)
                     S += dense_term(r, t, m, _wr[r], _wr[t]);
         }
@@ -734,13 +1037,17 @@ public:
         }
         _wd.clear();
         int dN = 0;
-        for (auto& [x, dw] : in.weights) {
+        for (const auto& [x, dw] : in.weights) {
             add_weight(_b[x], dw);
             dN += dw;
         }
+        out.clear();
+        for (const Delta& e : _acc.items())
+            if (e.d != 0)
+                out.edges.push_back(e);
         double dS = process(dN, out, apply);
         if (apply) {
-            for (auto& [x, dw] : in.weights) {
+            for (const auto& [x, dw] : in.weights) {
                 if (dw > 0)
                     push_node(x, _b[x]);
                 else
@@ -753,45 +1060,173 @@ public:
     // Move node x (a nonempty group of the level below) to group h.
     double node_move(int x, int h, const LowerView& lower, ChangeSet& out, bool apply) {
         int g = _b[x];
-        _acc.clear();
+        out.clear();
+        _touched_out.clear();
         if (_directed) {
-            for (auto& [y, val] : (*lower.m_out)[x]) {
+            _touched_in.clear();
+            long lp = 0;
+            for (const auto& [y, val] : (*lower.m_out)[x]) {
                 if (y == x) {
-                    _acc.add(g, g, -val);
-                    _acc.add(h, h, val);
+                    lp = val;
                 } else {
                     int t = _b[y];
-                    _acc.add(g, t, -val);
-                    _acc.add(h, t, val);
+                    if (_cnt_out[t] == 0)
+                        _touched_out.push_back(t);
+                    _cnt_out[t] += val;
                 }
             }
-            for (auto& [y, val] : (*lower.m_in)[x]) {
+            for (const auto& [y, val] : (*lower.m_in)[x]) {
                 if (y == x)
                     continue;
                 int t = _b[y];
-                _acc.add(t, g, -val);
-                _acc.add(t, h, val);
+                if (_cnt_in[t] == 0)
+                    _touched_in.push_back(t);
+                _cnt_in[t] += val;
             }
+            long co_g = _cnt_out[g], co_h = _cnt_out[h];
+            long ci_g = _cnt_in[g], ci_h = _cnt_in[h];
+            for (int t : _touched_out) {
+                long c = _cnt_out[t];
+                _cnt_out[t] = 0;
+                if (t == g || t == h)
+                    continue;
+                out.edges.push_back({g, t, -c});
+                out.edges.push_back({h, t, c});
+            }
+            for (int t : _touched_in) {
+                long c = _cnt_in[t];
+                _cnt_in[t] = 0;
+                if (t == g || t == h)
+                    continue;
+                out.edges.push_back({t, g, -c});
+                out.edges.push_back({t, h, c});
+            }
+            long d_gg = -co_g - ci_g - lp;
+            long d_gh = -co_h + ci_g;
+            long d_hg = co_g - ci_h;
+            long d_hh = co_h + ci_h + lp;
+            if (d_gg != 0) out.edges.push_back({g, g, d_gg});
+            if (d_gh != 0) out.edges.push_back({g, h, d_gh});
+            if (d_hg != 0) out.edges.push_back({h, g, d_hg});
+            if (d_hh != 0) out.edges.push_back({h, h, d_hh});
         } else {
-            for (auto& [y, val] : (*lower.m_out)[x]) {
+            long lp = 0;
+            for (const auto& [y, val] : (*lower.m_out)[x]) {
                 if (y == x) {
-                    _acc.add(g, g, -val);
-                    _acc.add(h, h, val);
+                    lp = val;
                 } else {
                     int t = _b[y];
-                    _acc.add(g, t, t == g ? -2 * val : -val);
-                    _acc.add(h, t, t == h ? 2 * val : val);
+                    if (_cnt_out[t] == 0)
+                        _touched_out.push_back(t);
+                    _cnt_out[t] += val;
                 }
             }
+            long cg = _cnt_out[g];
+            long ch = _cnt_out[h];
+            for (int t : _touched_out) {
+                long c = _cnt_out[t];
+                _cnt_out[t] = 0;
+                if (t == g || t == h)
+                    continue;
+                int x1 = g < t ? g : t, y1 = g < t ? t : g;
+                int x2 = h < t ? h : t, y2 = h < t ? t : h;
+                out.edges.push_back({x1, y1, -c});
+                out.edges.push_back({x2, y2, c});
+            }
+            long d_gg = -2 * cg - lp;
+            long d_gh = cg - ch;
+            long d_hh = 2 * ch + lp;
+            if (d_gg != 0) out.edges.push_back({g, g, d_gg});
+            if (d_gh != 0) {
+                int a = g < h ? g : h, b = g < h ? h : g;
+                out.edges.push_back({a, b, d_gh});
+            }
+            if (d_hh != 0) out.edges.push_back({h, h, d_hh});
         }
         _wd.clear();
-        add_weight(g, -1);
-        add_weight(h, +1);
+        _wd.emplace_back(g, -1);
+        _wd.emplace_back(h, +1);
         double dS = process(0, out, apply);
         if (apply) {
             pop_node(x, g);
             _b[x] = h;
             push_node(x, h);
+        }
+        return dS;
+    }
+
+    // Direct group-level merge of r into s at this level.
+    double group_merge(int r, int s, ChangeSet& out, bool apply) {
+        if (r == s)
+            return 0;
+        out.clear();
+        if (_directed) {
+            long m_rr = 0, m_rs = 0, m_sr = 0;
+            for (const auto& [t, m] : _m_out[r]) {
+                if (t == r) {
+                    m_rr = m;
+                } else if (t == s) {
+                    m_rs = m;
+                } else {
+                    out.edges.push_back({r, t, -m});
+                    out.edges.push_back({s, t, m});
+                }
+            }
+            for (const auto& [t, m] : _m_in[r]) {
+                if (t == r) {
+                    continue;
+                } else if (t == s) {
+                    m_sr = m;
+                } else {
+                    out.edges.push_back({t, r, -m});
+                    out.edges.push_back({t, s, m});
+                }
+            }
+            if (m_rr != 0) out.edges.push_back({r, r, -m_rr});
+            if (m_rs != 0) out.edges.push_back({r, s, -m_rs});
+            if (m_sr != 0) out.edges.push_back({s, r, -m_sr});
+            long d_ss = m_rr + m_rs + m_sr;
+            if (d_ss != 0) out.edges.push_back({s, s, d_ss});
+        } else {
+            long m_rr = 0, m_rs = 0;
+            for (const auto& [t, m] : _m_out[r]) {
+                if (t == r) {
+                    m_rr = m;
+                } else if (t == s) {
+                    m_rs = m;
+                } else {
+                    int x1 = r < t ? r : t, y1 = r < t ? t : r;
+                    int x2 = s < t ? s : t, y2 = s < t ? t : s;
+                    out.edges.push_back({x1, y1, -m});
+                    out.edges.push_back({x2, y2, m});
+                }
+            }
+            if (m_rr != 0) out.edges.push_back({r, r, -m_rr});
+            if (m_rs != 0) {
+                int x = r < s ? r : s, y = r < s ? s : r;
+                out.edges.push_back({x, y, -m_rs});
+            }
+            long d_ss = m_rr + 2 * m_rs;
+            if (d_ss != 0) out.edges.push_back({s, s, d_ss});
+        }
+        _wd.clear();
+        _wd.emplace_back(r, -_wr[r]);
+        _wd.emplace_back(s, _wr[r]);
+        double dS = process(0, out, apply);
+        if (apply) {
+            auto& vr = _members[r];
+            auto& vs = _members[s];
+            vs.reserve(vs.size() + vr.size());
+            for (int x : vr) {
+                _pos[x] = static_cast<int>(vs.size());
+                vs.push_back(x);
+                _b[x] = s;
+            }
+            _wr[s] += _wr[r];
+            vr.clear();
+            _wr[r] = 0;
+            remove_occupied(r);
+            push_empty(r);
         }
         return dS;
     }
@@ -804,13 +1239,13 @@ public:
         if (total <= 0)
             return -1;
         double u = rng.unif() * total;
-        for (auto& [y, val] : (*lower.m_out)[x]) {
+        for (const auto& [y, val] : (*lower.m_out)[x]) {
             u -= val;
             if (u < 0)
                 return y;
         }
         if (_directed) {
-            for (auto& [y, val] : (*lower.m_in)[x]) {
+            for (const auto& [y, val] : (*lower.m_in)[x]) {
                 u -= val;
                 if (u < 0)
                     return y;
@@ -844,12 +1279,14 @@ private:
     bool _directed, _top;
     long _E;
     int _N = 0;
-    std::vector<int> _b, _wr, _pos, _occ_pos, _occupied, _empty;
+    std::vector<int> _b, _wr, _pos, _occ_pos, _occupied, _empty, _empty_pos;
     std::vector<long> _ep, _em;
-    std::vector<std::unordered_map<int, long>> _m_out, _m_in;
+    std::vector<gt_hash_map<int, long>> _m_out, _m_in;
     std::vector<std::vector<int>> _members;
     DeltaAcc _acc, _pairs;
     std::vector<std::pair<int, int>> _wd;
+    std::vector<long> _cnt_out, _cnt_in;
+    std::vector<int> _touched_out, _touched_in;
 
     void add_weight(int g, int dw) {
         for (auto& p : _wd) {
@@ -863,16 +1300,19 @@ private:
 
     int new_weight(int g) const {
         int w = _wr[g];
-        for (auto& p : _wd)
+        for (const auto& p : _wd)
             if (p.first == g)
                 w += p.second;
         return w;
     }
 
     double process(int dN, ChangeSet& out, bool apply) {
-        out.clear();
+        bool any_wd = false;
         long B0 = B(), B1 = B0;
-        for (auto& [g, dw] : _wd) {
+        for (const auto& [g, dw] : _wd) {
+            if (dw == 0)
+                continue;
+            any_wd = true;
             int w0 = _wr[g], w1 = w0 + dw;
             if (w0 == 0 && w1 > 0) {
                 ++B1;
@@ -882,26 +1322,29 @@ private:
                 out.weights.emplace_back(g, -1);
             }
         }
-        for (const Delta& e : _acc.items())
-            if (e.d != 0)
-                out.edges.push_back(e);
+        if (dN == 0 && !any_wd && out.edges.empty())
+            return 0;
 
         double dS = 0;
         if (!apply) {
-            dS += partition_term(_N + dN, B1) - partition_term(_N, B0);
-            dS += edges_term(B1) - edges_term(B0);
-            for (auto& [g, dw] : _wd)
-                dS += lgam(_wr[g] + 1) - lgam(_wr[g] + dw + 1);
+            if (dN != 0 || B1 != B0) {
+                dS += partition_term(_N + dN, B1) - partition_term(_N, B0);
+                dS += edges_term(B1) - edges_term(B0);
+            }
+            for (const auto& [g, dw] : _wd) {
+                if (dw != 0)
+                    dS += lgam_int(_wr[g] + 1) - lgam_int(_wr[g] + dw + 1);
+            }
             _pairs.clear();
             for (const Delta& e : out.edges)
                 _pairs.add(e.x, e.y, e.d);
-            for (auto& [g, dw] : _wd) {
+            for (const auto& [g, dw] : _wd) {
                 if (dw == 0)
                     continue;
-                for (auto& [t, m] : _m_out[g])
+                for (const auto& [t, m] : _m_out[g])
                     _pairs.add(g, t, 0);
                 if (_directed)
-                    for (auto& [t, m] : _m_in[g])
+                    for (const auto& [t, m] : _m_in[g])
                         _pairs.add(t, g, 0);
             }
             for (const Delta& p : _pairs.items()) {
@@ -930,7 +1373,7 @@ private:
         return 0;
     }
 
-    static void add_m(std::unordered_map<int, long>& row, int y, long d) {
+    static void add_m(gt_hash_map<int, long>& row, int y, long d) {
         auto it = row.find(y);
         if (it == row.end()) {
             row.emplace(y, d);
@@ -951,14 +1394,35 @@ private:
         _wr[r]++;
     }
 
-    void push_node(int x, int r) {
-        bool was_empty = _wr[r] == 0;
-        add_member(x, r);
-        if (was_empty) {
-            auto it = std::find(_empty.rbegin(), _empty.rend(), r);
-            if (it != _empty.rend())
-                _empty.erase(std::next(it).base());
+    void remove_occupied(int r) {
+        int i = _occ_pos[r];
+        int other = _occupied.back();
+        _occupied[i] = other;
+        _occ_pos[other] = i;
+        _occupied.pop_back();
+        _occ_pos[r] = -1;
+    }
+
+    void push_empty(int r) {
+        _empty_pos[r] = static_cast<int>(_empty.size());
+        _empty.push_back(r);
+    }
+
+    void take_empty(int s) {
+        int i = _empty_pos[s];
+        if (i >= 0) {
+            int last = _empty.back();
+            _empty[i] = last;
+            _empty_pos[last] = i;
+            _empty.pop_back();
+            _empty_pos[s] = -1;
         }
+    }
+
+    void push_node(int x, int r) {
+        if (_wr[r] == 0)
+            take_empty(r);
+        add_member(x, r);
     }
 
     void pop_node(int x, int r) {
@@ -968,13 +1432,8 @@ private:
         _pos[last] = _pos[x];
         vs.pop_back();
         if (--_wr[r] == 0) {
-            int i = _occ_pos[r];
-            int other = _occupied.back();
-            _occupied[i] = other;
-            _occ_pos[other] = i;
-            _occupied.pop_back();
-            _occ_pos[r] = -1;
-            _empty.push_back(r);
+            remove_occupied(r);
+            push_empty(r);
         }
     }
 };
@@ -986,6 +1445,7 @@ public:
     Nested(const Graph& graph, bool dc, bool dist, size_t q_cache_max, int levels)
         : _base(graph, dc, dist, q_cache_max, levels <= 1) {
         int cap = std::max(_base.N(), 1);
+        _up.reserve(levels > 1 ? levels - 1 : 0);
         for (int l = 1; l < levels; ++l)
             _up.emplace_back(cap, _base.directed(), _base.E(), l == levels - 1);
         _cs.resize(levels + 1);
@@ -996,7 +1456,8 @@ public:
     BlockLevel& upper(int l) { return _up[l - 1]; }
     LowerView lower(int l) const {
         if (l == 1)
-            return {&_base.m_out(), &_base.m_in(), &_base.ep(), &_base.em(), &_base.wr()};
+            return {&_base.m_out(), &_base.m_in(), &_base.ep(), &_base.em(), &_base.wr(),
+                    &_base.occupied()};
         return _up[l - 2].view();
     }
 
@@ -1006,24 +1467,39 @@ public:
             _up[l - 1].build(bs[l], lower(l));
     }
 
+    void rebuild_from(int l, const std::vector<int>& bl,
+                      const std::vector<int>* b_next = nullptr) {
+        if (l == 0)
+            _base.set_partition(bl);
+        else
+            _up[l - 1].build(bl, lower(l));
+        for (int k = l + 1; k < levels(); ++k) {
+            if (k == l + 1 && b_next != nullptr)
+                _up[k - 1].build(*b_next, lower(k));
+            else
+                _up[k - 1].build(_up[k - 1].blocks(), lower(k));
+        }
+    }
+
     Hierarchy hierarchy() const {
         Hierarchy bs;
+        bs.reserve(levels());
         bs.push_back(_base.blocks());
-        for (auto& u : _up)
+        for (const auto& u : _up)
             bs.push_back(u.blocks());
         return bs;
     }
 
     double entropy() const {
         double S = _base.entropy();
-        for (auto& u : _up)
+        for (const auto& u : _up)
             S += u.entropy();
         return S;
     }
 
     std::vector<double> level_entropies() const {
         std::vector<double> S{_base.entropy()};
-        for (auto& u : _up)
+        for (const auto& u : _up)
             S.push_back(u.entropy());
         return S;
     }
@@ -1033,6 +1509,9 @@ public:
 
     double virtual_move(int l, int v, int s) { return change(l, v, s, false); }
     void move(int l, int v, int s) { change(l, v, s, true); }
+
+    double virtual_merge(int l, int r, int s) { return merge_groups(l, r, s, false); }
+    void merge(int l, int r, int s) { merge_groups(l, r, s, true); }
 
     // A new group t at level l takes the upper-level label of group r.
     void inherit(int l, int t, int r) {
@@ -1052,7 +1531,6 @@ private:
         double dS = 0;
         ChangeSet& cs = _cs[l];
         if (l == 0) {
-            cs.clear();
             bool empties = _base.size(r) == 1, fills = _base.size(s) == 0;
             if (apply)
                 _base.move(v, s);
@@ -1060,13 +1538,48 @@ private:
                 dS += _base.virtual_move(v, s);
             if (levels() == 1)
                 return dS;
+            // Fast path: if r and s share the same upper-level group and neither
+            // empties nor fills, all upper-level edge deltas cancel identically.
+            if (!empties && !fills && _up[0].group(r) == _up[0].group(s))
+                return dS;
+            cs.clear();
             cs.edges = _base.deltas();
             if (empties)
                 cs.weights.emplace_back(r, -1);
             if (fills)
                 cs.weights.emplace_back(s, +1);
         } else {
+            bool empties = _up[l - 1].size(r) == 1, fills = _up[l - 1].size(s) == 0;
             dS += _up[l - 1].node_move(v, s, lower(l), cs, apply);
+            if (l + 1 < levels() && !empties && !fills &&
+                _up[l].group(r) == _up[l].group(s))
+                return dS;
+        }
+        for (int k = l + 1; k < levels(); ++k) {
+            if (_cs[k - 1].empty())
+                break;
+            dS += _up[k - 1].lower_changes(_cs[k - 1], _cs[k], apply);
+        }
+        return dS;
+    }
+
+    double merge_groups(int l, int r, int s, bool apply) {
+        if (r == s)
+            return 0;
+        double dS = 0;
+        ChangeSet& cs = _cs[l];
+        if (l == 0) {
+            cs.clear();
+            if (apply)
+                _base.merge(r, s);
+            else
+                dS += _base.virtual_merge(r, s);
+            if (levels() == 1)
+                return dS;
+            cs.edges = _base.deltas();
+            cs.weights.emplace_back(r, -1);
+        } else {
+            dS += _up[l - 1].group_merge(r, s, cs, apply);
         }
         for (int k = l + 1; k < levels(); ++k) {
             if (_cs[k - 1].empty())
@@ -1081,15 +1594,11 @@ class LevelView {
 public:
     typedef Nested::Hierarchy Snapshot;
     LevelView(Nested& n, int l) : _n(n), _l(l) {
-        int cap = n.base().N();
         if (l == 0) {
-            _nodes.resize(cap);
+            _nodes.resize(n.base().N());
             std::iota(_nodes.begin(), _nodes.end(), 0);
         } else {
-            const auto& wr = *n.lower(l).wr;
-            for (int x = 0; x < cap; ++x)
-                if (wr[x] > 0)
-                    _nodes.push_back(x);
+            _nodes = *n.lower(l).occupied;
         }
     }
     size_t N() const { return _nodes.size(); }
@@ -1105,6 +1614,8 @@ public:
     }
     double virtual_move(int v, int s) { return _n.virtual_move(_l, v, s); }
     void move(int v, int s) { _n.move(_l, v, s); }
+    double virtual_merge(int r, int s) { return _n.virtual_merge(_l, r, s); }
+    void merge(int r, int s) { _n.merge(_l, r, s); }
     int sample_group(int v, double c, RRng& rng) {
         if (_l == 0)
             return _n.base().sample_group(v, c, rng);
@@ -1114,18 +1625,29 @@ public:
     Snapshot save() const { return _n.hierarchy(); }
     void restore(const Snapshot& bs) { _n.build(bs); }
     void spread() {
-        for (int v : _nodes) {
-            int r = group(v);
-            if (size(r) <= 1)
-                continue;
-            int t = _l == 0 ? _n.base().empty_group() : _n.upper(_l).empty_group();
-            _n.inherit(_l, t, r);
-            move(v, t);
+        int cap = std::max(_n.base().N(), 1);
+        std::vector<int> bl(_l == 0 ? _n.base().N() : cap, 0);
+        std::vector<int> b_next;
+        bool has_upper = (_l + 1 < _n.levels());
+        if (has_upper) {
+            b_next = _n.upper(_l + 1).blocks();
+            const std::vector<int> old_next = b_next;
+            for (int v : _nodes) {
+                int r = group(v);
+                bl[v] = v;
+                b_next[v] = old_next[r];
+            }
+            _n.rebuild_from(_l, bl, &b_next);
+        } else {
+            for (int v : _nodes)
+                bl[v] = v;
+            _n.rebuild_from(_l, bl, nullptr);
         }
     }
     void collapse(int t) {
-        for (int v : _nodes)
-            move(v, t);
+        int cap = std::max(_n.base().N(), 1);
+        std::vector<int> bl(_l == 0 ? _n.base().N() : cap, t);
+        _n.rebuild_from(_l, bl, nullptr);
     }
 private:
     Nested& _n;
@@ -1152,6 +1674,8 @@ public:
     const std::vector<int>& members(int r) const { return _s.members(r); }
     double virtual_move(int v, int s) { return _s.virtual_move(v, s); }
     void move(int v, int s) { _s.move(v, s); }
+    double virtual_merge(int r, int s) { return _s.virtual_merge(r, s); }
+    void merge(int r, int s) { _s.merge(r, s); }
     int sample_group(int v, double c, RRng& rng) { return _s.sample_group(v, c, rng); }
     double entropy() const { return _s.entropy(); }
     Snapshot save() const { return _s.blocks(); }
@@ -1224,52 +1748,52 @@ public:
         return S;
     }
 
-    double virtual_merge(int r, int s) {
-        std::vector<int> vs = _s.members(r);
-        double dS = 0;
-        size_t done = 0;
-        for (int v : vs) {
-            dS += _s.virtual_move(v, s);
-            _s.move(v, s);
-            ++done;
-        }
-        for (size_t i = 0; i < done; ++i)
-            _s.move(vs[i], r);
-        return dS;
-    }
-
-    void merge(int r, int s) {
-        std::vector<int> vs = _s.members(r);
-        for (int v : vs)
-            _s.move(v, s);
-    }
-
     double merge_sweep(size_t B_target, bool strict, size_t B_max) {
-        std::vector<int> rlist = _s.occupied();
+        const auto& occ = _s.occupied();
+        size_t B_occ = occ.size();
+        if (B_occ <= 1)
+            return 0;
+        std::vector<int> rlist = occ;
         std::vector<std::pair<int, int>> pairs;
         std::vector<double> dSs;
+        pairs.reserve(B_occ);
+        dSs.reserve(B_occ);
+        gt_hash_set<int> past;
+        past.reserve(_p.merge_sweeps * 2);
         for (int r : rlist) {
             int best = r;
             double best_dS = inf;
-            std::unordered_set<int> past;
-            auto find_candidates = [&](bool allow_random) {
-                for (size_t i = 0; i < _p.merge_sweeps; ++i) {
-                    const auto& vs = _s.members(r);
-                    int v = vs[_rng.index(vs.size())];
-                    int s = _s.sample_group(v, allow_random ? _p.c : 0, _rng);
-                    if (s != r && past.find(s) == past.end()) {
-                        double dS = virtual_merge(r, s);
-                        if (dS < best_dS) {
-                            best = s;
-                            best_dS = dS;
-                        }
-                        past.insert(s);
+            past.clear();
+            auto try_target = [&](int s) {
+                if (s != r && past.find(s) == past.end()) {
+                    double dS = _s.virtual_merge(r, s);
+                    if (dS < best_dS) {
+                        best = s;
+                        best_dS = dS;
                     }
+                    past.insert(s);
                 }
             };
-            find_candidates(false);
+            auto find_candidates = [&](double c_val) {
+                const auto& vs = _s.members(r);
+                for (size_t i = 0; i < _p.merge_sweeps; ++i) {
+                    int v = vs[_rng.index(vs.size())];
+                    try_target(_s.sample_group(v, c_val, _rng));
+                }
+            };
+            find_candidates(0);
             if (best == r)
-                find_candidates(true);
+                find_candidates(_p.c);
+            if (best == r) {
+                // Guaranteed fallback to uniform random other occupied group (c = inf).
+                size_t tries = std::min(_p.merge_sweeps, B_occ - 1);
+                for (size_t i = 0; i < tries; ++i) {
+                    int s = occ[_rng.index(B_occ - 1)];
+                    if (s == r)
+                        s = occ[B_occ - 1];
+                    try_target(s);
+                }
+            }
             if (best != r) {
                 pairs.emplace_back(r, best);
                 dSs.push_back(best_dS);
@@ -1283,7 +1807,8 @@ public:
         std::priority_queue<size_t, std::vector<size_t>, decltype(cmp)>
             queue(cmp, std::move(pis));
 
-        std::unordered_map<int, int> root;
+        gt_hash_map<int, int> root;
+        root.reserve(B_occ);
         auto get_root = [&](int r) {
             int x = r;
             while (true) {
@@ -1304,7 +1829,7 @@ public:
             int t = get_root(pairs[i].second);
             if (s == t || _s.size(s) == 0 || _s.size(t) == 0)
                 continue;
-            double ndS = virtual_merge(s, t);
+            double ndS = _s.virtual_merge(s, t);
             if (!queue.empty() && ndS > dSs[queue.top()]) {
                 dSs[i] = ndS;
                 queue.push(i);
@@ -1313,7 +1838,7 @@ public:
             if (ndS > 0 && strict && static_cast<size_t>(_s.B()) < B_max)
                 break;
             root[s] = t;
-            merge(s, t);
+            _s.merge(s, t);
             S += ndS;
         }
         return S;
@@ -1469,7 +1994,7 @@ public:
 
         double best = inf;
         size_t best_B = 0;
-        for (auto& [B, c] : _cache) {
+        for (const auto& [B, c] : _cache) {
             if (B < B_min || B > B_max_search)
                 continue;
             if (c.first < best) {
@@ -1529,7 +2054,7 @@ std::vector<int> zero_based(const Graph& graph, const Rcpp::IntegerVector& block
     if (static_cast<size_t>(blocks.size()) != N)
         Rcpp::stop("blocks must have one entry per vertex");
     // relabel to 0..B-1 preserving first-appearance order
-    std::unordered_map<int, int> map;
+    gt_hash_map<int, int> map;
     std::vector<int> b(N);
     for (size_t v = 0; v < N; ++v) {
         auto it = map.find(blocks[v]);
@@ -1541,7 +2066,7 @@ std::vector<int> zero_based(const Graph& graph, const Rcpp::IntegerVector& block
 }
 
 Rcpp::IntegerVector one_based(const std::vector<int>& b) {
-    std::unordered_map<int, int> map;
+    gt_hash_map<int, int> map;
     Rcpp::IntegerVector out(b.size());
     for (size_t v = 0; v < b.size(); ++v) {
         auto it = map.find(b[v]);
@@ -1567,8 +2092,8 @@ double cpp_sbm_entropy(SEXP pointer, Rcpp::IntegerVector blocks, bool degree_cor
     return state.entropy();
 }
 
-// Applies random single-vertex moves and returns, for each move, the
-// difference between the incremental and the recomputed entropy change.
+// Applies random single-vertex moves and group merges and returns, for each
+// step, the difference between the incremental and the recomputed entropy change.
 // [[Rcpp::export]]
 Rcpp::NumericVector cpp_sbm_check_moves(SEXP pointer, Rcpp::IntegerVector blocks,
                                         bool degree_corrected, bool distributed,
@@ -1582,14 +2107,27 @@ Rcpp::NumericVector cpp_sbm_check_moves(SEXP pointer, Rcpp::IntegerVector blocks
         return err;
     double S = state.entropy();
     for (int i = 0; i < nmoves; ++i) {
-        int v = rng.index(state.N());
-        int s = (rng.unif() < 0.2 && state.empty_group() >= 0)
-                    ? state.empty_group() : state.random_occupied(rng);
-        double dS = state.virtual_move(v, s);
-        state.move(v, s);
-        double S_new = state.entropy();
-        err[i] = dS - (S_new - S);
-        S = S_new;
+        if (rng.unif() < 0.15 && state.B() > 1) {
+            const auto& occ = state.occupied();
+            int r = occ[rng.index(occ.size())];
+            int s = occ[rng.index(occ.size() - 1)];
+            if (s == r)
+                s = occ.back();
+            double dS = state.virtual_merge(r, s);
+            state.merge(r, s);
+            double S_new = state.entropy();
+            err[i] = dS - (S_new - S);
+            S = S_new;
+        } else {
+            int v = rng.index(state.N());
+            int s = (rng.unif() < 0.25 && state.empty_group() >= 0)
+                        ? state.empty_group() : state.random_occupied(rng);
+            double dS = state.virtual_move(v, s);
+            state.move(v, s);
+            double S_new = state.entropy();
+            err[i] = dS - (S_new - S);
+            S = S_new;
+        }
     }
     return err;
 }
@@ -1671,7 +2209,7 @@ Rcpp::List external_hierarchy(const Nested::Hierarchy& bs) {
             for (int g : lower)
                 items.push_back(nodes[g]);
         }
-        std::unordered_map<int, int> map;
+        gt_hash_map<int, int> map;
         std::vector<int> order;
         Rcpp::IntegerVector x(items.size());
         for (size_t i = 0; i < items.size(); ++i) {
@@ -1781,21 +2319,34 @@ Rcpp::NumericVector cpp_nested_check_moves(SEXP pointer, Rcpp::List bs, bool deg
         LevelView view(n, l);
         if (view.N() == 0)
             continue;
-        int v = view.nodes()[rng.index(view.N())];
-        int s;
-        int empty = l == 0 ? n.base().empty_group() : n.upper(l).empty_group();
-        if (rng.unif() < 0.2 && empty >= 0) {
-            s = empty;
-            n.inherit(l, s, view.group(v));
-        } else {
+        if (rng.unif() < 0.15 && view.B() > 1) {
             const auto& occ = view.occupied();
-            s = occ[rng.index(occ.size())];
+            int r = occ[rng.index(occ.size())];
+            int s = occ[rng.index(occ.size() - 1)];
+            if (s == r)
+                s = occ.back();
+            double dS = view.virtual_merge(r, s);
+            view.merge(r, s);
+            double S_new = n.entropy();
+            err[i] = dS - (S_new - S);
+            S = S_new;
+        } else {
+            int v = view.nodes()[rng.index(view.N())];
+            int s;
+            int empty = l == 0 ? n.base().empty_group() : n.upper(l).empty_group();
+            if (rng.unif() < 0.25 && empty >= 0) {
+                s = empty;
+                n.inherit(l, s, view.group(v));
+            } else {
+                const auto& occ = view.occupied();
+                s = occ[rng.index(occ.size())];
+            }
+            double dS = view.virtual_move(v, s);
+            view.move(v, s);
+            double S_new = n.entropy();
+            err[i] = dS - (S_new - S);
+            S = S_new;
         }
-        double dS = view.virtual_move(v, s);
-        view.move(v, s);
-        double S_new = n.entropy();
-        err[i] = dS - (S_new - S);
-        S = S_new;
     }
     return err;
 }

@@ -42,21 +42,22 @@ degree sums exceed the exact integer-partition table (the Szekeres
 approximation is ported). Over 20 seeds on the football network, graph-tool 3.9
 finds 1738.87-1747.64 nats (mean 1740.71) without degree correction and
 1787.36-1794.09 (mean 1789.18) with it. The R port finds 1738.87-1746.92
-(mean 1740.08) and 1787.36-1803.30 (mean 1789.89), in 0.02-0.09 s per fit. On a
-3000-vertex, 15000-edge planted partition both reach 79808.22 nats; the R port
-takes about 6 s against 1.5-3.6 s for graph-tool on one thread.
+(mean 1740.08) and 1787.36-1803.30 (mean 1789.89), in 0.004-0.03 s per fit. On a
+3000-vertex, 15000-edge planted partition both reach the same optimum; the R port
+takes about 0.8 s against 0.8-1.7 s for graph-tool 3.9 on one thread (0.4-0.7 s
+with 10 OpenMP threads).
 
 Nested scores match graph-tool 3.9 to within 2e-11 nats on 40 fitted football
 and 20 fitted C. elegans hierarchies, and on a 500-vertex multigraph with
 loops, directed and undirected. Over 20 football seeds graph-tool finds
 1733.53-1738.32 nats (mean 1734.23) without degree correction and
 1782.02-1787.55 (mean 1782.68) with it. The port finds 1733.53-1735.20 (mean
-1733.94) and 1782.02-1782.37 (mean 1782.12), in 0.04-0.2 s per fit. Over 10 C.
+1733.94) and 1782.02-1782.37 (mean 1782.12), in 0.01-0.02 s per fit. Over 10 C.
 elegans seeds (directed), graph-tool finds 8459.65-8615.34 (mean 8506.34) and
 8539.59-8662.94 (mean 8605.02). The port finds 8439.07-8578.20 (mean 8484.94)
-and 8515.98-8632.54 (mean 8573.18), in 0.4-3.6 s per fit. The sequential,
-lazily re-evaluated merges are a plausible reason for the port's slightly
-better optima.
+and 8515.98-8632.54 (mean 8573.18), in 0.16-0.22 s per fit (versus 0.22-0.33 s
+for single-threaded graph-tool 3.9). The sequential, lazily re-evaluated merges
+are a plausible reason for the port's slightly better optima.
 
 ## Milestones
 
@@ -80,10 +81,10 @@ better optima.
 **Done when:** the example runs end to end; fixed-partition scores agree with
 the pinned upstream reference within stated numerical tolerances; tests cover
 edge cases and compare inferred objective values without requiring identical
-stochastic labels or partitions. **Complete.** Remaining performance work:
-graph-tool is about 2-4 times faster on mid-sized graphs. The likely causes are
-hash-map edge counts and merge costs computed by trial moves rather than a
-direct group-merge formula.
+stochastic labels or partitions. **Complete.** Direct group-level merge
+evaluation, flat hash maps (`boost::unordered_flat_map`), dense delta buffers,
+and integer `lgamma`/`log` tables bring single-threaded runtimes on par with or
+faster than single-threaded graph-tool 3.9.
 
 ### 2. Hierarchical partitions and refinement
 
@@ -121,7 +122,8 @@ graph-tool 3.9 finds 63037.5-63285.8 nats (mean 63148.4) without degree
 correction and 61347.5-61644.1 (mean 61469.2) with it
 (`tools/reference/polblogs_nested_upstream.csv`). The port finds
 62980.2-63107.1 (mean 63043.4) and 61436.5-61558.8 (mean 61484.2), in about
-15 s per fit. Both clearly prefer the degree-corrected model
+1.3-1.7 s per fit (versus 1.5-3.2 s for single-threaded graph-tool 3.9). Both
+clearly prefer the degree-corrected model
 (\(\ln\Lambda \approx -1560\) to \(-1680\); the cookbook reports \(-1774\)).
 On football both prefer the non-degree-corrected model by about 48.7 nats.
 
