@@ -127,8 +127,68 @@ mode_uncertainty <- function(mode, mle = TRUE) {
 }
 
 mode_entropy <- function(mode, mle = TRUE) {
+  if (!is.logical(mle) || length(mle) != 1L || is.na(mle)) {
+    stop("mle must be TRUE or FALSE", call. = FALSE)
+  }
+  if (inherits(mode, "graphtool_mode_cluster")) {
+    return(if (isTRUE(mle)) mode$posterior_entropy else mode$posterior_entropy_mean)
+  }
   validate_partition_mode(mode)
   if (isTRUE(mle)) mode$posterior_entropy else mode$posterior_entropy_mean
+}
+
+mode_lprob <- function(mode, partition, mle = TRUE, align = FALSE) {
+  validate_partition_mode(mode)
+  if (!is.logical(mle) || length(mle) != 1L || is.na(mle)) {
+    stop("mle must be TRUE or FALSE", call. = FALSE)
+  }
+  if (!is.logical(align) || length(align) != 1L || is.na(align)) {
+    stop("align must be TRUE or FALSE", call. = FALSE)
+  }
+  if (isTRUE(mode$nested)) {
+    partition <- validate_nested_label_list(partition, "partition")
+    if (isTRUE(align)) {
+      partition <- align_nested_partition_labels(partition, mode$consensus)
+    }
+  } else {
+    partition <- validate_label_vector(partition, "partition")
+    if (isTRUE(align)) {
+      partition <- align_partition_labels(partition, mode$consensus)
+    }
+  }
+  cpp_mode_lprob(mode$marginals, partition, isTRUE(mode$nested), isTRUE(mle))
+}
+
+cluster_lprob <- function(cluster, partition, mode = NULL, mle = TRUE,
+                          align = FALSE) {
+  if (!inherits(cluster, "graphtool_mode_cluster")) {
+    stop("cluster must be created by mode_cluster_state()", call. = FALSE)
+  }
+  if (!is.logical(mle) || length(mle) != 1L || is.na(mle)) {
+    stop("mle must be TRUE or FALSE", call. = FALSE)
+  }
+  if (!is.logical(align) || length(align) != 1L || is.na(align)) {
+    stop("align must be TRUE or FALSE", call. = FALSE)
+  }
+  if (!is.null(mode)) {
+    if (!is.numeric(mode) || length(mode) != 1L || is.na(mode) ||
+        mode < 1 || mode > cluster$K || mode != floor(mode)) {
+      stop("mode must be an integer between 1 and cluster$K", call. = FALSE)
+    }
+    k <- as.integer(mode)
+    w <- cluster$weights[k]
+    if (w <= 0) return(-Inf)
+    return(log(w) + mode_lprob(cluster$modes[[k]], partition, mle = mle,
+                               align = align))
+  }
+  lps <- vapply(seq_len(cluster$K), function(k) {
+    w <- cluster$weights[k]
+    if (w <= 0) return(-Inf)
+    log(w) + mode_lprob(cluster$modes[[k]], partition, mle = mle, align = align)
+  }, numeric(1))
+  m <- max(lps)
+  if (!is.finite(m)) return(-Inf)
+  m + log(sum(exp(lps - m)))
 }
 
 print.graphtool_partition_mode <- function(x, ...) {

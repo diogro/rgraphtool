@@ -113,6 +113,10 @@ cpp_overlap_mcmc <- function(pointer, half_edges, degree_corrected, distributed,
     .Call(`_graphtool_cpp_overlap_mcmc`, pointer, half_edges, degree_corrected, distributed, gen_overlap, beta, c, d, niter, thin, collect, B_min, B_max, q_max)
 }
 
+cpp_nested_overlap_mcmc <- function(pointer, half_edges, upper_bs, degree_corrected, distributed, gen_overlap, beta, c, d, niter, thin, collect, B_min, B_max, q_max) {
+    .Call(`_graphtool_cpp_nested_overlap_mcmc`, pointer, half_edges, upper_bs, degree_corrected, distributed, gen_overlap, beta, c, d, niter, thin, collect, B_min, B_max, q_max)
+}
+
 cpp_align_partition_labels <- function(x, y) {
     .Call(`_graphtool_cpp_align_partition_labels`, x, y)
 }
@@ -135,5 +139,9 @@ cpp_partition_mode <- function(partitions, relabel, nested, converge) {
 
 cpp_mode_cluster <- function(partitions, nested, relabel, initial_b, niter, converge) {
     .Call(`_graphtool_cpp_mode_cluster`, partitions, nested, relabel, initial_b, niter, converge)
+}
+
+cpp_mode_lprob <- function(marginals, partition, nested, mle) {
+    .Call(`_graphtool_cpp_mode_lprob`, marginals, partition, nested, mle)
 }
 

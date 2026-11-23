@@ -2582,3 +2582,170 @@ Rcpp::List cpp_overlap_mcmc(SEXP pointer, Rcpp::IntegerMatrix half_edges,
     }
     return out;
 }
+
+// Finite-temperature Metropolis-Hastings MCMC for NestedOverlap (level-0 half-edge moves
+// + upper-level single-node moves under exact total nested description length).
+// [[Rcpp::export]]
+Rcpp::List cpp_nested_overlap_mcmc(SEXP pointer, Rcpp::IntegerMatrix half_edges,
+                                   Rcpp::List upper_bs, bool degree_corrected,
+                                   bool distributed, bool gen_overlap,
+                                   double beta, double c, double d,
+                                   int niter, int thin, bool collect,
+                                   int B_min, double B_max, double q_max) {
+    Graph& graph = get_graph(pointer);
+    int L = static_cast<int>(upper_bs.size()) + 1;
+    NestedOverlap no(graph, degree_corrected, distributed, gen_overlap,
+                     o_q_cache_max(q_max), L);
+    std::vector<int> b0 = parse_half_edges(graph, half_edges);
+    int cap = no.base().cap();
+    std::vector<std::vector<int>> ubs;
+    ubs.reserve(upper_bs.size());
+    for (R_xlen_t l = 0; l < upper_bs.size(); ++l) {
+        Rcpp::IntegerVector x = upper_bs[l];
+        std::vector<int> bl(cap, 0);
+        for (R_xlen_t i = 0; i < x.size(); ++i)
+            bl[i] = x[i] - 1;
+        ubs.push_back(std::move(bl));
+    }
+    no.build(b0, ubs);
+
+    ORng rng;
+    size_t bmax = std::isinf(B_max) ? std::numeric_limits<size_t>::max()
+                                    : static_cast<size_t>(B_max);
+    std::vector<int> hes(no.base().H());
+    std::iota(hes.begin(), hes.end(), 0);
+    double total_dS = 0;
+    size_t nattempts = 0, nmoves = 0;
+    std::vector<Rcpp::IntegerVector> maj_samples;
+    std::vector<double> entropies;
+    double S = no.entropy();
+
+    for (int it = 1; it <= niter; ++it) {
+        // Level-0 half-edge MH sweep under exact total nested entropy
+        rng.shuffle(hes);
+        for (int h : hes) {
+            ++nattempts;
+            int r = no.base().group(h);
+            size_t B_cur = static_cast<size_t>(no.base().B());
+            bool can_create = (B_cur < static_cast<size_t>(no.base().H()) &&
+                               B_cur < bmax && d > 0 && no.base().empty_group() >= 0);
+            double p_new = can_create ? d : 0.0;
+            bool propose_new = (can_create && rng.unif() < p_new);
+            int s;
+            double pfwd = 0.0;
+            if (propose_new) {
+                if (no.base().he_members(r).size() == 1)
+                    continue;
+                s = no.base().empty_group();
+                pfwd = p_new;
+            } else {
+                s = no.base().sample_group(h, c, rng);
+                if (s == r)
+                    continue;
+                if (no.base().he_members(r).size() == 1 && B_cur <= static_cast<size_t>(B_min))
+                    continue;
+                pfwd = (1.0 - p_new) * no.base().move_prob(h, s, c);
+            }
+            bool empties = (no.base().he_members(r).size() == 1);
+            no.base().move(h, s);
+            no.build_upper();
+            double S_new = no.entropy();
+            double dS = S_new - S;
+            bool accept = false;
+            if (std::isinf(beta)) {
+                accept = (dS < 0);
+            } else {
+                double prev = 0.0;
+                if (empties) {
+                    prev = (d > 0) ? d : 0.0;
+                } else {
+                    size_t B_after = static_cast<size_t>(no.base().B());
+                    bool rev_can = (B_after < static_cast<size_t>(no.base().H()) &&
+                                    B_after < bmax && d > 0);
+                    double p_new_rev = rev_can ? d : 0.0;
+                    prev = (1.0 - p_new_rev) * no.base().move_prob(h, r, c);
+                }
+                if (prev > 0 && pfwd > 0) {
+                    double log_a = -beta * dS + std::log(prev) - std::log(pfwd);
+                    accept = (log_a >= 0 || rng.unif() < std::exp(log_a));
+                }
+            }
+            if (accept) {
+                total_dS += dS;
+                S = S_new;
+                ++nmoves;
+            } else {
+                no.base().move(h, r);
+                no.build_upper();
+            }
+        }
+        // Upper-level single-node MH sweep (symmetric uniform proposal over occupied + 1 empty)
+        for (int l = 1; l < no.levels(); ++l) {
+            const auto& nodes = (l == 1) ? no.base().occupied() : no.upper(l - 1).occupied();
+            if (nodes.size() <= 1) continue;
+            std::vector<int> ord = nodes;
+            rng.shuffle(ord);
+            for (int x : ord) {
+                int r = no.upper(l).group(x);
+                std::vector<int> cands = no.upper(l).occupied();
+                int emp = no.upper(l).empty_group();
+                if (emp >= 0 && no.upper(l).size(r) > 1)
+                    cands.push_back(emp);
+                if (cands.size() <= 1) continue;
+                int t = cands[rng.index(cands.size())];
+                if (t == r) continue;
+                ++nattempts;
+                double pfwd = 1.0 / static_cast<double>(cands.size());
+                no.upper(l).set_label(x, t);
+                no.build_upper_from(l);
+                double S_new = no.entropy();
+                double dS = S_new - S;
+                bool accept = false;
+                if (std::isinf(beta)) {
+                    accept = (dS < 0);
+                } else {
+                    size_t rev_sz = no.upper(l).occupied().size() +
+                                    ((no.upper(l).empty_group() >= 0 && no.upper(l).size(t) > 1) ? 1 : 0);
+                    double prev = rev_sz > 0 ? (1.0 / static_cast<double>(rev_sz)) : 0.0;
+                    if (prev > 0 && pfwd > 0) {
+                        double log_a = -beta * dS + std::log(prev) - std::log(pfwd);
+                        accept = (log_a >= 0 || rng.unif() < std::exp(log_a));
+                    }
+                }
+                if (accept) {
+                    total_dS += dS;
+                    S = S_new;
+                    ++nmoves;
+                } else {
+                    no.upper(l).set_label(x, r);
+                    no.build_upper_from(l);
+                }
+            }
+        }
+        if (collect && (it % std::max(1, thin) == 0)) {
+            Rcpp::List ov = no.base().overlap_groups_r();
+            maj_samples.push_back(Rcpp::as<Rcpp::IntegerVector>(ov["majority"]));
+            entropies.push_back(S);
+        }
+        Rcpp::checkUserInterrupt();
+    }
+
+    std::vector<double> lvS = no.level_entropies();
+    Rcpp::List out = Rcpp::List::create(
+        Rcpp::Named("half_edges") = no.base().half_edges_r(),
+        Rcpp::Named("upper_levels") = no.external_upper_r(),
+        Rcpp::Named("level_entropy") = lvS,
+        Rcpp::Named("entropy") = std::accumulate(lvS.begin(), lvS.end(), 0.0),
+        Rcpp::Named("dS") = total_dS,
+        Rcpp::Named("nattempts") = static_cast<double>(nattempts),
+        Rcpp::Named("nmoves") = static_cast<double>(nmoves),
+        Rcpp::Named("overlap") = no.base().overlap_groups_r());
+    if (collect) {
+        Rcpp::List sl(maj_samples.size());
+        for (size_t i = 0; i < maj_samples.size(); ++i)
+            sl[i] = maj_samples[i];
+        out["majority_samples"] = sl;
+        out["entropies"] = entropies;
+    }
+    return out;
+}

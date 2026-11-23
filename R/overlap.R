@@ -246,6 +246,35 @@ print.graphtool_nested_overlap_block_state <- function(x, ...) {
 overlap_mcmc_sweep <- function(state, beta = 1, niter = 1L, c = 0.5, d = 0.01,
                                thin = 1L, collect = FALSE, B_min = 1L,
                                B_max = Inf) {
+  if (inherits(state, "graphtool_nested_overlap_block_state")) {
+    validate_nested_overlap_state(state)
+    res <- cpp_nested_overlap_mcmc(graph_pointer(state$graph), state$half_edges,
+                                   state$upper_levels, state$degree_corrected,
+                                   identical(state$degree_prior, "distributed"),
+                                   state$gen_overlap, as.numeric(beta),
+                                   as.numeric(c), as.numeric(d),
+                                   as.integer(niter), as.integer(thin),
+                                   isTRUE(collect), as.integer(floor(B_min)),
+                                   if (is.finite(B_max)) floor(B_max) else Inf,
+                                   q_cache_max())
+    new_st <- new_nested_overlap_state(state$graph, res$half_edges,
+                                       res$upper_levels, state$degree_corrected,
+                                       state$degree_prior, state$gen_overlap,
+                                       overlap_info = res$overlap,
+                                       fit = list(description_length = res$entropy))
+    out <- list(
+      state = new_st,
+      entropy = res$entropy,
+      dS = res$dS,
+      nattempts = res$nattempts,
+      nmoves = res$nmoves
+    )
+    if (isTRUE(collect)) {
+      out$majority_samples <- res$majority_samples
+      out$entropies <- res$entropies
+    }
+    return(out)
+  }
   validate_overlap_state(state)
   res <- cpp_overlap_mcmc(graph_pointer(state$graph), state$half_edges,
                           state$degree_corrected,

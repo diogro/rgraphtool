@@ -425,6 +425,31 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_nested_overlap_mcmc
+Rcpp::List cpp_nested_overlap_mcmc(SEXP pointer, Rcpp::IntegerMatrix half_edges, Rcpp::List upper_bs, bool degree_corrected, bool distributed, bool gen_overlap, double beta, double c, double d, int niter, int thin, bool collect, int B_min, double B_max, double q_max);
+RcppExport SEXP _graphtool_cpp_nested_overlap_mcmc(SEXP pointerSEXP, SEXP half_edgesSEXP, SEXP upper_bsSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP gen_overlapSEXP, SEXP betaSEXP, SEXP cSEXP, SEXP dSEXP, SEXP niterSEXP, SEXP thinSEXP, SEXP collectSEXP, SEXP B_minSEXP, SEXP B_maxSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type half_edges(half_edgesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type upper_bs(upper_bsSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< bool >::type gen_overlap(gen_overlapSEXP);
+    Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< double >::type c(cSEXP);
+    Rcpp::traits::input_parameter< double >::type d(dSEXP);
+    Rcpp::traits::input_parameter< int >::type niter(niterSEXP);
+    Rcpp::traits::input_parameter< int >::type thin(thinSEXP);
+    Rcpp::traits::input_parameter< bool >::type collect(collectSEXP);
+    Rcpp::traits::input_parameter< int >::type B_min(B_minSEXP);
+    Rcpp::traits::input_parameter< double >::type B_max(B_maxSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_nested_overlap_mcmc(pointer, half_edges, upper_bs, degree_corrected, distributed, gen_overlap, beta, c, d, niter, thin, collect, B_min, B_max, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_align_partition_labels
 Rcpp::IntegerVector cpp_align_partition_labels(Rcpp::IntegerVector x, Rcpp::IntegerVector y);
 RcppExport SEXP _graphtool_cpp_align_partition_labels(SEXP xSEXP, SEXP ySEXP) {
@@ -505,6 +530,20 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_mode_lprob
+double cpp_mode_lprob(SEXP marginals, SEXP partition, bool nested, bool mle);
+RcppExport SEXP _graphtool_cpp_mode_lprob(SEXP marginalsSEXP, SEXP partitionSEXP, SEXP nestedSEXP, SEXP mleSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type marginals(marginalsSEXP);
+    Rcpp::traits::input_parameter< SEXP >::type partition(partitionSEXP);
+    Rcpp::traits::input_parameter< bool >::type nested(nestedSEXP);
+    Rcpp::traits::input_parameter< bool >::type mle(mleSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_mode_lprob(marginals, partition, nested, mle));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_graphtool_cpp_sbm_entropy", (DL_FUNC) &_graphtool_cpp_sbm_entropy, 5},
@@ -535,12 +574,14 @@ static const R_CallMethodDef CallEntries[] = {
     {"_graphtool_cpp_nested_overlap_entropy", (DL_FUNC) &_graphtool_cpp_nested_overlap_entropy, 7},
     {"_graphtool_cpp_nested_overlap_minimize", (DL_FUNC) &_graphtool_cpp_nested_overlap_minimize, 10},
     {"_graphtool_cpp_overlap_mcmc", (DL_FUNC) &_graphtool_cpp_overlap_mcmc, 14},
+    {"_graphtool_cpp_nested_overlap_mcmc", (DL_FUNC) &_graphtool_cpp_nested_overlap_mcmc, 15},
     {"_graphtool_cpp_align_partition_labels", (DL_FUNC) &_graphtool_cpp_align_partition_labels, 2},
     {"_graphtool_cpp_partition_overlap", (DL_FUNC) &_graphtool_cpp_partition_overlap, 3},
     {"_graphtool_cpp_align_nested_partition_labels", (DL_FUNC) &_graphtool_cpp_align_nested_partition_labels, 2},
     {"_graphtool_cpp_nested_partition_overlap", (DL_FUNC) &_graphtool_cpp_nested_partition_overlap, 3},
     {"_graphtool_cpp_partition_mode", (DL_FUNC) &_graphtool_cpp_partition_mode, 4},
     {"_graphtool_cpp_mode_cluster", (DL_FUNC) &_graphtool_cpp_mode_cluster, 6},
+    {"_graphtool_cpp_mode_lprob", (DL_FUNC) &_graphtool_cpp_mode_lprob, 4},
     {NULL, NULL, 0}
 };
 

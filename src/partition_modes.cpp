@@ -673,6 +673,13 @@ public:
         return H;
     }
 
+    double total_posterior_entropy(bool MLE) const {
+        double H = 0.0;
+        for (size_t l = 0; l < _levels.size(); ++l)
+            H += posterior_entropy(MLE, l);
+        return H;
+    }
+
     double posterior_cdev(bool MLE, size_t l = 0) const {
         if (l >= _levels.size() || _levels[l].N_active == 0)
             return 0.0;
@@ -696,16 +703,17 @@ public:
     }
 
     // Export contiguous 1-based R summary of this mode.
-    Rcpp::List to_r() const {
+    Rcpp::List to_r(bool sort_by_count = true) const {
         size_t L = _levels.size();
-        // Map active labels at each level to contiguous 0..B_l-1 ordered by decreasing total count.
+        // Map active labels at each level to contiguous 0..B_l-1 (ordered by
+        // decreasing total count when relabeling, or original label order otherwise).
         std::vector<std::vector<int>> active_labels(L);
         std::vector<gt_hash_map<int, int>> label_to_col(L);
         for (size_t l = 0; l < L; ++l) {
             std::vector<std::pair<long, int>> ord;
             for (const auto& [r, c] : _levels[l].label_count)
                 if (c > 0)
-                    ord.emplace_back(-c, r);
+                    ord.emplace_back(sort_by_count ? -c : static_cast<long>(r), r);
             std::sort(ord.begin(), ord.end());
             active_labels[l].resize(ord.size());
             for (size_t j = 0; j < ord.size(); ++j) {
@@ -800,8 +808,8 @@ public:
             Rcpp::Named("B") = _nested ? SEXP(B_vec) : SEXP(Rcpp::wrap(B_vec.size() > 0 ? B_vec[0] : 0)),
             Rcpp::Named("entropy") = entropy(),
             Rcpp::Named("level_entropy") = level_ent,
-            Rcpp::Named("posterior_entropy") = posterior_entropy(true, 0),
-            Rcpp::Named("posterior_entropy_mean") = posterior_entropy(false, 0),
+            Rcpp::Named("posterior_entropy") = total_posterior_entropy(true),
+            Rcpp::Named("posterior_entropy_mean") = total_posterior_entropy(false),
             Rcpp::Named("posterior_cdev") = posterior_cdev(true, 0),
             Rcpp::Named("posterior_cdev_mean") = posterior_cdev(false, 0),
             Rcpp::Named("marginals") = _nested ? SEXP(marg_list) : SEXP(marg_list[0]),
@@ -1014,7 +1022,7 @@ Rcpp::List cpp_partition_mode(Rcpp::List partitions, bool relabel, bool nested, 
         PMRng rng;
         mode.converge_alignment(rng);
     }
-    return mode.to_r();
+    return mode.to_r(relabel);
 }
 
 // [[Rcpp::export]]
@@ -1081,12 +1089,17 @@ Rcpp::List cpp_mode_cluster(Rcpp::List partitions, bool nested, bool relabel,
         Rcpp::List mode_list(modes.size());
         Rcpp::NumericVector weights(modes.size());
         double H_w = 0.0;
+        double H_post_mle = 0.0;
+        double H_post_mean = 0.0;
         for (size_t k = 0; k < modes.size(); ++k) {
-            mode_list[k] = modes[k].to_r();
+            mode_list[k] = modes[k].to_r(relabel);
             double w = static_cast<double>(modes[k].M()) / static_cast<double>(M);
             weights[k] = w;
-            if (w > 0)
+            if (w > 0) {
                 H_w -= w * std::log(w);
+                H_post_mle += w * modes[k].total_posterior_entropy(true);
+                H_post_mean += w * modes[k].total_posterior_entropy(false);
+            }
         }
         Rcpp::IntegerVector cl_out(M);
         for (size_t i = 0; i < M; ++i)
@@ -1097,6 +1110,8 @@ Rcpp::List cpp_mode_cluster(Rcpp::List partitions, bool nested, bool relabel,
             Rcpp::Named("K") = static_cast<int>(modes.size()),
             Rcpp::Named("Be") = std::exp(H_w),
             Rcpp::Named("weights") = weights,
+            Rcpp::Named("posterior_entropy") = H_w + H_post_mle,
+            Rcpp::Named("posterior_entropy_mean") = H_w + H_post_mean,
             Rcpp::Named("modes") = mode_list);
     }
 
@@ -1439,6 +1454,8 @@ Rcpp::List cpp_mode_cluster(Rcpp::List partitions, bool nested, bool relabel,
     std::vector<size_t> final_sizes(act.size());
     double total_S = 0.0;
     double H_w = 0.0;
+    double H_post_mle = 0.0;
+    double H_post_mean = 0.0;
     for (size_t idx = 0; idx < act.size(); ++idx) {
         int k = act[idx];
         old_to_new[k] = static_cast<int>(idx);
@@ -1447,8 +1464,11 @@ Rcpp::List cpp_mode_cluster(Rcpp::List partitions, bool nested, bool relabel,
         mode_list[idx] = pool.modes[k].to_r();
         double w = static_cast<double>(final_sizes[idx]) / static_cast<double>(M);
         weights[idx] = w;
-        if (w > 0)
+        if (w > 0) {
             H_w -= w * std::log(w);
+            H_post_mle += w * pool.modes[k].total_posterior_entropy(true);
+            H_post_mean += w * pool.modes[k].total_posterior_entropy(false);
+        }
     }
     total_S += cluster_prior(M, final_sizes);
 
@@ -1462,5 +1482,65 @@ Rcpp::List cpp_mode_cluster(Rcpp::List partitions, bool nested, bool relabel,
         Rcpp::Named("K") = static_cast<int>(act.size()),
         Rcpp::Named("Be") = std::exp(H_w),
         Rcpp::Named("weights") = weights,
+        Rcpp::Named("posterior_entropy") = H_w + H_post_mle,
+        Rcpp::Named("posterior_entropy_mean") = H_w + H_post_mean,
         Rcpp::Named("modes") = mode_list);
+}
+
+namespace {
+
+double level_lprob_mat(const Rcpp::IntegerMatrix& mat,
+                       const Rcpp::IntegerVector& b, bool mle) {
+    int nr = mat.nrow();
+    int nc = mat.ncol();
+    if (nc == 0)
+        return 0.0;
+    int len = static_cast<int>(b.size());
+    double lp = 0.0;
+    for (int i = 0; i < len; ++i) {
+        int r = b[i];
+        if (r == NA_INTEGER)
+            continue;
+        if (i >= nr || r < 1 || r > nc)
+            return -std::numeric_limits<double>::infinity();
+        long row_sum = 0;
+        for (int j = 0; j < nc; ++j)
+            row_sum += mat(i, j);
+        if (row_sum == 0)
+            continue;
+        long c = mat(i, r - 1);
+        if (mle) {
+            if (c <= 0)
+                return -std::numeric_limits<double>::infinity();
+            lp += std::log(static_cast<double>(c) / static_cast<double>(row_sum));
+        } else {
+            lp += std::log(static_cast<double>(c + 1) /
+                           static_cast<double>(row_sum + nc));
+        }
+    }
+    return lp;
+}
+
+}  // namespace
+
+// [[Rcpp::export]]
+double cpp_mode_lprob(SEXP marginals, SEXP partition, bool nested, bool mle) {
+    if (!nested) {
+        Rcpp::IntegerMatrix mat(marginals);
+        Rcpp::IntegerVector b(partition);
+        return level_lprob_mat(mat, b, mle);
+    }
+    Rcpp::List mats(marginals);
+    Rcpp::List bs(partition);
+    R_xlen_t L = std::min(mats.size(), bs.size());
+    double lp = 0.0;
+    for (R_xlen_t l = 0; l < L; ++l) {
+        Rcpp::IntegerMatrix mat = mats[l];
+        Rcpp::IntegerVector b = bs[l];
+        double d = level_lprob_mat(mat, b, mle);
+        if (std::isinf(d) && d < 0)
+            return d;
+        lp += d;
+    }
+    return lp;
 }
