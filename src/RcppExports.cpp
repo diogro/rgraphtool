@@ -133,6 +133,68 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_sbm_mcmc
+Rcpp::List cpp_sbm_mcmc(SEXP pointer, Rcpp::IntegerVector blocks, bool degree_corrected, bool distributed, Rcpp::List mcmc_opts, Rcpp::List eq_opts, double q_max);
+RcppExport SEXP _graphtool_cpp_sbm_mcmc(SEXP pointerSEXP, SEXP blocksSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP mcmc_optsSEXP, SEXP eq_optsSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type blocks(blocksSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type mcmc_opts(mcmc_optsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type eq_opts(eq_optsSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_sbm_mcmc(pointer, blocks, degree_corrected, distributed, mcmc_opts, eq_opts, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_nested_mcmc
+Rcpp::List cpp_nested_mcmc(SEXP pointer, Rcpp::List bs, bool degree_corrected, bool distributed, Rcpp::List mcmc_opts, Rcpp::List eq_opts, double q_max);
+RcppExport SEXP _graphtool_cpp_nested_mcmc(SEXP pointerSEXP, SEXP bsSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP mcmc_optsSEXP, SEXP eq_optsSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type bs(bsSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type mcmc_opts(mcmc_optsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type eq_opts(eq_optsSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_nested_mcmc(pointer, bs, degree_corrected, distributed, mcmc_opts, eq_opts, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_sbm_check_move_prob
+Rcpp::NumericVector cpp_sbm_check_move_prob(SEXP pointer, Rcpp::IntegerVector blocks, double c, int nmoves);
+RcppExport SEXP _graphtool_cpp_sbm_check_move_prob(SEXP pointerSEXP, SEXP blocksSEXP, SEXP cSEXP, SEXP nmovesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type blocks(blocksSEXP);
+    Rcpp::traits::input_parameter< double >::type c(cSEXP);
+    Rcpp::traits::input_parameter< int >::type nmoves(nmovesSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_sbm_check_move_prob(pointer, blocks, c, nmoves));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_nested_check_move_prob
+Rcpp::NumericVector cpp_nested_check_move_prob(SEXP pointer, Rcpp::List bs, double c, int nmoves);
+RcppExport SEXP _graphtool_cpp_nested_check_move_prob(SEXP pointerSEXP, SEXP bsSEXP, SEXP cSEXP, SEXP nmovesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type bs(bsSEXP);
+    Rcpp::traits::input_parameter< double >::type c(cSEXP);
+    Rcpp::traits::input_parameter< int >::type nmoves(nmovesSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_nested_check_move_prob(pointer, bs, c, nmoves));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_graph_create
 SEXP cpp_graph_create(int n, bool directed);
 RcppExport SEXP _graphtool_cpp_graph_create(SEXP nSEXP, SEXP directedSEXP) {
@@ -247,6 +309,10 @@ static const R_CallMethodDef CallEntries[] = {
     {"_graphtool_cpp_nested_entropy", (DL_FUNC) &_graphtool_cpp_nested_entropy, 5},
     {"_graphtool_cpp_nested_check_moves", (DL_FUNC) &_graphtool_cpp_nested_check_moves, 6},
     {"_graphtool_cpp_nested_minimize", (DL_FUNC) &_graphtool_cpp_nested_minimize, 6},
+    {"_graphtool_cpp_sbm_mcmc", (DL_FUNC) &_graphtool_cpp_sbm_mcmc, 7},
+    {"_graphtool_cpp_nested_mcmc", (DL_FUNC) &_graphtool_cpp_nested_mcmc, 7},
+    {"_graphtool_cpp_sbm_check_move_prob", (DL_FUNC) &_graphtool_cpp_sbm_check_move_prob, 4},
+    {"_graphtool_cpp_nested_check_move_prob", (DL_FUNC) &_graphtool_cpp_nested_check_move_prob, 4},
     {"_graphtool_cpp_graph_create", (DL_FUNC) &_graphtool_cpp_graph_create, 2},
     {"_graphtool_cpp_add_vertices", (DL_FUNC) &_graphtool_cpp_add_vertices, 2},
     {"_graphtool_cpp_add_edges", (DL_FUNC) &_graphtool_cpp_add_edges, 2},

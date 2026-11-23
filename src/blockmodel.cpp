@@ -250,8 +250,7 @@ public:
             if (s == t) {
                 _loops[s]++;
                 _all[s].push_back(s);
-                if (!_directed)
-                    _all[s].push_back(s);
+                _all[s].push_back(s);
             } else {
                 _out[s].push_back(t);
                 _all[s].push_back(t);
@@ -599,6 +598,172 @@ public:
     int random_occupied(RRng& rng) const { return _occupied[rng.index(_occupied.size())]; }
 
     int empty_group() const { return _empty.empty() ? -1 : _empty.back(); }
+
+    long m_sym(int x, int y) const {
+        return get_m(x, y) + (_directed ? get_m(y, x) : 0);
+    }
+
+    long e_tot(int r) const { return _ep[r] + (_directed ? _em[r] : 0); }
+
+    int sample_group_neighbor(int t, RRng& rng) const {
+        double total = static_cast<double>(e_tot(t));
+        if (total <= 0)
+            return random_occupied(rng);
+        double u = rng.unif() * total;
+        for (const auto& [s, m] : _m_out[t]) {
+            u -= m;
+            if (u < 0)
+                return s;
+        }
+        if (_directed) {
+            for (const auto& [s, m] : _m_in[t]) {
+                u -= m;
+                if (u < 0)
+                    return s;
+            }
+        }
+        return t;
+    }
+
+    // Exact neighbor-based proposal for finite-temperature MCMC (Peixoto 2014).
+    int sample_exact_group(int v, double c, RRng& rng) const {
+        if (std::isinf(c) || _all[v].empty())
+            return random_occupied(rng);
+        int u = _all[v][rng.index(_all[v].size())];
+        int t = _b[u];
+        double et = static_cast<double>(e_tot(t));
+        double B_occ = static_cast<double>(_occupied.size());
+        double p_rand = (c > 0) ? (c * B_occ / (et + c * B_occ)) : 0.0;
+        if (et <= 0 || (c > 0 && rng.unif() < p_rand))
+            return random_occupied(rng);
+        return sample_group_neighbor(t, rng);
+    }
+
+    // Exact probability q(r -> s | v) (reverse=false) or post-move q'(s -> r | v)
+    // (reverse=true, assuming r stays occupied after moving v: r -> s).
+    double move_prob(int v, int r, int s, double c, bool reverse) {
+        double kv = static_cast<double>(_all[v].size());
+        if (!reverse) {
+            double B_occ = static_cast<double>(_occupied.size());
+            if (kv <= 0 || std::isinf(c))
+                return 1.0 / B_occ;
+            _touched_out.clear();
+            auto add_w = [&](int t, long w) {
+                if (_cnt_out[t] == 0)
+                    _touched_out.push_back(t);
+                _cnt_out[t] += w;
+            };
+            for (int u : _out[v])
+                add_w(_b[u], 1);
+            if (_directed) {
+                for (int u : _in[v])
+                    add_w(_b[u], 1);
+            }
+            if (_loops[v] > 0)
+                add_w(r, 2 * _loops[v]);
+            double prob = 0;
+            for (int t : _touched_out) {
+                double wt = static_cast<double>(_cnt_out[t]);
+                _cnt_out[t] = 0;
+                double et = static_cast<double>(e_tot(t));
+                double mts = static_cast<double>(m_sym(t, s));
+                prob += (wt / kv) * ((mts + c) / (et + c * B_occ));
+            }
+            return prob;
+        }
+        double B_new = static_cast<double>(_occupied.size() + (_wr[s] == 0 ? 1 : 0));
+        if (kv <= 0 || std::isinf(c))
+            return 1.0 / B_new;
+        _touched_out.clear();
+        auto add_w = [&](int t, long w) {
+            if (_cnt_out[t] == 0)
+                _touched_out.push_back(t);
+            _cnt_out[t] += w;
+        };
+        for (int u : _out[v])
+            add_w(_b[u], 1);
+        if (_directed) {
+            for (int u : _in[v])
+                add_w(_b[u], 1);
+        }
+        long lp_w = 2 * _loops[v];
+        long wnl_r = _cnt_out[r];
+        long wnl_s = _cnt_out[s];
+        if (lp_w > 0 && _cnt_out[s] == 0)
+            _touched_out.push_back(s);
+        double prob = 0;
+        for (int t : _touched_out) {
+            long wnl = _cnt_out[t];
+            _cnt_out[t] = 0;
+            double wt = static_cast<double>(wnl + (t == s ? lp_w : 0));
+            if (wt <= 0)
+                continue;
+            double et_new, mtr_new;
+            if (t == r) {
+                et_new = static_cast<double>(e_tot(r) - static_cast<long>(kv));
+                mtr_new = static_cast<double>(m_sym(r, r) - 2 * wnl_r - lp_w);
+            } else if (t == s) {
+                et_new = static_cast<double>(e_tot(s) + static_cast<long>(kv));
+                mtr_new = static_cast<double>(m_sym(s, r) + wnl_r - wnl_s);
+            } else {
+                et_new = static_cast<double>(e_tot(t));
+                mtr_new = static_cast<double>(m_sym(t, r) - wnl);
+            }
+            prob += (wt / kv) * ((mtr_new + c) / (et_new + c * B_new));
+        }
+        return prob;
+    }
+
+    // Group-level merge target sampling and exact unordered pair probability.
+    int sample_merge_target(int r, double c, RRng& rng) const {
+        size_t B_occ = _occupied.size();
+        if (B_occ <= 1)
+            return r;
+        auto rand_other = [&]() {
+            int s = _occupied[rng.index(B_occ - 1)];
+            return (s == r) ? _occupied[B_occ - 1] : s;
+        };
+        double ext = static_cast<double>(e_tot(r) - m_sym(r, r));
+        if (ext <= 0 || std::isinf(c))
+            return rand_other();
+        double B_other = static_cast<double>(B_occ - 1);
+        double p_rand = (c > 0) ? (c * B_other / (ext + c * B_other)) : 0.0;
+        if (c > 0 && rng.unif() < p_rand)
+            return rand_other();
+        double u = rng.unif() * ext;
+        for (const auto& [s, m] : _m_out[r]) {
+            if (s == r)
+                continue;
+            u -= m;
+            if (u < 0)
+                return s;
+        }
+        if (_directed) {
+            for (const auto& [s, m] : _m_in[r]) {
+                if (s == r)
+                    continue;
+                u -= m;
+                if (u < 0)
+                    return s;
+            }
+        }
+        return rand_other();
+    }
+
+    double merge_prob(int r, int s, double c) const {
+        size_t B_occ = _occupied.size();
+        if (B_occ <= 1 || r == s)
+            return 0;
+        double B_other = static_cast<double>(B_occ - 1);
+        double mrs = static_cast<double>(m_sym(r, s));
+        auto q_dir = [&](int a) {
+            double ext = static_cast<double>(e_tot(a) - m_sym(a, a));
+            if (ext <= 0 || std::isinf(c))
+                return 1.0 / B_other;
+            return (mrs + c) / (ext + c * B_other);
+        };
+        return (q_dir(r) + q_dir(s)) / static_cast<double>(B_occ);
+    }
 
     // Neighbour-based proposal of graph-tool's BlockState::sample_group with
     // d = 0 and the fast (non-edge-group) proposal.
@@ -1254,6 +1419,177 @@ public:
         return x;
     }
 
+    long m_sym(int x, int y) const {
+        return get_m(x, y) + (_directed ? get_m(y, x) : 0);
+    }
+
+    long e_tot(int r) const { return _ep[r] + (_directed ? _em[r] : 0); }
+
+    int sample_group_neighbor(int t, RRng& rng) const {
+        double total = static_cast<double>(e_tot(t));
+        if (total <= 0)
+            return random_occupied(rng);
+        double u = rng.unif() * total;
+        for (const auto& [s, m] : _m_out[t]) {
+            u -= m;
+            if (u < 0)
+                return s;
+        }
+        if (_directed) {
+            for (const auto& [s, m] : _m_in[t]) {
+                u -= m;
+                if (u < 0)
+                    return s;
+            }
+        }
+        return t;
+    }
+
+    int sample_exact_group(int x, double c, const LowerView& lower, RRng& rng) const {
+        double kx = static_cast<double>((*lower.ep)[x] + (_directed ? (*lower.em)[x] : 0));
+        if (std::isinf(c) || kx <= 0)
+            return random_occupied(rng);
+        int u = random_neighbor(x, lower, rng);
+        if (u < 0)
+            return random_occupied(rng);
+        int t = _b[u];
+        double et = static_cast<double>(e_tot(t));
+        double B_occ = static_cast<double>(_occupied.size());
+        double p_rand = (c > 0) ? (c * B_occ / (et + c * B_occ)) : 0.0;
+        if (et <= 0 || (c > 0 && rng.unif() < p_rand))
+            return random_occupied(rng);
+        return sample_group_neighbor(t, rng);
+    }
+
+    double move_prob(int x, int r, int s, double c, const LowerView& lower, bool reverse) {
+        double kx = static_cast<double>((*lower.ep)[x] + (_directed ? (*lower.em)[x] : 0));
+        if (!reverse) {
+            double B_occ = static_cast<double>(_occupied.size());
+            if (kx <= 0 || std::isinf(c))
+                return 1.0 / B_occ;
+            _touched_out.clear();
+            auto add_w = [&](int t, long w) {
+                if (_cnt_out[t] == 0)
+                    _touched_out.push_back(t);
+                _cnt_out[t] += w;
+            };
+            for (const auto& [y, val] : (*lower.m_out)[x])
+                add_w(y == x ? r : _b[y], val);
+            if (_directed) {
+                for (const auto& [y, val] : (*lower.m_in)[x])
+                    add_w(y == x ? r : _b[y], val);
+            }
+            double prob = 0;
+            for (int t : _touched_out) {
+                double wt = static_cast<double>(_cnt_out[t]);
+                _cnt_out[t] = 0;
+                double et = static_cast<double>(e_tot(t));
+                double mts = static_cast<double>(m_sym(t, s));
+                prob += (wt / kx) * ((mts + c) / (et + c * B_occ));
+            }
+            return prob;
+        }
+        double B_new = static_cast<double>(_occupied.size() + (_wr[s] == 0 ? 1 : 0));
+        if (kx <= 0 || std::isinf(c))
+            return 1.0 / B_new;
+        _touched_out.clear();
+        auto add_w = [&](int t, long w) {
+            if (_cnt_out[t] == 0)
+                _touched_out.push_back(t);
+            _cnt_out[t] += w;
+        };
+        long lp_w = 0;
+        for (const auto& [y, val] : (*lower.m_out)[x]) {
+            if (y == x)
+                lp_w += val;
+            else
+                add_w(_b[y], val);
+        }
+        if (_directed) {
+            for (const auto& [y, val] : (*lower.m_in)[x]) {
+                if (y == x)
+                    lp_w += val;
+                else
+                    add_w(_b[y], val);
+            }
+        }
+        long wnl_r = _cnt_out[r];
+        long wnl_s = _cnt_out[s];
+        if (lp_w > 0 && _cnt_out[s] == 0)
+            _touched_out.push_back(s);
+        double prob = 0;
+        for (int t : _touched_out) {
+            long wnl = _cnt_out[t];
+            _cnt_out[t] = 0;
+            double wt = static_cast<double>(wnl + (t == s ? lp_w : 0));
+            if (wt <= 0)
+                continue;
+            double et_new, mtr_new;
+            if (t == r) {
+                et_new = static_cast<double>(e_tot(r) - static_cast<long>(kx));
+                mtr_new = static_cast<double>(m_sym(r, r) - 2 * wnl_r - lp_w);
+            } else if (t == s) {
+                et_new = static_cast<double>(e_tot(s) + static_cast<long>(kx));
+                mtr_new = static_cast<double>(m_sym(s, r) + wnl_r - wnl_s);
+            } else {
+                et_new = static_cast<double>(e_tot(t));
+                mtr_new = static_cast<double>(m_sym(t, r) - wnl);
+            }
+            prob += (wt / kx) * ((mtr_new + c) / (et_new + c * B_new));
+        }
+        return prob;
+    }
+
+    int sample_merge_target(int r, double c, RRng& rng) const {
+        size_t B_occ = _occupied.size();
+        if (B_occ <= 1)
+            return r;
+        auto rand_other = [&]() {
+            int s = _occupied[rng.index(B_occ - 1)];
+            return (s == r) ? _occupied[B_occ - 1] : s;
+        };
+        double ext = static_cast<double>(e_tot(r) - m_sym(r, r));
+        if (ext <= 0 || std::isinf(c))
+            return rand_other();
+        double B_other = static_cast<double>(B_occ - 1);
+        double p_rand = (c > 0) ? (c * B_other / (ext + c * B_other)) : 0.0;
+        if (c > 0 && rng.unif() < p_rand)
+            return rand_other();
+        double u = rng.unif() * ext;
+        for (const auto& [s, m] : _m_out[r]) {
+            if (s == r)
+                continue;
+            u -= m;
+            if (u < 0)
+                return s;
+        }
+        if (_directed) {
+            for (const auto& [s, m] : _m_in[r]) {
+                if (s == r)
+                    continue;
+                u -= m;
+                if (u < 0)
+                    return s;
+            }
+        }
+        return rand_other();
+    }
+
+    double merge_prob(int r, int s, double c) const {
+        size_t B_occ = _occupied.size();
+        if (B_occ <= 1 || r == s)
+            return 0;
+        double B_other = static_cast<double>(B_occ - 1);
+        double mrs = static_cast<double>(m_sym(r, s));
+        auto q_dir = [&](int a) {
+            double ext = static_cast<double>(e_tot(a) - m_sym(a, a));
+            if (ext <= 0 || std::isinf(c))
+                return 1.0 / B_other;
+            return (mrs + c) / (ext + c * B_other);
+        };
+        return (q_dir(r) + q_dir(s)) / static_cast<double>(B_occ);
+    }
+
     int sample_group(int x, double c, const LowerView& lower, RRng& rng) const {
         int u = std::isinf(c) ? -1 : random_neighbor(x, lower, rng);
         if (u < 0)
@@ -1519,6 +1855,16 @@ public:
             _up[l].set_empty_label(t, _up[l].group(r));
     }
 
+    bool same_parent(int l, int r, int s) const {
+        if (l + 1 >= levels())
+            return true;
+        return _up[l].group(r) == _up[l].group(s);
+    }
+
+    int empty_group(int l) const {
+        return l == 0 ? _base.empty_group() : _up[l - 1].empty_group();
+    }
+
 private:
     SBM _base;
     std::vector<BlockLevel> _up;
@@ -1621,6 +1967,32 @@ public:
             return _n.base().sample_group(v, c, rng);
         return _n.upper(_l).sample_group(v, c, _n.lower(_l), rng);
     }
+    int empty_group() const { return _n.empty_group(_l); }
+    void inherit(int t, int r) { _n.inherit(_l, t, r); }
+    bool same_parent(int r, int s) const { return _n.same_parent(_l, r, s); }
+    int sample_exact_group(int v, double c, RRng& rng) const {
+        if (_l == 0)
+            return _n.base().sample_exact_group(v, c, rng);
+        return _n.upper(_l).sample_exact_group(v, c, _n.lower(_l), rng);
+    }
+    double move_prob(int v, int r, int s, double c, bool reverse) {
+        if (_l == 0)
+            return _n.base().move_prob(v, r, s, c, reverse);
+        return _n.upper(_l).move_prob(v, r, s, c, _n.lower(_l), reverse);
+    }
+    int sample_merge_target(int r, double c, RRng& rng) const {
+        if (_l == 0)
+            return _n.base().sample_merge_target(r, c, rng);
+        return _n.upper(_l).sample_merge_target(r, c, rng);
+    }
+    double merge_prob(int r, int s, double c) const {
+        if (_l == 0)
+            return _n.base().merge_prob(r, s, c);
+        return _n.upper(_l).merge_prob(r, s, c);
+    }
+    int random_occupied(RRng& rng) const {
+        return _l == 0 ? _n.base().random_occupied(rng) : _n.upper(_l).random_occupied(rng);
+    }
     double entropy() const { return _n.entropy(); }
     Snapshot save() const { return _n.hierarchy(); }
     void restore(const Snapshot& bs) { _n.build(bs); }
@@ -1677,6 +2049,20 @@ public:
     double virtual_merge(int r, int s) { return _s.virtual_merge(r, s); }
     void merge(int r, int s) { _s.merge(r, s); }
     int sample_group(int v, double c, RRng& rng) { return _s.sample_group(v, c, rng); }
+    int empty_group() const { return _s.empty_group(); }
+    void inherit(int, int) {}
+    bool same_parent(int, int) const { return true; }
+    int sample_exact_group(int v, double c, RRng& rng) const {
+        return _s.sample_exact_group(v, c, rng);
+    }
+    double move_prob(int v, int r, int s, double c, bool reverse) {
+        return _s.move_prob(v, r, s, c, reverse);
+    }
+    int sample_merge_target(int r, double c, RRng& rng) const {
+        return _s.sample_merge_target(r, c, rng);
+    }
+    double merge_prob(int r, int s, double c) const { return _s.merge_prob(r, s, c); }
+    int random_occupied(RRng& rng) const { return _s.random_occupied(rng); }
     double entropy() const { return _s.entropy(); }
     Snapshot save() const { return _s.blocks(); }
     void restore(const Snapshot& b) { _s.set_partition(b); }
@@ -2370,4 +2756,916 @@ Rcpp::List cpp_nested_minimize(SEXP pointer, bool degree_corrected, bool distrib
     return Rcpp::List::create(Rcpp::Named("bs") = external_hierarchy(n.hierarchy()),
                               Rcpp::Named("level_entropy") = S,
                               Rcpp::Named("trace") = trace);
+}
+
+
+// ---------------------------------------------------------------------------
+// Exact finite-temperature single-node and merge-split MCMC (Peixoto 2014,
+// 2020), equilibration, and simulated annealing.
+
+namespace {
+
+inline double log_sum_exp(double a, double b) {
+    if (std::isinf(a) && a < 0)
+        return b;
+    if (std::isinf(b) && b < 0)
+        return a;
+    double hi = std::max(a, b);
+    double lo = std::min(a, b);
+    return hi + std::log1p(std::exp(lo - hi));
+}
+
+struct MCMCParams {
+    double beta = 1.0;
+    double c = 0.5;
+    double d = 0.01;
+    size_t niter = 1;
+    size_t B_min = 1;
+    size_t B_max = std::numeric_limits<size_t>::max();
+    bool multiflip = true;
+    double psingle = -1.0;  // < 0 => defaults to N
+    double psplit = 1.0;
+    double pmerge = 1.0;
+    double pmergesplit = 1.0;
+    size_t gibbs_sweeps = 10;
+    bool ls_shuffle = true;
+};
+
+struct EquilParams {
+    std::string mode = "sweep";  // "sweep", "equilibrate", "anneal"
+    size_t wait = 1000;
+    size_t nbreaks = 2;
+    size_t max_niter = std::numeric_limits<size_t>::max();
+    long force_niter = -1;
+    double epsilon = 0.0;
+    bool history = false;
+    bool collect = false;
+    size_t thin = 1;
+    bool verbose = false;
+    // Annealing parameters
+    double beta_start = 1.0;
+    double beta_end = 10.0;
+    size_t anneal_niter = 100;
+};
+
+struct SweepResult {
+    double dS = 0;
+    size_t nattempts = 0;
+    size_t nmoves = 0;
+};
+
+MCMCParams read_mcmc_params(const Rcpp::List& opts, double default_c) {
+    MCMCParams p;
+    p.c = default_c;
+    auto num = [&](const char* name, double def) {
+        return opts.containsElementNamed(name) ? Rcpp::as<double>(opts[name]) : def;
+    };
+    auto flag = [&](const char* name, bool def) {
+        return opts.containsElementNamed(name) ? Rcpp::as<bool>(opts[name]) : def;
+    };
+    p.beta = num("beta", p.beta);
+    p.c = num("c", p.c);
+    p.d = num("d", p.d);
+    p.niter = static_cast<size_t>(std::max(0.0, num("niter", static_cast<double>(p.niter))));
+    p.B_min = static_cast<size_t>(std::max(1.0, num("B_min", 1.0)));
+    double bmax = num("B_max", inf);
+    p.B_max = std::isinf(bmax) ? std::numeric_limits<size_t>::max() : static_cast<size_t>(bmax);
+    p.multiflip = flag("multiflip", p.multiflip);
+    p.psingle = num("psingle", p.psingle);
+    p.psplit = num("psplit", p.psplit);
+    p.pmerge = num("pmerge", p.pmerge);
+    p.pmergesplit = num("pmergesplit", p.pmergesplit);
+    p.gibbs_sweeps = static_cast<size_t>(std::max(1.0, num("gibbs_sweeps", 10.0)));
+    p.ls_shuffle = flag("ls_shuffle", p.ls_shuffle);
+    return p;
+}
+
+EquilParams read_equil_params(const Rcpp::List& opts) {
+    EquilParams e;
+    auto num = [&](const char* name, double def) {
+        return opts.containsElementNamed(name) ? Rcpp::as<double>(opts[name]) : def;
+    };
+    auto flag = [&](const char* name, bool def) {
+        return opts.containsElementNamed(name) ? Rcpp::as<bool>(opts[name]) : def;
+    };
+    if (opts.containsElementNamed("mode"))
+        e.mode = Rcpp::as<std::string>(opts["mode"]);
+    e.wait = static_cast<size_t>(std::max(1.0, num("wait", 1000.0)));
+    e.nbreaks = static_cast<size_t>(std::max(1.0, num("nbreaks", 2.0)));
+    double mx = num("max_niter", inf);
+    e.max_niter = std::isinf(mx) ? std::numeric_limits<size_t>::max() : static_cast<size_t>(mx);
+    e.force_niter = static_cast<long>(num("force_niter", -1.0));
+    e.epsilon = num("epsilon", 0.0);
+    e.history = flag("history", false);
+    e.collect = flag("collect", false);
+    e.thin = static_cast<size_t>(std::max(1.0, num("thin", 1.0)));
+    e.verbose = flag("verbose", false);
+    e.beta_start = num("beta_start", 1.0);
+    e.beta_end = num("beta_end", 10.0);
+    e.anneal_niter = static_cast<size_t>(std::max(1.0, num("anneal_niter", 100.0)));
+    return e;
+}
+
+template <class State>
+class MCMC {
+public:
+    MCMC(State& state, RRng& rng) : _s(state), _rng(rng) {}
+
+    std::pair<double, bool> single_move(int v, const MCMCParams& p) {
+        size_t N = _s.N();
+        if (N <= 1)
+            return {0.0, false};
+        int r = _s.group(v);
+        size_t B = static_cast<size_t>(_s.B());
+        bool can_create = (B < N && B < p.B_max && p.d > 0);
+        double p_new = can_create ? p.d : 0.0;
+
+        if (can_create && _rng.unif() < p_new) {
+            if (_s.size(r) == 1)
+                return {0.0, false};
+            int s = _s.empty_group();
+            if (s < 0)
+                return {0.0, false};
+            _s.inherit(s, r);
+            double dS = _s.virtual_move(v, s);
+            bool accept = false;
+            if (std::isinf(p.beta)) {
+                accept = (dS < 0);
+            } else {
+                bool rev_can_create = (B + 1 < N && B + 1 < p.B_max && p.d > 0);
+                double p_new_rev = rev_can_create ? p.d : 0.0;
+                double prev = (1.0 - p_new_rev) * _s.move_prob(v, r, s, p.c, true);
+                double pfwd = p_new;
+                if (prev > 0 && pfwd > 0) {
+                    double log_a = -p.beta * dS + std::log(prev) - std::log(pfwd);
+                    accept = (log_a >= 0 || _rng.unif() < std::exp(log_a));
+                }
+            }
+            if (accept) {
+                _s.move(v, s);
+                return {dS, true};
+            }
+            return {0.0, false};
+        }
+
+        int s = _s.sample_exact_group(v, p.c, _rng);
+        if (s == r)
+            return {0.0, false};
+        bool empties = (_s.size(r) == 1);
+        if (empties) {
+            if (B <= p.B_min || !_s.same_parent(r, s))
+                return {0.0, false};
+        }
+        double dS = _s.virtual_move(v, s);
+        bool accept = false;
+        if (std::isinf(p.beta)) {
+            accept = (dS < 0);
+        } else {
+            double pfwd = (1.0 - p_new) * _s.move_prob(v, r, s, p.c, false);
+            double prev = 0.0;
+            if (empties) {
+                // Reverse move creates an empty group from state with B - 1 groups.
+                prev = (p.d > 0) ? p.d : 0.0;
+            } else {
+                prev = (1.0 - p_new) * _s.move_prob(v, r, s, p.c, true);
+            }
+            if (prev > 0 && pfwd > 0) {
+                double log_a = -p.beta * dS + std::log(prev) - std::log(pfwd);
+                accept = (log_a >= 0 || _rng.unif() < std::exp(log_a));
+            }
+        }
+        if (accept) {
+            _s.move(v, s);
+            return {dS, true};
+        }
+        return {0.0, false};
+    }
+
+    SweepResult mcmc_sweep(const MCMCParams& p) {
+        SweepResult res;
+        size_t N = _s.N();
+        if (N <= 1)
+            return res;
+        std::vector<int> vs = _s.nodes();
+        _rng.shuffle(vs);
+        for (int v : vs) {
+            ++res.nattempts;
+            auto [dS, moved] = single_move(v, p);
+            if (moved) {
+                res.dS += dS;
+                ++res.nmoves;
+            }
+        }
+        return res;
+    }
+
+    SweepResult multiflip_sweep(const MCMCParams& p) {
+        SweepResult res;
+        size_t N = _s.N();
+        if (N <= 1)
+            return res;
+        const auto& nodes = _s.nodes();
+        double ps = (p.psingle < 0) ? static_cast<double>(N) : p.psingle;
+        double psp = std::max(0.0, p.psplit);
+        double pm = std::max(0.0, p.pmerge);
+        double pms = std::max(0.0, p.pmergesplit);
+        double ptot = ps + psp + pm + pms;
+        if (ptot <= 0)
+            return res;
+
+        size_t nsteps = std::max<size_t>(1, static_cast<size_t>(std::llround(ptot)));
+        double c1 = ps / ptot;
+        double c2 = (ps + psp) / ptot;
+        double c3 = (ps + psp + pm) / ptot;
+
+        for (size_t step = 0; step < nsteps; ++step) {
+            double u = _rng.unif();
+            if (u < c1) {
+                int v = nodes[_rng.index(N)];
+                ++res.nattempts;
+                auto [dS, moved] = single_move(v, p);
+                if (moved) {
+                    res.dS += dS;
+                    ++res.nmoves;
+                }
+            } else if (u < c2) {
+                ++res.nattempts;
+                auto [dS, nm] = split_move(p, psp, pm);
+                res.dS += dS;
+                res.nmoves += nm;
+            } else if (u < c3) {
+                ++res.nattempts;
+                auto [dS, nm] = merge_move(p, psp, pm);
+                res.dS += dS;
+                res.nmoves += nm;
+            } else {
+                ++res.nattempts;
+                auto [dS, nm] = mergesplit_move(p);
+                res.dS += dS;
+                res.nmoves += nm;
+            }
+        }
+        return res;
+    }
+
+private:
+    State& _s;
+    RRng& _rng;
+
+    double gibbs_step(int v, int r1, int r2, double beta, bool sample, int target) {
+        int cur = _s.group(v);
+        int other = (cur == r1) ? r2 : r1;
+        double dS_other = _s.virtual_move(v, other);
+        if (std::isinf(beta)) {
+            if (sample) {
+                if (dS_other < 0 || (dS_other == 0 && _rng.unif() < 0.5))
+                    _s.move(v, other);
+            } else if (target == other) {
+                _s.move(v, other);
+            }
+            return 0.0;
+        }
+        double x = -beta * dS_other;
+        double log_p_other, log_p_cur;
+        if (x > 0) {
+            double e = std::exp(-x);
+            log_p_other = -std::log1p(e);
+            log_p_cur = -x - std::log1p(e);
+        } else {
+            double e = std::exp(x);
+            log_p_other = x - std::log1p(e);
+            log_p_cur = -std::log1p(e);
+        }
+        if (sample) {
+            if (_rng.unif() < std::exp(log_p_other)) {
+                _s.move(v, other);
+                return log_p_other;
+            }
+            return log_p_cur;
+        }
+        if (target == other) {
+            _s.move(v, other);
+            return log_p_other;
+        }
+        return log_p_cur;
+    }
+
+    template <class Item, class GetV>
+    void make_aux_split(std::vector<Item>& items, GetV get_v, int r1, int r2,
+                        double beta, size_t gibbs_sweeps, std::vector<int>& aux) {
+        _rng.shuffle(items);
+        for (const auto& it : items) {
+            int v = get_v(it);
+            int dst = (_rng.unif() < 0.5) ? r1 : r2;
+            if (_s.group(v) != dst)
+                _s.move(v, dst);
+        }
+        for (size_t sw = 1; sw < gibbs_sweeps; ++sw) {
+            _rng.shuffle(items);
+            for (const auto& it : items)
+                gibbs_step(get_v(it), r1, r2, beta, true, 0);
+        }
+        _rng.shuffle(items);
+        aux.resize(items.size());
+        for (size_t i = 0; i < items.size(); ++i)
+            aux[i] = _s.group(get_v(items[i]));
+    }
+
+    template <class Item, class GetV>
+    void restore_assign(const std::vector<Item>& items, GetV get_v,
+                        const std::vector<int>& assign) {
+        for (size_t i = 0; i < items.size(); ++i) {
+            int v = get_v(items[i]);
+            if (_s.group(v) != assign[i])
+                _s.move(v, assign[i]);
+        }
+    }
+
+    std::pair<double, size_t> split_move(const MCMCParams& p, double psplit, double pmerge) {
+        size_t B_before = static_cast<size_t>(_s.B());
+        if (B_before >= _s.N() || B_before >= p.B_max || psplit <= 0)
+            return {0.0, 0};
+        if (!std::isinf(p.beta) && pmerge <= 0)
+            return {0.0, 0};
+        int r1 = _s.random_occupied(_rng);
+        if (_s.size(r1) < 2)
+            return {0.0, 0};
+        int r2 = _s.empty_group();
+        if (r2 < 0)
+            return {0.0, 0};
+        _s.inherit(r2, r1);
+
+        std::vector<int> vs = _s.members(r1);
+        auto get_v = [](int v) { return v; };
+        std::vector<int> aux;
+        make_aux_split(vs, get_v, r1, r2, p.beta, p.gibbs_sweeps, aux);
+
+        double log_p_z = 0.0;
+        std::vector<int> prop(vs.size());
+        for (size_t i = 0; i < vs.size(); ++i) {
+            log_p_z += gibbs_step(vs[i], r1, r2, p.beta, true, 0);
+            prop[i] = _s.group(vs[i]);
+        }
+
+        if (_s.size(r1) == 0 || _s.size(r2) == 0) {
+            for (int v : vs)
+                if (_s.group(v) != r1)
+                    _s.move(v, r1);
+            return {0.0, 0};
+        }
+
+        double dS = -_s.virtual_merge(r2, r1);
+        if (std::isinf(p.beta)) {
+            if (dS < 0)
+                return {dS, static_cast<size_t>(_s.size(r2))};
+            _s.merge(r2, r1);
+            return {0.0, 0};
+        }
+
+        double P_merge = _s.merge_prob(r1, r2, p.c);
+        restore_assign(vs, get_v, aux);
+        double log_p_zbar = 0.0;
+        for (size_t i = 0; i < vs.size(); ++i) {
+            int tgt = (prop[i] == r1) ? r2 : r1;
+            log_p_zbar += gibbs_step(vs[i], r1, r2, p.beta, false, tgt);
+        }
+
+        double log_pfwd = -std::log(static_cast<double>(B_before)) +
+                          log_sum_exp(log_p_z, log_p_zbar);
+        double log_prev = std::log(P_merge);
+        double log_a = -p.beta * dS + std::log(pmerge / psplit) + log_prev - log_pfwd;
+        if (P_merge > 0 && (log_a >= 0 || _rng.unif() < std::exp(log_a)))
+            return {dS, static_cast<size_t>(_s.size(r2))};
+        _s.merge(r2, r1);
+        return {0.0, 0};
+    }
+
+    std::pair<double, size_t> merge_move(const MCMCParams& p, double psplit, double pmerge) {
+        size_t B_before = static_cast<size_t>(_s.B());
+        if (B_before <= 1 || B_before <= p.B_min || pmerge <= 0)
+            return {0.0, 0};
+        if (!std::isinf(p.beta) && psplit <= 0)
+            return {0.0, 0};
+        int r1 = _s.random_occupied(_rng);
+        int r2 = _s.sample_merge_target(r1, p.c, _rng);
+        if (r2 == r1 || !_s.same_parent(r1, r2))
+            return {0.0, 0};
+
+        double dS = _s.virtual_merge(r2, r1);
+        size_t nm = static_cast<size_t>(_s.size(r2));
+        if (std::isinf(p.beta)) {
+            if (dS < 0) {
+                _s.merge(r2, r1);
+                return {dS, nm};
+            }
+            return {0.0, 0};
+        }
+
+        double P_merge = _s.merge_prob(r1, r2, p.c);
+        std::vector<std::pair<int, int>> vo;
+        vo.reserve(_s.size(r1) + _s.size(r2));
+        for (int v : _s.members(r1))
+            vo.emplace_back(v, r1);
+        for (int v : _s.members(r2))
+            vo.emplace_back(v, r2);
+        auto get_v = [](const std::pair<int, int>& x) { return x.first; };
+
+        std::vector<int> aux;
+        make_aux_split(vo, get_v, r1, r2, p.beta, p.gibbs_sweeps, aux);
+
+        double log_p_z = 0.0;
+        for (size_t i = 0; i < vo.size(); ++i)
+            log_p_z += gibbs_step(vo[i].first, r1, r2, p.beta, false, vo[i].second);
+
+        restore_assign(vo, get_v, aux);
+        double log_p_zbar = 0.0;
+        for (size_t i = 0; i < vo.size(); ++i) {
+            int tgt = (vo[i].second == r1) ? r2 : r1;
+            log_p_zbar += gibbs_step(vo[i].first, r1, r2, p.beta, false, tgt);
+        }
+
+        double log_prev = -std::log(static_cast<double>(B_before - 1)) +
+                          log_sum_exp(log_p_z, log_p_zbar);
+        double log_pfwd = std::log(P_merge);
+        double log_a = -p.beta * dS + std::log(psplit / pmerge) + log_prev - log_pfwd;
+        if (P_merge > 0 && (log_a >= 0 || _rng.unif() < std::exp(log_a))) {
+            _s.merge(r2, r1);
+            return {dS, nm};
+        }
+        // Restore exact original assignment.
+        for (const auto& [v, g] : vo)
+            if (_s.group(v) != g)
+                _s.move(v, g);
+        return {0.0, 0};
+    }
+
+    std::pair<double, size_t> mergesplit_move(const MCMCParams& p) {
+        size_t B_before = static_cast<size_t>(_s.B());
+        if (B_before <= 1)
+            return {0.0, 0};
+        int r1 = _s.random_occupied(_rng);
+        int r2 = _s.sample_merge_target(r1, p.c, _rng);
+        if (r2 == r1 || !_s.same_parent(r1, r2))
+            return {0.0, 0};
+
+        double P_before = _s.merge_prob(r1, r2, p.c);
+        double dS_to_merged = _s.virtual_merge(r2, r1);
+
+        std::vector<std::pair<int, int>> vo;
+        vo.reserve(_s.size(r1) + _s.size(r2));
+        for (int v : _s.members(r1))
+            vo.emplace_back(v, r1);
+        for (int v : _s.members(r2))
+            vo.emplace_back(v, r2);
+        auto get_v = [](const std::pair<int, int>& x) { return x.first; };
+
+        std::vector<int> aux;
+        make_aux_split(vo, get_v, r1, r2, p.beta, p.gibbs_sweeps, aux);
+
+        double log_p_prop1 = 0.0;
+        std::vector<int> prop(vo.size());
+        for (size_t i = 0; i < vo.size(); ++i) {
+            log_p_prop1 += gibbs_step(vo[i].first, r1, r2, p.beta, true, 0);
+            prop[i] = _s.group(vo[i].first);
+        }
+
+        if (_s.size(r1) == 0 || _s.size(r2) == 0) {
+            for (const auto& [v, g] : vo)
+                if (_s.group(v) != g)
+                    _s.move(v, g);
+            return {0.0, 0};
+        }
+
+        double dS_prop_to_merged = _s.virtual_merge(r2, r1);
+        double dS = dS_to_merged - dS_prop_to_merged;
+        size_t nm = 0;
+        for (size_t i = 0; i < vo.size(); ++i)
+            if (prop[i] != vo[i].second)
+                ++nm;
+
+        if (std::isinf(p.beta)) {
+            if (dS < 0)
+                return {dS, nm};
+            for (const auto& [v, g] : vo)
+                if (_s.group(v) != g)
+                    _s.move(v, g);
+            return {0.0, 0};
+        }
+
+        double P_after = _s.merge_prob(r1, r2, p.c);
+
+        restore_assign(vo, get_v, aux);
+        double log_p_prop2 = 0.0;
+        for (size_t i = 0; i < vo.size(); ++i) {
+            int tgt = (prop[i] == r1) ? r2 : r1;
+            log_p_prop2 += gibbs_step(vo[i].first, r1, r2, p.beta, false, tgt);
+        }
+
+        restore_assign(vo, get_v, aux);
+        double log_p_orig1 = 0.0;
+        for (size_t i = 0; i < vo.size(); ++i)
+            log_p_orig1 += gibbs_step(vo[i].first, r1, r2, p.beta, false, vo[i].second);
+
+        restore_assign(vo, get_v, aux);
+        double log_p_orig2 = 0.0;
+        for (size_t i = 0; i < vo.size(); ++i) {
+            int tgt = (vo[i].second == r1) ? r2 : r1;
+            log_p_orig2 += gibbs_step(vo[i].first, r1, r2, p.beta, false, tgt);
+        }
+
+        double log_p_prop = log_sum_exp(log_p_prop1, log_p_prop2);
+        double log_p_orig = log_sum_exp(log_p_orig1, log_p_orig2);
+        double log_a = -p.beta * dS + std::log(P_after) + log_p_orig -
+                       std::log(P_before) - log_p_prop;
+        if (P_before > 0 && P_after > 0 && (log_a >= 0 || _rng.unif() < std::exp(log_a))) {
+            restore_assign(vo, get_v, prop);
+            return {dS, nm};
+        }
+        for (const auto& [v, g] : vo)
+            if (_s.group(v) != g)
+                _s.move(v, g);
+        return {0.0, 0};
+    }
+};
+
+struct RunHistory {
+    std::vector<double> nattempts;
+    std::vector<double> nmoves;
+    std::vector<double> entropy;
+    std::vector<double> beta;
+};
+
+template <class StepFn, class EntropyFn, class CollectFn>
+SweepResult run_equilibrate(StepFn step_fn, EntropyFn entropy_fn, CollectFn collect_fn,
+                            const EquilParams& eq, double beta_val,
+                            RunHistory& hist, size_t& niter_out) {
+    SweepResult total;
+    size_t count = 0;
+    size_t break_count = 0;
+    size_t niter = 0;
+    double S = entropy_fn();
+    double min_S = S, max_S = S;
+    constexpr double m_eps = 1e-6;
+
+    while (count < eq.wait) {
+        SweepResult r = step_fn();
+        S += r.dS;
+        ++niter;
+        total.dS += r.dS;
+        total.nattempts += r.nattempts;
+        total.nmoves += r.nmoves;
+
+        if (eq.force_niter >= 0) {
+            if (S > max_S) max_S = S;
+            if (S < min_S) min_S = S;
+        } else {
+            if (std::abs(r.dS) >= std::abs(S - r.dS) * eq.epsilon) {
+                if (S > max_S + m_eps) {
+                    max_S = S;
+                    count = 0;
+                } else if (S < min_S - m_eps) {
+                    min_S = S;
+                    count = 0;
+                } else {
+                    ++count;
+                }
+            } else {
+                ++count;
+            }
+            if (count >= eq.wait) {
+                ++break_count;
+                if (break_count < eq.nbreaks) {
+                    count = 0;
+                    min_S = max_S = S;
+                }
+            }
+        }
+
+        if (eq.collect && (niter % eq.thin == 0))
+            collect_fn();
+
+        if (eq.history) {
+            hist.nattempts.push_back(static_cast<double>(r.nattempts));
+            hist.nmoves.push_back(static_cast<double>(r.nmoves));
+            hist.entropy.push_back(S);
+            hist.beta.push_back(beta_val);
+        }
+
+        if (eq.verbose) {
+            Rprintf("niter: %5zu  count: %4zu  breaks: %2zu  min_S: %.6f  max_S: %.6f  S: %.6f  dS: %.6f  moves: %zu\n",
+                    niter, count, break_count, min_S, max_S, S, r.dS, r.nmoves);
+        }
+
+        Rcpp::checkUserInterrupt();
+
+        if (eq.force_niter >= 0 && niter >= static_cast<size_t>(eq.force_niter))
+            break;
+        if (niter >= eq.max_niter)
+            break;
+    }
+    niter_out += niter;
+    return total;
+}
+
+}  // namespace
+
+// [[Rcpp::export]]
+Rcpp::List cpp_sbm_mcmc(SEXP pointer, Rcpp::IntegerVector blocks, bool degree_corrected,
+                        bool distributed, Rcpp::List mcmc_opts, Rcpp::List eq_opts,
+                        double q_max) {
+    Graph& graph = get_graph(pointer);
+    SBM state(graph, degree_corrected, distributed, q_cache_max(q_max));
+    state.set_partition(zero_based(graph, blocks));
+    FlatView view(state);
+    RRng rng;
+    MCMC<FlatView> mcmc(view, rng);
+    MCMCParams mp = read_mcmc_params(mcmc_opts, 0.5);
+    EquilParams eq = read_equil_params(eq_opts);
+
+    SweepResult total;
+    RunHistory hist;
+    std::vector<Rcpp::IntegerVector> samples;
+    size_t niter_done = 0;
+
+    auto do_step = [&](const MCMCParams& cur_p) {
+        SweepResult r;
+        for (size_t i = 0; i < cur_p.niter; ++i) {
+            SweepResult s = cur_p.multiflip ? mcmc.multiflip_sweep(cur_p)
+                                            : mcmc.mcmc_sweep(cur_p);
+            r.dS += s.dS;
+            r.nattempts += s.nattempts;
+            r.nmoves += s.nmoves;
+        }
+        return r;
+    };
+
+    if (eq.mode == "sweep") {
+        total = do_step(mp);
+        niter_done = mp.niter;
+    } else if (eq.mode == "equilibrate") {
+        total = run_equilibrate(
+            [&]() { return do_step(mp); },
+            [&]() { return view.entropy(); },
+            [&]() { samples.push_back(one_based(state.blocks())); },
+            eq, mp.beta, hist, niter_done);
+    } else if (eq.mode == "anneal") {
+        double beta = eq.beta_start;
+        double speed = std::exp((std::log(eq.beta_end) - std::log(eq.beta_start)) /
+                                static_cast<double>(eq.anneal_niter));
+        for (size_t step = 0; step <= eq.anneal_niter; ++step) {
+            MCMCParams cur_p = mp;
+            cur_p.beta = (step == eq.anneal_niter) ? eq.beta_end : beta;
+            SweepResult r = run_equilibrate(
+                [&]() { return do_step(cur_p); },
+                [&]() { return view.entropy(); },
+                [&]() { samples.push_back(one_based(state.blocks())); },
+                eq, cur_p.beta, hist, niter_done);
+            total.dS += r.dS;
+            total.nattempts += r.nattempts;
+            total.nmoves += r.nmoves;
+            beta *= speed;
+        }
+    } else {
+        Rcpp::stop("Unknown MCMC mode: %s", eq.mode.c_str());
+    }
+
+    Rcpp::List out = Rcpp::List::create(
+        Rcpp::Named("blocks") = one_based(state.blocks()),
+        Rcpp::Named("entropy") = state.entropy(),
+        Rcpp::Named("dS") = total.dS,
+        Rcpp::Named("nattempts") = static_cast<double>(total.nattempts),
+        Rcpp::Named("nmoves") = static_cast<double>(total.nmoves),
+        Rcpp::Named("niter") = static_cast<double>(niter_done));
+
+    if (eq.history) {
+        out["history"] = Rcpp::DataFrame::create(
+            Rcpp::Named("nattempts") = hist.nattempts,
+            Rcpp::Named("nmoves") = hist.nmoves,
+            Rcpp::Named("entropy") = hist.entropy,
+            Rcpp::Named("beta") = hist.beta);
+    }
+    if (eq.collect) {
+        Rcpp::List slist(samples.size());
+        for (size_t i = 0; i < samples.size(); ++i)
+            slist[i] = samples[i];
+        out["samples"] = slist;
+    }
+    return out;
+}
+
+// [[Rcpp::export]]
+Rcpp::List cpp_nested_mcmc(SEXP pointer, Rcpp::List bs, bool degree_corrected,
+                           bool distributed, Rcpp::List mcmc_opts, Rcpp::List eq_opts,
+                           double q_max) {
+    Graph& graph = get_graph(pointer);
+    int N = static_cast<int>(boost::num_vertices(graph.adjacency));
+    Nested n(graph, degree_corrected, distributed, q_cache_max(q_max), bs.size());
+    n.build(internal_hierarchy(N, bs));
+    RRng rng;
+    MCMCParams mp = read_mcmc_params(mcmc_opts, 1.0);
+    EquilParams eq = read_equil_params(eq_opts);
+
+    int L = n.levels();
+    std::vector<double> c_levels(L);
+    if (mcmc_opts.containsElementNamed("c_levels")) {
+        Rcpp::NumericVector cv = mcmc_opts["c_levels"];
+        for (int l = 0; l < L; ++l)
+            c_levels[l] = cv[std::min<R_xlen_t>(l, cv.size() - 1)];
+    } else {
+        for (int l = 0; l < L; ++l)
+            c_levels[l] = mp.c * std::pow(2.0, l);
+    }
+
+    std::vector<int> lrange(L);
+    std::iota(lrange.begin(), lrange.end(), 0);
+
+    auto do_step = [&](const MCMCParams& cur_p) {
+        SweepResult r;
+        if (cur_p.ls_shuffle)
+            rng.shuffle(lrange);
+        for (int l : lrange) {
+            LevelView view(n, l);
+            if (view.N() <= 1)
+                continue;
+            MCMCParams lp = cur_p;
+            lp.c = c_levels[l];
+            if (l > 0) {
+                lp.B_min = 1;
+                lp.B_max = std::numeric_limits<size_t>::max();
+            }
+            if (lp.psingle < 0)
+                lp.psingle = static_cast<double>(view.N());
+            MCMC<LevelView> mcmc(view, rng);
+            for (size_t i = 0; i < lp.niter; ++i) {
+                SweepResult s = lp.multiflip ? mcmc.multiflip_sweep(lp)
+                                             : mcmc.mcmc_sweep(lp);
+                r.dS += s.dS;
+                r.nattempts += s.nattempts;
+                r.nmoves += s.nmoves;
+            }
+        }
+        return r;
+    };
+
+    SweepResult total;
+    RunHistory hist;
+    std::vector<Rcpp::List> samples;
+    size_t niter_done = 0;
+
+    if (eq.mode == "sweep") {
+        total = do_step(mp);
+        niter_done = mp.niter;
+    } else if (eq.mode == "equilibrate") {
+        total = run_equilibrate(
+            [&]() { return do_step(mp); },
+            [&]() { return n.entropy(); },
+            [&]() { samples.push_back(external_hierarchy(n.hierarchy())); },
+            eq, mp.beta, hist, niter_done);
+    } else if (eq.mode == "anneal") {
+        double beta = eq.beta_start;
+        double speed = std::exp((std::log(eq.beta_end) - std::log(eq.beta_start)) /
+                                static_cast<double>(eq.anneal_niter));
+        for (size_t step = 0; step <= eq.anneal_niter; ++step) {
+            MCMCParams cur_p = mp;
+            cur_p.beta = (step == eq.anneal_niter) ? eq.beta_end : beta;
+            SweepResult r = run_equilibrate(
+                [&]() { return do_step(cur_p); },
+                [&]() { return n.entropy(); },
+                [&]() { samples.push_back(external_hierarchy(n.hierarchy())); },
+                eq, cur_p.beta, hist, niter_done);
+            total.dS += r.dS;
+            total.nattempts += r.nattempts;
+            total.nmoves += r.nmoves;
+            beta *= speed;
+        }
+    } else {
+        Rcpp::stop("Unknown MCMC mode: %s", eq.mode.c_str());
+    }
+
+    std::vector<double> S = n.level_entropies();
+    Rcpp::List out = Rcpp::List::create(
+        Rcpp::Named("bs") = external_hierarchy(n.hierarchy()),
+        Rcpp::Named("level_entropy") = S,
+        Rcpp::Named("entropy") = std::accumulate(S.begin(), S.end(), 0.0),
+        Rcpp::Named("dS") = total.dS,
+        Rcpp::Named("nattempts") = static_cast<double>(total.nattempts),
+        Rcpp::Named("nmoves") = static_cast<double>(total.nmoves),
+        Rcpp::Named("niter") = static_cast<double>(niter_done));
+
+    if (eq.history) {
+        out["history"] = Rcpp::DataFrame::create(
+            Rcpp::Named("nattempts") = hist.nattempts,
+            Rcpp::Named("nmoves") = hist.nmoves,
+            Rcpp::Named("entropy") = hist.entropy,
+            Rcpp::Named("beta") = hist.beta);
+    }
+    if (eq.collect) {
+        Rcpp::List slist(samples.size());
+        for (size_t i = 0; i < samples.size(); ++i)
+            slist[i] = samples[i];
+        out["samples"] = slist;
+    }
+    return out;
+}
+
+// Verifies exact proposal normalization sum_s q(r->s|v) == 1 and exact
+// reverse probability move_prob(v, r, s, reverse=true) == actual post-move
+// move_prob(v, s, r, reverse=false).
+// [[Rcpp::export]]
+Rcpp::NumericVector cpp_sbm_check_move_prob(SEXP pointer, Rcpp::IntegerVector blocks,
+                                            double c, int nmoves) {
+    Graph& graph = get_graph(pointer);
+    SBM state(graph, false, false, 100);
+    state.set_partition(zero_based(graph, blocks));
+    RRng rng;
+    double max_sum_err = 0.0;
+    double max_rev_err = 0.0;
+    double max_merge_sum_err = 0.0;
+    for (int i = 0; i < nmoves; ++i) {
+        int v = rng.index(state.N());
+        int r = state.group(v);
+        double sum_q = 0.0;
+        for (int s : state.occupied())
+            sum_q += state.move_prob(v, r, s, c, false);
+        max_sum_err = std::max(max_sum_err, std::abs(sum_q - 1.0));
+
+        if (state.B() > 1) {
+            const auto& occ = state.occupied();
+            double sum_m = 0.0;
+            for (size_t a = 0; a < occ.size(); ++a)
+                for (size_t b = a + 1; b < occ.size(); ++b)
+                    sum_m += state.merge_prob(occ[a], occ[b], c);
+            max_merge_sum_err = std::max(max_merge_sum_err, std::abs(sum_m - 1.0));
+        }
+
+        int s = (rng.unif() < 0.2 && state.empty_group() >= 0)
+                    ? state.empty_group()
+                    : state.random_occupied(rng);
+        if (s == r)
+            continue;
+        bool stays = state.size(r) > 1;
+        double pred_rev = stays ? state.move_prob(v, r, s, c, true) : 0.0;
+        state.move(v, s);
+        if (stays) {
+            double actual_rev = state.move_prob(v, s, r, c, false);
+            max_rev_err = std::max(max_rev_err, std::abs(pred_rev - actual_rev));
+        }
+    }
+    return Rcpp::NumericVector::create(
+        Rcpp::Named("sum_err") = max_sum_err,
+        Rcpp::Named("rev_err") = max_rev_err,
+        Rcpp::Named("merge_sum_err") = max_merge_sum_err);
+}
+
+// [[Rcpp::export]]
+Rcpp::NumericVector cpp_nested_check_move_prob(SEXP pointer, Rcpp::List bs,
+                                               double c, int nmoves) {
+    Graph& graph = get_graph(pointer);
+    int N = static_cast<int>(boost::num_vertices(graph.adjacency));
+    Nested n(graph, false, false, 100, bs.size());
+    n.build(internal_hierarchy(N, bs));
+    RRng rng;
+    double max_sum_err = 0.0;
+    double max_rev_err = 0.0;
+    double max_merge_sum_err = 0.0;
+    for (int i = 0; i < nmoves; ++i) {
+        int l = rng.index(n.levels());
+        LevelView view(n, l);
+        if (view.N() == 0)
+            continue;
+        int v = view.nodes()[rng.index(view.N())];
+        int r = view.group(v);
+        double sum_q = 0.0;
+        for (int s : view.occupied())
+            sum_q += view.move_prob(v, r, s, c, false);
+        max_sum_err = std::max(max_sum_err, std::abs(sum_q - 1.0));
+
+        if (view.B() > 1) {
+            const auto& occ = view.occupied();
+            double sum_m = 0.0;
+            for (size_t a = 0; a < occ.size(); ++a)
+                for (size_t b = a + 1; b < occ.size(); ++b)
+                    sum_m += view.merge_prob(occ[a], occ[b], c);
+            max_merge_sum_err = std::max(max_merge_sum_err, std::abs(sum_m - 1.0));
+        }
+
+        int s = (rng.unif() < 0.2 && view.empty_group() >= 0)
+                    ? view.empty_group()
+                    : view.random_occupied(rng);
+        if (s == r)
+            continue;
+        bool stays = view.size(r) > 1;
+        if (view.size(s) == 0)
+            view.inherit(s, r);
+        double pred_rev = stays ? view.move_prob(v, r, s, c, true) : 0.0;
+        view.move(v, s);
+        if (stays) {
+            double actual_rev = view.move_prob(v, s, r, c, false);
+            max_rev_err = std::max(max_rev_err, std::abs(pred_rev - actual_rev));
+        }
+    }
+    return Rcpp::NumericVector::create(
+        Rcpp::Named("sum_err") = max_sum_err,
+        Rcpp::Named("rev_err") = max_rev_err,
+        Rcpp::Named("merge_sum_err") = max_merge_sum_err);
 }

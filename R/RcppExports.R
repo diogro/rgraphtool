@@ -33,6 +33,22 @@ cpp_nested_minimize <- function(pointer, degree_corrected, distributed, control,
     .Call(`_graphtool_cpp_nested_minimize`, pointer, degree_corrected, distributed, control, refine, q_max)
 }
 
+cpp_sbm_mcmc <- function(pointer, blocks, degree_corrected, distributed, mcmc_opts, eq_opts, q_max) {
+    .Call(`_graphtool_cpp_sbm_mcmc`, pointer, blocks, degree_corrected, distributed, mcmc_opts, eq_opts, q_max)
+}
+
+cpp_nested_mcmc <- function(pointer, bs, degree_corrected, distributed, mcmc_opts, eq_opts, q_max) {
+    .Call(`_graphtool_cpp_nested_mcmc`, pointer, bs, degree_corrected, distributed, mcmc_opts, eq_opts, q_max)
+}
+
+cpp_sbm_check_move_prob <- function(pointer, blocks, c, nmoves) {
+    .Call(`_graphtool_cpp_sbm_check_move_prob`, pointer, blocks, c, nmoves)
+}
+
+cpp_nested_check_move_prob <- function(pointer, bs, c, nmoves) {
+    .Call(`_graphtool_cpp_nested_check_move_prob`, pointer, bs, c, nmoves)
+}
+
 cpp_graph_create <- function(n, directed) {
     .Call(`_graphtool_cpp_graph_create`, n, directed)
 }
