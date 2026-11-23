@@ -5,3 +5,4 @@ posterior_sampling   Posterior sampling, marginals, and modes on Les Miserables
 hierarchical_sampling   Hierarchical posterior sampling and consensus modes
 model_class_selection   Model class selection across flat, nested, and overlapping SBMs
 weighted_sbm   Weighted stochastic block models and covariate model selection
+layered_sbm   Layered stochastic block models and layer-model selection

@@ -250,9 +250,38 @@ to end. **Complete.**
 
 ### 7. Layered networks
 
-- [ ] Add layer assignments and layered block states, inference, and model
-  comparison.
-- [ ] Run the layered-network cookbook examples.
+- [x] Add discrete layer assignments (edge properties, integer/character/factor
+  vectors, and categorical edge-column support in `netzschleuder_network()`) and
+  native C++ flat and nested layered block states (`src/layered.cpp`,
+  `layered_block_state()`, `layered_description_length()`,
+  `minimize_layered_blockmodel_dl()`, `nested_layered_block_state()`,
+  `nested_layered_level_entropy()`, `nested_layered_description_length()`,
+  `minimize_nested_layered_blockmodel_dl()`), supporting both the edge-covariate
+  (`independent = FALSE`) and conditionally independent layers
+  (`independent = TRUE`) models, finite-temperature MCMC / posterior sampling
+  / `model_evidence()` / `plot_hierarchy()`, and declarative model comparison
+  (`compare_layered_models()` in both MAP and posterior evidence modes).
+- [x] Run the layered-network cookbook workflow comparing edge-covariate vs.
+  independent-layers models (MAP and full posterior marginal evidence) on Les
+  Misérables (`demo("layered_sbm")`).
+
+Exact flat and nested layered description lengths match graph-tool 3.9
+(`LayeredBlockState` and `NestedBlockState(base_state=LayeredBlockState)`) to
+within `2.84e-14` across all 16 reference configurations (directed and
+undirected, `independent = FALSE` and `TRUE`, DC and NDC, distributed and
+uniform degree priors, parallel edges within and across layers, self-loops,
+isolated vertices, and blocks absent from a layer) and to `9.10e-13` on
+17-layer Les Misérables; 800 incremental vertex move checks match full
+recomputation to `< 2.31e-14`. Single-node layered MCMC is `2.5x`–`6.4x` faster
+than single-threaded graph-tool 3.9 on `lesmis` and `celegansneural`
+(`0.217 s` vs `1.384 s` for 500 `independent = TRUE` sweeps on `celegansneural`,
+and `0.017 s` vs `0.067 s` for 500 `independent = FALSE` sweeps on `lesmis`),
+and `demo("layered_sbm")` completes in `~3.3 s`.
+
+**Done when:** both layered model variants and nested hierarchies agree with
+graph-tool 3.9 to machine precision, synthetic layer-only community recovery
+and edge-covariate vs. independent-layers model selection pass, and the
+cookbook example runs end to end. **Complete.**
 
 ### 8. Assortative and ordered structures
 
