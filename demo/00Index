@@ -1,3 +1,5 @@
 football   Fit and visualize the cookbook football network
 celegans   Hierarchical partition of the C. elegans neural network
 model_selection   Degree-corrected versus non-degree-corrected nested models
+posterior_sampling   Posterior sampling, marginals, and modes on Les Miserables
+hierarchical_sampling   Hierarchical posterior sampling and consensus modes

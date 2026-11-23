@@ -34,7 +34,12 @@ layer.
 - [x] Native nested block model description length and level-by-level
   minimization, with a Netzschleuder loader, the C. elegans demo, and a
   radial hierarchy plot.
-- [ ] Posterior sampling, other cookbook datasets, and general visualization.
+- [x] Native flat and nested single-node and merge-split MCMC, equilibration,
+  annealing, Hungarian label alignment, vertex marginals, consensus estimates,
+  and posterior mode clustering, with Les Misérables and hierarchical sampling
+  demos and pie-chart marginal plots.
+- [ ] Model class selection (overlapping/planted/weighted/layered SBMs),
+  reconstruction, and general visualization.
 
 Fixed-partition scores match graph-tool 3.9 to a relative tolerance of 1e-10 for directed
 and undirected multigraphs with loops, both degree priors, and groups whose
@@ -99,13 +104,12 @@ faster than single-threaded graph-tool 3.9.
 - [x] Port the flat multilevel refinement loop (`refine=True` sweeps with
   strict merges), seeded by R's RNG.
 - [x] Port the nested zero-temperature refinement loop.
-- [ ] Port nested merge-split MCMC and annealing at finite temperature. These
-  belong with posterior sampling (milestone 4).
+- [x] Port nested merge-split MCMC and annealing at finite temperature
+  (`mcmc_sweep()`, `mcmc_equilibrate()`, `mcmc_anneal()`).
 
 **Done when:** the hierarchical cookbook examples run and refinement tests
 verify that zero-temperature accepted moves do not worsen the objective.
-**Complete** for zero-temperature inference; finite-temperature moves are
-tracked under milestone 4.
+**Complete.**
 
 ### 3. Model selection
 
@@ -133,16 +137,34 @@ identical. **Complete.**
 
 ### 4. Posterior sampling
 
-- [ ] Implement the flat and nested MCMC moves and equilibration controls used
-  by the guide, including merge-split sampling.
-- [ ] Add partition collection, label alignment, vertex marginals, consensus
-  estimates, and posterior mode characterization.
-- [ ] Run the Les Misérables and hierarchical sampling examples with the
-  corresponding visualizations.
+- [x] Implement the flat and nested MCMC moves and equilibration controls used
+  by the guide, including merge-split sampling (`mcmc_sweep()`,
+  `mcmc_equilibrate()`, `mcmc_anneal()`, `sample_posterior()`).
+- [x] Add partition collection, label alignment, vertex marginals, consensus
+  estimates, and posterior mode characterization (`align_partition_labels()`,
+  `partition_overlap()`, `align_nested_partition_labels()`,
+  `nested_partition_overlap()`, `partition_mode_state()`, `mode_marginals()`,
+  `mode_consensus()`, `mode_uncertainty()`, `mode_entropy()`,
+  `mode_cluster_state()`, `mode_summary()`).
+- [x] Run the Les Misérables and hierarchical sampling examples with the
+  corresponding visualizations (`plot_marginals()`, `demo("posterior_sampling")`,
+  `demo("hierarchical_sampling")`).
+
+Exact small-graph checks on 3-vertex directed and undirected graphs verify that
+proposal probabilities normalize and match post-move reverse probabilities to
+machine precision (`< 1e-12`), and that flat single-node, flat merge-split, and
+nested 2-level merge-split MCMC reproduce exact Boltzmann stationary
+probabilities (both uniform at \(\beta = 0\) and \(\propto e^{-\Sigma}\) at
+\(\beta = 1\)). `PartitionModeState` and `ModeClusterState` description lengths,
+`posterior_entropy`, `posterior_cdev`, and flat/nested `partition_overlap` match
+graph-tool 3.9 to within `1e-10`. On Les Misérables (77 vertices, 254 edges),
+flat equilibration and 500 thinned posterior samples (5,000 sweeps) plus mode
+clustering complete in ~1.5 s; nested sampling of 400 thinned hierarchies
+completes in ~0.8 s.
 
 **Done when:** exact small-graph checks validate stationary probabilities or
 transition behavior, and seeded integration examples run with sampling
-uncertainty and convergence limitations documented.
+uncertainty and convergence limitations documented. **Complete.**
 
 ### 5. Model class selection
 

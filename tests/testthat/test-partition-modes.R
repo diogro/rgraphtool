@@ -110,3 +110,16 @@ test_that("posterior sampling integrates cleanly with partition_mode_state and m
   expect_true(nmc$nested)
   expect_equal(nrow(mode_summary(nmc)), nmc$K)
 })
+
+test_that("plot_marginals renders pie-chart vertices and validates inputs", {
+  g <- graph_create(6, directed = FALSE)
+  graph_add_edges(g, rbind(c(1, 2), c(2, 3), c(1, 3), c(4, 5), c(5, 6), c(4, 6), c(3, 4)))
+  pm <- partition_mode_state(list(c(1L, 1L, 1L, 2L, 2L, 2L), c(1L, 1L, 2L, 2L, 2L, 2L)))
+  file <- tempfile(fileext = ".pdf")
+  grDevices::pdf(file)
+  on.exit({ grDevices::dev.off(); unlink(file) })
+  res <- plot_marginals(g, pm, labels = paste0("v", 1:6), main = "test")
+  expect_equal(dim(res$positions), c(6L, 2L))
+  expect_equal(dim(res$probabilities), c(6L, 2L))
+  expect_error(plot_marginals(g, pm, radius = -1), "radius")
+})
