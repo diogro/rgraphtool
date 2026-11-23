@@ -7,9 +7,10 @@
 \usage{
 minimize_blockmodel_dl(graph, degree_corrected = TRUE,
   degree_prior = c("distributed", "uniform"), B_min = 1, B_max = Inf,
-  refine = TRUE, epsilon = 1e-3, control = list())
-refine_blockmodel_dl(graph, state, degree_prior = NULL, epsilon = 1e-3,
+  refine = TRUE, epsilon = 1e-3, init_blocks = NULL, nthreads = NULL,
   control = list())
+refine_blockmodel_dl(graph, state, degree_prior = NULL, epsilon = 1e-3,
+  nthreads = NULL, control = list())
 compare_blockmodels(graph, degree_prior = c("distributed", "uniform"),
   nested = FALSE, nruns = 1L, ...)
 }
@@ -23,6 +24,11 @@ compare_blockmodels(graph, degree_prior = c("distributed", "uniform"),
   \item{refine}{Whether to run the refinement loop after the multilevel search.}
   \item{epsilon}{Refinement stops when a pass changes the description length by a
   relative amount of at most \code{epsilon}.}
+  \item{init_blocks}{Optional warm-start partition (either a 1-based integer
+  vector of length \code{graph_num_vertices(graph)} or an existing
+  \code{rgraphtool_block_state}), skipping initialization from singleton groups.}
+  \item{nthreads}{Optional positive integer number of parallel worker threads
+  (or \code{"auto"}). \code{NULL} uses \code{\link{rgraphtool_num_threads}}.}
   \item{control}{Named list of search settings; see Details.}
   \item{state}{A state created by \code{block_state()} or a fitting function.}
   \item{nested}{Whether \code{compare_blockmodels()} fits nested models with
@@ -66,20 +72,18 @@ the graph-tool documentation recommends.
 \code{mh_sweeps} (10), \code{init_r} (0.99), \code{init_min_iter} (8),
 \code{init_min_iter_beta} (4), \code{init_beta} (1), \code{c} (0.5, the random
 proposal weight used when a group has no neighbour-proposed merge partner),
-\code{max_refine} (1000) and \code{verbose} (\code{FALSE}). The defaults are
-graph-tool's.
+\code{max_refine} (1000), \code{bisection} (\code{TRUE}; set to \code{FALSE} for
+strictly agglomerative geometric coarsening without bisection backtracking on
+large networks), \code{nthreads} (overrides \code{\link{rgraphtool_num_threads}}
+when \code{nthreads = NULL}), and \code{verbose} (\code{FALSE}).
 
-Differences from graph-tool: sweeps and merges run sequentially, with merge
-costs re-evaluated lazily (graph-tool's \code{parallel_merge = FALSE} path),
-not with OpenMP pseudo-parallel moves. Vertex proposals use the neighbour of a
-random member of a neighbouring group (graph-tool's fast proposal) rather than
-the edge-weighted group sampler. Randomness comes from R's generator, so results
-are reproducible with \code{set.seed()} but do not reproduce graph-tool's labels
-for the same seed. Refinement only moves vertices among existing groups; it can
-merge groups but never creates new ones. Only the flat model is implemented.
-Run time grows roughly linearly with the number of edges times the number of
-group levels visited. A 3000-vertex, 15000-edge graph takes a few seconds,
-about two to four times as long as graph-tool on one thread.
+When \code{nthreads > 1}, candidate merge evaluations in \code{merge_sweep()}
+and zero-temperature vertex proposal screening in \code{mh_sweep()} run in
+parallel across a portable C++23 thread pool, while all state mutations and
+priority-queue merge commits execute deterministically on the main thread. For
+very large networks (\eqn{N \ge 10^4}), combining \code{nthreads} with strictly
+agglomerative search (\code{control = list(bisection = FALSE, r = 0.5)}) keeps
+only a single snapshot in memory and reduces runtime by an order of magnitude.
 
 \code{compare_blockmodels()} fits the non-degree-corrected (NDC) and
 degree-corrected (DC) models and reports which has the smaller description

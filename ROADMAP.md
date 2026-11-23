@@ -333,15 +333,62 @@ both cookbook examples run end to end. **Complete.**
 
 ### 9. Large networks
 
-- [ ] Build parallel and scalable inference infrastructure for very large
-  networks (`N > 10^4`, `E > 10^5`), using OpenMP multithreading (with graceful
-  fallback where unsupported, e.g., Apple clang without libomp) or C++ standard
-  thread pools, incremental upper-level updates for nested overlap states, and
-  memory-compact graph/state representations.
-- [ ] Implement the guide's strictly agglomerative search and hierarchy-shape
-  initialization, including the relevant performance controls.
-- [ ] Run and benchmark the large-network examples; document hardware,
-  resource use, and practical limits.
+- [x] Build parallel and scalable inference infrastructure for very large
+  networks (`N > 10^4`, `E > 10^5`): portable header-only C++23 `std::thread`
+  pool (`src/parallel.h`, working identically on macOS Apple clang without
+  `libomp`, Linux GCC/Clang, and Windows), thread configuration API
+  (`rgraphtool_max_threads()`, `rgraphtool_num_threads()`,
+  `rgraphtool_set_num_threads()`, `options(rgraphtool.nthreads = ...)`),
+  lock-free read-only parallel `merge_sweep()` candidate evaluation and
+  parallel batch `mh_sweep()` screening, thread-safe `LogQ` with larger
+  `MathTables` (`2M` entries), dynamic-capacity upper `BlockLevel`s with
+  sparse `CompactHierarchy` snapshots (eliminating `O(L * N)` upper-level
+  overhead), and exact `O(deg)` incremental upper-level updates for
+  `NestedOverlap` (`src/overlap.cpp`, matching full recomputation to
+  `< 3.9e-14`).
+- [x] Implement the guide's strictly agglomerative search
+  (`control = list(bisection = FALSE, r = 0.5)`), hierarchy-shape
+  initialization (`simple_init = TRUE`, `simple_init_reverse`, `base_factor`,
+  `B_min_base`, `top_factor`, `strict`), and warm-start support
+  (`init_blocks`, `init_levels`) on `minimize_blockmodel_dl()`,
+  `refine_blockmodel_dl()`, and `minimize_nested_blockmodel_dl()`.
+- [x] Run and benchmark large-network examples (`demo("large_networks")`) across
+  10-core Apple Silicon and multi-core x86_64 Linux (up to 64 threads),
+  documenting hardware, peak memory, and practical scaling limits.
+
+Benchmarks on modular sparse multigraphs (`<k> = 10`):
+- **10-core Apple Silicon (macOS, 32 GB RAM)**:
+  - `N = 10,000, E = 49,794`: flat default `3.88 s` (1 thr) -> `0.905 s` (8 thr,
+    `4.3x`, `2.8x` faster than 10-thread graph-tool 3.9's `2.54 s` with 93 nats
+    lower DL); flat strictly agglomerative (`r = 0.5`) `0.69 s` (1 thr) ->
+    `0.249 s` (8 thr); nested default `7.62 s` (1 thr) -> `1.85 s` (8 thr,
+    `11.1x` faster than 10-thread graph-tool 3.9's `20.60 s`); nested
+    `simple_init` `1.34 s` (1 thr) -> `0.534 s` (8 thr).
+  - `N = 50,000, E = 249,566`: flat agglom `7.72 s` (1 thr) -> `2.14 s` (8 thr,
+    `3.6x`); nested `simple_init` `16.39 s` (1 thr) -> `5.54 s` (8 thr, `3.0x`).
+  - `N = 100,000, E = 499,152`: flat agglom `5.48 s` (8 thr); nested
+    `simple_init` `14.82 s` (8 thr). Peak memory footprint holding both the 50k
+    and 100k graphs plus `LogQ(5000)` (~100 MB) simultaneously: `604 MB`.
+- **Multi-core x86_64 Linux server (GCC 11.4, R 4.5.2, tested up to 64 threads)**:
+  - `N = 50,000, E = 249,566`: flat agglom `14.53 s` (1 thr) -> `6.43 s` (4 thr)
+    -> `3.46 s` (16 thr, `4.2x`) -> `3.11 s` (32 thr) -> `2.99 s` (64 thr,
+    `4.9x`); nested `simple_init` `31.16 s` (1 thr) -> `13.78 s` (4 thr) ->
+    `8.51 s` (16 thr, `3.7x`).
+  - `N = 100,000, E = 499,152`: flat agglom `32.38 s` (1 thr) -> `9.78 s`
+    (16 thr) -> `7.90 s` (64 thr, `4.1x`); nested `simple_init` `71.23 s`
+    (1 thr) -> `26.70 s` (16 thr) -> `22.94 s` (64 thr, `3.1x`). Peak RSS
+    holding both 50k and 100k graphs and 64 thread scratch states: `791 MB`.
+- **Practical scaling & limits**: `4`–`16` threads capture most of the parallel
+  speedup (`3x`–`4.3x`) before sequential priority-queue merge commits dominate
+  (Amdahl's law), with incremental gains up to `32`–`64` threads at
+  `N >= 100,000`. On memory-constrained machines, lowering
+  `options(rgraphtool.q_cache_max = 1000)` trims ~96 MB from the partition-count
+  cache.
+
+**Done when:** portable multithreading, compact nested states, incremental
+`NestedOverlap` updates, strictly agglomerative search, and `simple_init` pass
+correctness and scaling benchmarks up to `N = 100,000, E = 500,000`, and
+`demo("large_networks")` runs end to end. **Complete.**
 
 ### 10. Uncertain network reconstruction
 

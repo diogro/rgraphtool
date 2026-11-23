@@ -12,7 +12,10 @@
 \usage{
 minimize_nested_blockmodel_dl(graph, degree_corrected = TRUE,
   degree_prior = c("distributed", "uniform"), B_min = 1, B_max = Inf,
-  refine = TRUE, epsilon = 1e-3, control = list())
+  refine = TRUE, epsilon = 1e-3, simple_init = FALSE,
+  simple_init_reverse = FALSE, base_factor = 10, B_min_base = 1000L,
+  top_factor = 2, strict = FALSE, init_levels = NULL, nthreads = NULL,
+  control = list())
 nested_block_state(graph, levels, degree_corrected = TRUE,
   degree_prior = c("distributed", "uniform"))
 nested_description_length(state, degree_prior = NULL)
@@ -30,6 +33,25 @@ nested_summary(state)
   \item{B_min, B_max}{Bounds on the number of groups at level 0.}
   \item{refine}{Whether to run the refinement loop after the level-by-level search.}
   \item{epsilon}{Relative change of the description length that stops refinement.}
+  \item{simple_init}{If \code{TRUE}, use graph-tool's fast hierarchy-shape
+  initialization for large networks (strictly agglomerative level-by-level
+  coarsening targeting \code{base_factor}, \code{B_min_base}, and
+  \code{top_factor}) instead of full nested bisection search.}
+  \item{simple_init_reverse}{If \code{TRUE} with \code{simple_init = TRUE},
+  sweep levels top-down rather than bottom-up.}
+  \item{base_factor}{When \code{simple_init = TRUE}, target level-0 group count
+  \code{max(N / base_factor, B_min_base)}.}
+  \item{B_min_base}{Minimum target level-0 group count during
+  \code{simple_init = TRUE} initialization.}
+  \item{top_factor}{When \code{simple_init = TRUE}, shrink each upper level by
+  \code{N_l / top_factor} (must be greater than 1).}
+  \item{strict}{When \code{simple_init = TRUE}, treat the target group counts
+  as exact targets rather than lower bounds during initialization.}
+  \item{init_levels}{Optional warm-start hierarchy (either a list of 1-based
+  label vectors or an existing \code{rgraphtool_nested_block_state}), skipping
+  initialization and proceeding directly to refinement.}
+  \item{nthreads}{Optional positive integer number of parallel worker threads
+  (or \code{"auto"}). \code{NULL} uses \code{\link{rgraphtool_num_threads}}.}
   \item{control}{Named list of search settings, as in
   \code{\link{minimize_blockmodel_dl}}. Here \code{c} defaults to 1 and is scaled
   by \eqn{2^l} at level \eqn{l}, as in graph-tool.}

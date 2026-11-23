@@ -26,7 +26,7 @@
 #include <queue>
 #include <vector>
 #include "graph_types.h"
-#include "parallel.hpp"
+#include "parallel.h"
 #include "vendor/hash_map_wrap.hh"
 
 namespace {
@@ -2687,52 +2687,49 @@ public:
         int nw = rgt_parallel::resolve_threads(_p.nthreads);
         if (std::isinf(beta) && nw > 1 && N >= 2048) {
             // Parallel batch proposal filtering for zero-temperature sweeps:
-            // read-only workers screen out non-improving moves across all cores,
-            // then the main thread re-verifies and commits only exact dS < 0 moves.
+            // read-only workers screen out non-improving moves across all cores
+            // with chunk-indexed deterministic PRNGs, then the main thread
+            // re-verifies and commits exact dS < 0 moves in deterministic order.
             size_t batch = std::min(N, std::max<size_t>(2048, static_cast<size_t>(nw) * 512));
-            std::vector<rgt_parallel::ThreadRng> trngs;
-            trngs.reserve(static_cast<size_t>(nw));
-            for (int t = 0; t < nw; ++t) {
-                uint64_t seed = static_cast<uint64_t>(_rng.index(1ULL << 31)) ^
-                                (static_cast<uint64_t>(_rng.index(1ULL << 31)) << 31) ^
-                                (static_cast<uint64_t>(t + 1) * 0x9e3779b97f4a7c15ULL);
-                trngs.emplace_back(seed);
-            }
             std::vector<MergeScratch> scratches(static_cast<size_t>(nw));
             for (int t = 0; t < nw; ++t)
                 scratches[t].init(_s.directed(), _s.num_levels());
-            std::vector<std::vector<std::pair<int, int>>> cands(static_cast<size_t>(nw));
+            std::vector<int> cand_s;
 
             for (size_t base = 0; base < N; base += batch) {
                 size_t len = std::min(batch, N - base);
-                for (int t = 0; t < nw; ++t) cands[t].clear();
+                cand_s.assign(len, -1);
+                uint64_t batch_seed = static_cast<uint64_t>(_rng.index(1ULL << 31)) ^
+                                      (static_cast<uint64_t>(_rng.index(1ULL << 31)) << 31) ^
+                                      0x9e3779b97f4a7c15ULL;
                 rgt_parallel::parallel_for(len, nw, [&](int tid, size_t lo, size_t hi) {
-                    auto& rng = trngs[tid];
+                    rgt_parallel::ThreadRng rng(batch_seed ^
+                                                (static_cast<uint64_t>(lo + 1) * 0xbf58476d1ce4e5b9ULL));
                     auto& sc = scratches[tid];
-                    auto& out = cands[tid];
                     for (size_t idx = lo; idx < hi; ++idx) {
                         int v = vs[base + idx];
                         int r = _s.group(v);
                         int s = _s.sample_group(v, 0, rng);
                         if (s == r) continue;
                         double dS = _s.virtual_move_const(v, s, sc);
-                        if (dS < 0.0) out.emplace_back(v, s);
+                        if (dS < 0.0) cand_s[idx] = s;
                     }
                 }, 64);
 
-                for (int t = 0; t < nw; ++t) {
-                    for (const auto& [v, s] : cands[t]) {
-                        int r = _s.group(v);
-                        if (s == r) continue;
-                        int dB = (_s.size(s) == 0 ? 1 : 0) - (_s.size(r) == 1 ? 1 : 0);
-                        size_t Bc = _s.B();
-                        if ((dB < 0 && Bc + dB < B_min) || (dB > 0 && Bc + dB > B_max))
-                            continue;
-                        double dS = _s.virtual_move(v, s);
-                        if (dS < 0.0) {
-                            _s.move(v, s);
-                            S += dS;
-                        }
+                for (size_t idx = 0; idx < len; ++idx) {
+                    int s = cand_s[idx];
+                    if (s < 0) continue;
+                    int v = vs[base + idx];
+                    int r = _s.group(v);
+                    if (s == r) continue;
+                    int dB = (_s.size(s) == 0 ? 1 : 0) - (_s.size(r) == 1 ? 1 : 0);
+                    size_t Bc = _s.B();
+                    if ((dB < 0 && Bc + dB < B_min) || (dB > 0 && Bc + dB > B_max))
+                        continue;
+                    double dS = _s.virtual_move(v, s);
+                    if (dS < 0.0) {
+                        _s.move(v, s);
+                        S += dS;
                     }
                 }
             }
@@ -2770,17 +2767,13 @@ public:
 
         int nw = rgt_parallel::resolve_threads(_p.nthreads);
         if (nw > 1 && B_occ >= 32) {
-            // Lock-free parallel candidate merge evaluation across all cores.
+            // Lock-free parallel candidate merge evaluation with chunk-indexed
+            // deterministic PRNGs (bit-for-bit reproducible for fixed nthreads).
             std::vector<int> best_tgt(B_occ, -1);
             std::vector<double> best_val(B_occ, inf);
-            std::vector<rgt_parallel::ThreadRng> trngs;
-            trngs.reserve(static_cast<size_t>(nw));
-            for (int t = 0; t < nw; ++t) {
-                uint64_t seed = static_cast<uint64_t>(_rng.index(1ULL << 31)) ^
-                                (static_cast<uint64_t>(_rng.index(1ULL << 31)) << 31) ^
-                                (static_cast<uint64_t>(t + 1) * 0xbf58476d1ce4e5b9ULL);
-                trngs.emplace_back(seed);
-            }
+            uint64_t sweep_seed = static_cast<uint64_t>(_rng.index(1ULL << 31)) ^
+                                  (static_cast<uint64_t>(_rng.index(1ULL << 31)) << 31) ^
+                                  0xbf58476d1ce4e5b9ULL;
             std::vector<MergeScratch> scratches(static_cast<size_t>(nw));
             std::vector<gt_hash_set<int>> pasts(static_cast<size_t>(nw));
             for (int t = 0; t < nw; ++t) {
@@ -2789,7 +2782,8 @@ public:
             }
 
             rgt_parallel::parallel_for(B_occ, nw, [&](int tid, size_t lo, size_t hi) {
-                auto& rng = trngs[tid];
+                rgt_parallel::ThreadRng rng(sweep_seed ^
+                                            (static_cast<uint64_t>(lo + 1) * 0x94d049bb133111ebULL));
                 auto& sc = scratches[tid];
                 auto& past = pasts[tid];
                 for (size_t idx = lo; idx < hi; ++idx) {
