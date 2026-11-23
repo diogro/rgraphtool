@@ -4,6 +4,9 @@
 #define GRAPHTOOL_R_GRAPH_TYPES_H
 
 #include <Rcpp.h>
+#include <map>
+#include <string>
+#include <vector>
 #include "vendor/graph_adjacency.hh"
 
 typedef boost::adj_list<size_t> Adjacency;
@@ -11,6 +14,7 @@ typedef boost::adj_list<size_t> Adjacency;
 struct Graph {
     Adjacency adjacency;
     bool directed;
+    std::map<std::string, std::vector<double>> edge_props;
     explicit Graph(bool directed_) : directed(directed_) {}
 };
 

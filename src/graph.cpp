@@ -22,10 +22,70 @@ void cpp_add_vertices(SEXP pointer, int n) {
 // [[Rcpp::export]]
 void cpp_add_edges(SEXP pointer, Rcpp::IntegerMatrix endpoints) {
     Graph& graph = get_graph(pointer);
+    size_t old_e = boost::num_edges(graph.adjacency);
     for (int i = 0; i < endpoints.nrow(); ++i)
         boost::add_edge(static_cast<size_t>(endpoints(i, 0) - 1),
                         static_cast<size_t>(endpoints(i, 1) - 1),
                         graph.adjacency);
+    size_t new_e = boost::num_edges(graph.adjacency);
+    if (new_e > old_e && !graph.edge_props.empty()) {
+        for (auto& kv : graph.edge_props)
+            kv.second.resize(new_e, NA_REAL);
+    }
+}
+
+// [[Rcpp::export]]
+void cpp_set_edge_property(SEXP pointer, const std::string& name,
+                           Rcpp::NumericVector values, bool by_insertion_order,
+                           int offset) {
+    Graph& graph = get_graph(pointer);
+    size_t count = boost::num_edges(graph.adjacency);
+    if (by_insertion_order) {
+        if (offset < 0 || static_cast<size_t>(offset + values.size()) > count)
+            Rcpp::stop("Edge property length does not match number of edges");
+        auto& vec = graph.edge_props[name];
+        if (vec.size() != count)
+            vec.resize(count, NA_REAL);
+        for (R_xlen_t i = 0; i < values.size(); ++i)
+            vec[static_cast<size_t>(offset + i)] = values[i];
+    } else {
+        if (static_cast<size_t>(values.size()) != count)
+            Rcpp::stop("Edge property length must equal graph_num_edges(graph)");
+        std::vector<double>& vec = graph.edge_props[name];
+        vec.assign(count, NA_REAL);
+        auto range = boost::edges(graph.adjacency);
+        R_xlen_t pos = 0;
+        for (auto it = range.first; it != range.second; ++it, ++pos) {
+            if (it->idx < count)
+                vec[it->idx] = values[pos];
+        }
+    }
+}
+
+// [[Rcpp::export]]
+Rcpp::NumericVector cpp_get_edge_property(SEXP pointer, const std::string& name) {
+    Graph& graph = get_graph(pointer);
+    auto found = graph.edge_props.find(name);
+    if (found == graph.edge_props.end())
+        Rcpp::stop("Edge property '%s' does not exist on graph", name.c_str());
+    const std::vector<double>& vec = found->second;
+    size_t count = boost::num_edges(graph.adjacency);
+    Rcpp::NumericVector out(static_cast<R_xlen_t>(count));
+    auto range = boost::edges(graph.adjacency);
+    R_xlen_t pos = 0;
+    for (auto it = range.first; it != range.second; ++it, ++pos)
+        out[pos] = (it->idx < vec.size()) ? vec[it->idx] : NA_REAL;
+    return out;
+}
+
+// [[Rcpp::export]]
+Rcpp::CharacterVector cpp_edge_property_names(SEXP pointer) {
+    Graph& graph = get_graph(pointer);
+    Rcpp::CharacterVector out(static_cast<R_xlen_t>(graph.edge_props.size()));
+    R_xlen_t i = 0;
+    for (const auto& kv : graph.edge_props)
+        out[i++] = kv.first;
+    return out;
 }
 
 // [[Rcpp::export]]

@@ -73,7 +73,15 @@ netzschleuder_network <- function(name, network = name, file = NULL, directed = 
   edges$source <- edges$source + 1
   edges$target <- edges$target + 1
   graph <- graph_create(n, directed = directed)
-  graph_add_edges(graph, as.matrix(edges[, c("source", "target")]))
+  extra_cols <- setdiff(names(edges), c("source", "target"))
+  num_props <- list()
+  for (col in extra_cols) {
+    if (is.numeric(edges[[col]])) {
+      num_props[[col]] <- as.numeric(edges[[col]])
+    }
+  }
+  graph_add_edges(graph, as.matrix(edges[, c("source", "target")]),
+                  properties = if (length(num_props)) num_props else NULL)
   rownames(nodes) <- NULL
   list(graph = graph, nodes = nodes, edges = edges, positions = positions,
        properties = properties)

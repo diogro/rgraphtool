@@ -1,9 +1,19 @@
 is_nested_state <- function(state) {
-  inherits(state, "graphtool_nested_block_state")
+  inherits(state, "graphtool_nested_block_state") ||
+    inherits(state, "graphtool_nested_weighted_block_state")
+}
+
+is_weighted_state <- function(state) {
+  inherits(state, "graphtool_weighted_block_state") ||
+    inherits(state, "graphtool_nested_weighted_block_state")
 }
 
 validate_mcmc_state <- function(state) {
-  if (is_nested_state(state)) {
+  if (inherits(state, "graphtool_nested_weighted_block_state")) {
+    validate_nested_weighted_state(state)
+  } else if (inherits(state, "graphtool_weighted_block_state")) {
+    validate_weighted_state(state)
+  } else if (inherits(state, "graphtool_nested_block_state")) {
     validate_nested_state(state)
   } else {
     validate_block_state(state)
@@ -67,9 +77,32 @@ build_mcmc_opts <- function(nested, beta = 1, niter = 1L, c = NULL, d = 0.01,
 
 run_native_mcmc <- function(state, mcmc_opts, eq_opts) {
   nested <- is_nested_state(state)
+  weighted <- is_weighted_state(state)
   pointer <- graph_pointer(state$graph)
   dist <- identical(state$degree_prior, "distributed")
-  if (nested) {
+  if (weighted && nested) {
+    res <- cpp_nested_weighted_mcmc(pointer, state$levels, state$weights,
+                                    state$types, state$cpp_params,
+                                    state$degree_corrected, dist, mcmc_opts,
+                                    eq_opts, q_cache_max())
+    spec <- list(types = state$types, params = state$params,
+                 cpp_params = state$cpp_params)
+    new_state <- new_nested_weighted_state(state$graph, res$bs, state$weights,
+                                           spec, state$degree_corrected,
+                                           state$degree_prior,
+                                           fit = list(description_length = res$entropy))
+  } else if (weighted) {
+    res <- cpp_weighted_mcmc(pointer, state$blocks, state$weights,
+                             state$types, state$cpp_params,
+                             state$degree_corrected, dist, mcmc_opts,
+                             eq_opts, q_cache_max())
+    spec <- list(types = state$types, params = state$params,
+                 cpp_params = state$cpp_params)
+    new_state <- new_weighted_state(state$graph, res$blocks, state$weights,
+                                    spec, state$degree_corrected,
+                                    state$degree_prior,
+                                    fit = list(description_length = res$entropy))
+  } else if (nested) {
     res <- cpp_nested_mcmc(pointer, state$levels, state$degree_corrected, dist,
                            mcmc_opts, eq_opts, q_cache_max())
     new_state <- new_nested_state(state$graph, res$bs, state$degree_corrected,

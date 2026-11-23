@@ -68,12 +68,20 @@ nested_description_length <- function(state, degree_prior = NULL) {
 }
 
 nested_levels <- function(state) {
+  if (inherits(state, "graphtool_nested_weighted_block_state")) {
+    validate_nested_weighted_state(state)
+    return(state$levels)
+  }
   validate_nested_state(state)
   state$levels
 }
 
 nested_project <- function(state, level = 0L) {
-  validate_nested_state(state)
+  if (inherits(state, "graphtool_nested_weighted_block_state")) {
+    validate_nested_weighted_state(state)
+  } else {
+    validate_nested_state(state)
+  }
   depth <- length(state$levels)
   if (!is.numeric(level) || length(level) != 1L || is.na(level) || level < 0 ||
       level >= depth || level != floor(level)) {
@@ -94,11 +102,18 @@ nested_level_state <- function(state, level = 0L) {
 }
 
 nested_summary <- function(state) {
-  validate_nested_state(state)
+  is_w <- inherits(state, "graphtool_nested_weighted_block_state")
+  if (is_w) {
+    validate_nested_weighted_state(state)
+    lv_ent <- nested_weighted_level_entropy(state)
+  } else {
+    validate_nested_state(state)
+    lv_ent <- nested_level_entropy(state)
+  }
   sizes <- c(length(state$levels[[1]]), vapply(state$levels, max, integer(1)))
   depth <- length(state$levels)
   out <- data.frame(level = seq_len(depth) - 1L, N = sizes[seq_len(depth)],
-                    B = sizes[-1L], description_length = nested_level_entropy(state))
+                    B = sizes[-1L], description_length = lv_ent)
   last <- match(1L, out$N)
   if (!is.na(last)) out <- out[seq_len(last), , drop = FALSE]
   rownames(out) <- NULL
