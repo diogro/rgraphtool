@@ -1,5 +1,9 @@
 hierarchy_layout <- function(state) {
-  validate_nested_state(state)
+  if (inherits(state, "graphtool_nested_weighted_block_state")) {
+    validate_nested_weighted_state(state)
+  } else {
+    validate_nested_state(state)
+  }
   levels <- state$levels
   top <- match(1L, vapply(levels, max, integer(1)))
   if (is.na(top)) {

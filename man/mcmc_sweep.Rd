@@ -20,9 +20,13 @@ sample_posterior(state, nsamples = 1000L, thin = 10L, burnin = NULL,
   history = FALSE, verbose = FALSE)
 }
 \arguments{
-  \item{state}{A flat block state from \code{\link{block_state}} or
-  \code{\link{minimize_blockmodel_dl}}, or a nested block state from
-  \code{\link{nested_block_state}} or \code{\link{minimize_nested_blockmodel_dl}}.}
+  \item{state}{A flat block state from \code{\link{block_state}},
+  \code{\link{minimize_blockmodel_dl}}, \code{\link{weighted_block_state}}, or
+  \code{\link{minimize_weighted_blockmodel_dl}}, or a nested block state from
+  \code{\link{nested_block_state}},
+  \code{\link{minimize_nested_blockmodel_dl}},
+  \code{\link{nested_weighted_block_state}}, or
+  \code{\link{minimize_nested_weighted_blockmodel_dl}}.}
   \item{beta}{Inverse temperature (\eqn{\beta \ge 0}, or \code{Inf} for greedy
   zero-temperature moves). Posterior sampling uses \code{beta = 1}.}
   \item{niter}{Number of sweeps per call (for \code{mcmc_sweep}), or number of

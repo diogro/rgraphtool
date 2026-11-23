@@ -216,10 +216,37 @@ generative class, and the cookbook comparison workflow runs end to end.
 
 ### 6. Edge weights and covariates
 
-- [ ] Add edge property maps and the discrete and continuous covariate models
-  needed by the guide.
-- [ ] Support weighted-model selection, transformations, and posterior
-  sampling; run the associated examples.
+- [x] Add edge property maps (`graph_add_edges(..., properties = ...)`,
+  `graph_set_edge_property()`, `graph_edge_property()`,
+  `graph_edge_properties()`, automatic attachment of numeric edge columns in
+  `netzschleuder_network()`) and all five discrete and continuous Peixoto (2018)
+  covariate models (`real-exponential`, `real-normal`, `discrete-geometric`,
+  `discrete-poisson`, `discrete-binomial`, multiple simultaneous covariates,
+  microcanonical and Bayesian conjugate hyperpriors) in native C++
+  (`src/weighted.cpp`, `weighted_block_state()`, `minimize_weighted_blockmodel_dl()`,
+  `nested_weighted_block_state()`, `minimize_nested_weighted_blockmodel_dl()`).
+- [x] Support weight transformations with exact change-of-variables log-Jacobians
+  (`transform_weights()`), declarative weighted-model comparison
+  (`compare_weight_models()` in both MAP and posterior marginal evidence modes),
+  flat and nested weighted MCMC / posterior sampling / `model_evidence()` /
+  `plot_hierarchy()`, and run the Les Misérables weighted cookbook workflow
+  (`demo("weighted_sbm")`).
+
+Exact flat and nested weighted description lengths match graph-tool 3.9
+(`WeightedBlockState` and `NestedBlockState(base_state=WeightedBlockState)`) to
+within `2.84e-14` across all 5 covariate types (microcanonical, empirical-Bayes,
+and custom-Bayes; DC and NDC; directed and undirected; simultaneous
+multi-covariate), and incremental vertex moves match full recomputation to
+`< 2.84e-14`. Single-node weighted MCMC is `1.2x`–`3.5x` faster than
+single-threaded graph-tool 3.9 on `lesmis` and `celegansneural` (`0.121 s` vs
+`0.291 s` for 500 `discrete-geometric` sweeps on `celegansneural`, and `0.010 s`
+vs `0.035 s` for 500 `real-exponential` sweeps on `lesmis`), and the full
+`demo("weighted_sbm")` workflow completes in `~1.4 s`.
+
+**Done when:** all five covariate models and nested weighted hierarchies agree
+with graph-tool 3.9 to machine precision, synthetic weight-only recovery and
+Jacobian-adjusted weight-model selection pass, and the cookbook example runs end
+to end. **Complete.**
 
 ### 7. Layered networks
 
