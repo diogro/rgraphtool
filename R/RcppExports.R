@@ -97,6 +97,34 @@ cpp_log_partition_table <- function(max_degree, max_vertices) {
     .Call(`_graphtool_cpp_log_partition_table`, max_degree, max_vertices)
 }
 
+cpp_layered_entropy <- function(pointer, blocks, layers, independent, degree_corrected, distributed, include_lmemb, q_max) {
+    .Call(`_graphtool_cpp_layered_entropy`, pointer, blocks, layers, independent, degree_corrected, distributed, include_lmemb, q_max)
+}
+
+cpp_layered_check_moves <- function(pointer, blocks, layers, independent, degree_corrected, distributed, nmoves, q_max) {
+    .Call(`_graphtool_cpp_layered_check_moves`, pointer, blocks, layers, independent, degree_corrected, distributed, nmoves, q_max)
+}
+
+cpp_layered_minimize <- function(pointer, layers, independent, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max) {
+    .Call(`_graphtool_cpp_layered_minimize`, pointer, layers, independent, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max)
+}
+
+cpp_nested_layered_entropy <- function(pointer, bs, layers, independent, degree_corrected, distributed, q_max) {
+    .Call(`_graphtool_cpp_nested_layered_entropy`, pointer, bs, layers, independent, degree_corrected, distributed, q_max)
+}
+
+cpp_nested_layered_minimize <- function(pointer, layers, independent, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max) {
+    .Call(`_graphtool_cpp_nested_layered_minimize`, pointer, layers, independent, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max)
+}
+
+cpp_layered_mcmc <- function(pointer, blocks, layers, independent, degree_corrected, distributed, mcmc_opts, eq_opts, q_max) {
+    .Call(`_graphtool_cpp_layered_mcmc`, pointer, blocks, layers, independent, degree_corrected, distributed, mcmc_opts, eq_opts, q_max)
+}
+
+cpp_nested_layered_mcmc <- function(pointer, bs, layers, independent, degree_corrected, distributed, mcmc_opts, eq_opts, q_max) {
+    .Call(`_graphtool_cpp_nested_layered_mcmc`, pointer, bs, layers, independent, degree_corrected, distributed, mcmc_opts, eq_opts, q_max)
+}
+
 cpp_overlap_entropy <- function(pointer, half_edges, degree_corrected, distributed, gen_overlap, q_max) {
     .Call(`_graphtool_cpp_overlap_entropy`, pointer, half_edges, degree_corrected, distributed, gen_overlap, q_max)
 }

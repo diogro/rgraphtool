@@ -336,6 +336,137 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_layered_entropy
+double cpp_layered_entropy(SEXP pointer, Rcpp::IntegerVector blocks, Rcpp::IntegerVector layers, bool independent, bool degree_corrected, bool distributed, bool include_lmemb, double q_max);
+RcppExport SEXP _graphtool_cpp_layered_entropy(SEXP pointerSEXP, SEXP blocksSEXP, SEXP layersSEXP, SEXP independentSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP include_lmembSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type blocks(blocksSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type layers(layersSEXP);
+    Rcpp::traits::input_parameter< bool >::type independent(independentSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< bool >::type include_lmemb(include_lmembSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_layered_entropy(pointer, blocks, layers, independent, degree_corrected, distributed, include_lmemb, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_layered_check_moves
+Rcpp::NumericVector cpp_layered_check_moves(SEXP pointer, Rcpp::IntegerVector blocks, Rcpp::IntegerVector layers, bool independent, bool degree_corrected, bool distributed, int nmoves, double q_max);
+RcppExport SEXP _graphtool_cpp_layered_check_moves(SEXP pointerSEXP, SEXP blocksSEXP, SEXP layersSEXP, SEXP independentSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP nmovesSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type blocks(blocksSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type layers(layersSEXP);
+    Rcpp::traits::input_parameter< bool >::type independent(independentSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< int >::type nmoves(nmovesSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_layered_check_moves(pointer, blocks, layers, independent, degree_corrected, distributed, nmoves, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_layered_minimize
+Rcpp::List cpp_layered_minimize(SEXP pointer, Rcpp::IntegerVector layers, bool independent, bool degree_corrected, bool distributed, int B_min, double B_max, bool refine, double epsilon, double q_max);
+RcppExport SEXP _graphtool_cpp_layered_minimize(SEXP pointerSEXP, SEXP layersSEXP, SEXP independentSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP B_minSEXP, SEXP B_maxSEXP, SEXP refineSEXP, SEXP epsilonSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type layers(layersSEXP);
+    Rcpp::traits::input_parameter< bool >::type independent(independentSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< int >::type B_min(B_minSEXP);
+    Rcpp::traits::input_parameter< double >::type B_max(B_maxSEXP);
+    Rcpp::traits::input_parameter< bool >::type refine(refineSEXP);
+    Rcpp::traits::input_parameter< double >::type epsilon(epsilonSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_layered_minimize(pointer, layers, independent, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_nested_layered_entropy
+Rcpp::NumericVector cpp_nested_layered_entropy(SEXP pointer, Rcpp::List bs, Rcpp::IntegerVector layers, bool independent, bool degree_corrected, bool distributed, double q_max);
+RcppExport SEXP _graphtool_cpp_nested_layered_entropy(SEXP pointerSEXP, SEXP bsSEXP, SEXP layersSEXP, SEXP independentSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type bs(bsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type layers(layersSEXP);
+    Rcpp::traits::input_parameter< bool >::type independent(independentSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_nested_layered_entropy(pointer, bs, layers, independent, degree_corrected, distributed, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_nested_layered_minimize
+Rcpp::List cpp_nested_layered_minimize(SEXP pointer, Rcpp::IntegerVector layers, bool independent, bool degree_corrected, bool distributed, int B_min, double B_max, bool refine, double epsilon, double q_max);
+RcppExport SEXP _graphtool_cpp_nested_layered_minimize(SEXP pointerSEXP, SEXP layersSEXP, SEXP independentSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP B_minSEXP, SEXP B_maxSEXP, SEXP refineSEXP, SEXP epsilonSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type layers(layersSEXP);
+    Rcpp::traits::input_parameter< bool >::type independent(independentSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< int >::type B_min(B_minSEXP);
+    Rcpp::traits::input_parameter< double >::type B_max(B_maxSEXP);
+    Rcpp::traits::input_parameter< bool >::type refine(refineSEXP);
+    Rcpp::traits::input_parameter< double >::type epsilon(epsilonSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_nested_layered_minimize(pointer, layers, independent, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_layered_mcmc
+Rcpp::List cpp_layered_mcmc(SEXP pointer, Rcpp::IntegerVector blocks, Rcpp::IntegerVector layers, bool independent, bool degree_corrected, bool distributed, Rcpp::List mcmc_opts, Rcpp::List eq_opts, double q_max);
+RcppExport SEXP _graphtool_cpp_layered_mcmc(SEXP pointerSEXP, SEXP blocksSEXP, SEXP layersSEXP, SEXP independentSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP mcmc_optsSEXP, SEXP eq_optsSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type blocks(blocksSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type layers(layersSEXP);
+    Rcpp::traits::input_parameter< bool >::type independent(independentSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type mcmc_opts(mcmc_optsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type eq_opts(eq_optsSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_layered_mcmc(pointer, blocks, layers, independent, degree_corrected, distributed, mcmc_opts, eq_opts, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_nested_layered_mcmc
+Rcpp::List cpp_nested_layered_mcmc(SEXP pointer, Rcpp::List bs, Rcpp::IntegerVector layers, bool independent, bool degree_corrected, bool distributed, Rcpp::List mcmc_opts, Rcpp::List eq_opts, double q_max);
+RcppExport SEXP _graphtool_cpp_nested_layered_mcmc(SEXP pointerSEXP, SEXP bsSEXP, SEXP layersSEXP, SEXP independentSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP mcmc_optsSEXP, SEXP eq_optsSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type bs(bsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type layers(layersSEXP);
+    Rcpp::traits::input_parameter< bool >::type independent(independentSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type mcmc_opts(mcmc_optsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type eq_opts(eq_optsSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_nested_layered_mcmc(pointer, bs, layers, independent, degree_corrected, distributed, mcmc_opts, eq_opts, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_overlap_entropy
 double cpp_overlap_entropy(SEXP pointer, Rcpp::IntegerMatrix half_edges, bool degree_corrected, bool distributed, bool gen_overlap, double q_max);
 RcppExport SEXP _graphtool_cpp_overlap_entropy(SEXP pointerSEXP, SEXP half_edgesSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP gen_overlapSEXP, SEXP q_maxSEXP) {
@@ -746,6 +877,13 @@ static const R_CallMethodDef CallEntries[] = {
     {"_graphtool_cpp_degree", (DL_FUNC) &_graphtool_cpp_degree, 2},
     {"_graphtool_cpp_block_statistics", (DL_FUNC) &_graphtool_cpp_block_statistics, 3},
     {"_graphtool_cpp_log_partition_table", (DL_FUNC) &_graphtool_cpp_log_partition_table, 2},
+    {"_graphtool_cpp_layered_entropy", (DL_FUNC) &_graphtool_cpp_layered_entropy, 8},
+    {"_graphtool_cpp_layered_check_moves", (DL_FUNC) &_graphtool_cpp_layered_check_moves, 8},
+    {"_graphtool_cpp_layered_minimize", (DL_FUNC) &_graphtool_cpp_layered_minimize, 10},
+    {"_graphtool_cpp_nested_layered_entropy", (DL_FUNC) &_graphtool_cpp_nested_layered_entropy, 7},
+    {"_graphtool_cpp_nested_layered_minimize", (DL_FUNC) &_graphtool_cpp_nested_layered_minimize, 10},
+    {"_graphtool_cpp_layered_mcmc", (DL_FUNC) &_graphtool_cpp_layered_mcmc, 9},
+    {"_graphtool_cpp_nested_layered_mcmc", (DL_FUNC) &_graphtool_cpp_nested_layered_mcmc, 9},
     {"_graphtool_cpp_overlap_entropy", (DL_FUNC) &_graphtool_cpp_overlap_entropy, 6},
     {"_graphtool_cpp_overlap_check_moves", (DL_FUNC) &_graphtool_cpp_overlap_check_moves, 7},
     {"_graphtool_cpp_overlap_groups", (DL_FUNC) &_graphtool_cpp_overlap_groups, 2},

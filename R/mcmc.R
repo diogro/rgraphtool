@@ -1,6 +1,7 @@
 is_nested_state <- function(state) {
   inherits(state, "graphtool_nested_block_state") ||
-    inherits(state, "graphtool_nested_weighted_block_state")
+    inherits(state, "graphtool_nested_weighted_block_state") ||
+    inherits(state, "graphtool_nested_layered_block_state")
 }
 
 is_weighted_state <- function(state) {
@@ -8,11 +9,20 @@ is_weighted_state <- function(state) {
     inherits(state, "graphtool_nested_weighted_block_state")
 }
 
+is_layered_state <- function(state) {
+  inherits(state, "graphtool_layered_block_state") ||
+    inherits(state, "graphtool_nested_layered_block_state")
+}
+
 validate_mcmc_state <- function(state) {
   if (inherits(state, "graphtool_nested_weighted_block_state")) {
     validate_nested_weighted_state(state)
   } else if (inherits(state, "graphtool_weighted_block_state")) {
     validate_weighted_state(state)
+  } else if (inherits(state, "graphtool_nested_layered_block_state")) {
+    validate_nested_layered_state(state)
+  } else if (inherits(state, "graphtool_layered_block_state")) {
+    validate_layered_state(state)
   } else if (inherits(state, "graphtool_nested_block_state")) {
     validate_nested_state(state)
   } else {
@@ -78,9 +88,28 @@ build_mcmc_opts <- function(nested, beta = 1, niter = 1L, c = NULL, d = 0.01,
 run_native_mcmc <- function(state, mcmc_opts, eq_opts) {
   nested <- is_nested_state(state)
   weighted <- is_weighted_state(state)
+  layered <- is_layered_state(state)
   pointer <- graph_pointer(state$graph)
   dist <- identical(state$degree_prior, "distributed")
-  if (weighted && nested) {
+  if (layered && nested) {
+    res <- cpp_nested_layered_mcmc(pointer, state$levels, state$layers,
+                                   state$independent, state$degree_corrected,
+                                   dist, mcmc_opts, eq_opts, q_cache_max())
+    linfo <- list(codes = state$layers, levels = state$layer_levels, C = state$C)
+    new_state <- new_nested_layered_state(state$graph, res$bs, linfo,
+                                          state$independent, state$degree_corrected,
+                                          state$degree_prior,
+                                          fit = list(description_length = res$entropy))
+  } else if (layered) {
+    res <- cpp_layered_mcmc(pointer, state$blocks, state$layers,
+                            state$independent, state$degree_corrected,
+                            dist, mcmc_opts, eq_opts, q_cache_max())
+    linfo <- list(codes = state$layers, levels = state$layer_levels, C = state$C)
+    new_state <- new_layered_state(state$graph, res$blocks, linfo,
+                                   state$independent, state$degree_corrected,
+                                   state$degree_prior,
+                                   fit = list(description_length = res$entropy))
+  } else if (weighted && nested) {
     res <- cpp_nested_weighted_mcmc(pointer, state$levels, state$weights,
                                     state$types, state$cpp_params,
                                     state$degree_corrected, dist, mcmc_opts,

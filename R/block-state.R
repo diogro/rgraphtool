@@ -37,6 +37,10 @@ block_membership <- function(state) {
     validate_weighted_state(state)
     return(state$blocks)
   }
+  if (inherits(state, "graphtool_layered_block_state")) {
+    validate_layered_state(state)
+    return(state$blocks)
+  }
   validate_block_state(state)
   state$blocks
 }
@@ -44,6 +48,10 @@ block_membership <- function(state) {
 block_sizes <- function(state) {
   if (inherits(state, "graphtool_weighted_block_state")) {
     validate_weighted_state(state)
+    return(as.numeric(tabulate(state$blocks, nbins = max(state$blocks, 0L))))
+  }
+  if (inherits(state, "graphtool_layered_block_state")) {
+    validate_layered_state(state)
     return(as.numeric(tabulate(state$blocks, nbins = max(state$blocks, 0L))))
   }
   validate_block_state(state)
