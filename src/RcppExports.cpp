@@ -234,6 +234,79 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_closure_entropy
+Rcpp::List cpp_closure_entropy(int N, int L, Rcpp::IntegerMatrix obs_edges, Rcpp::IntegerVector gen_init, Rcpp::IntegerVector w0_init, Rcpp::IntegerVector loops_init, Rcpp::List ex_init, Rcpp::List bs_list, bool dc, bool dist, double q_max);
+RcppExport SEXP _rgraphtool_cpp_closure_entropy(SEXP NSEXP, SEXP LSEXP, SEXP obs_edgesSEXP, SEXP gen_initSEXP, SEXP w0_initSEXP, SEXP loops_initSEXP, SEXP ex_initSEXP, SEXP bs_listSEXP, SEXP dcSEXP, SEXP distSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type N(NSEXP);
+    Rcpp::traits::input_parameter< int >::type L(LSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type obs_edges(obs_edgesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type gen_init(gen_initSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type w0_init(w0_initSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type loops_init(loops_initSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type ex_init(ex_initSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type bs_list(bs_listSEXP);
+    Rcpp::traits::input_parameter< bool >::type dc(dcSEXP);
+    Rcpp::traits::input_parameter< bool >::type dist(distSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_closure_entropy(N, L, obs_edges, gen_init, w0_init, loops_init, ex_init, bs_list, dc, dist, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_closure_check_moves
+Rcpp::NumericVector cpp_closure_check_moves(int N, int L, Rcpp::IntegerMatrix obs_edges, Rcpp::IntegerVector gen_init, Rcpp::IntegerVector w0_init, Rcpp::IntegerVector loops_init, Rcpp::List ex_init, Rcpp::List bs_list, bool dc, bool dist, int nmoves, double q_max);
+RcppExport SEXP _rgraphtool_cpp_closure_check_moves(SEXP NSEXP, SEXP LSEXP, SEXP obs_edgesSEXP, SEXP gen_initSEXP, SEXP w0_initSEXP, SEXP loops_initSEXP, SEXP ex_initSEXP, SEXP bs_listSEXP, SEXP dcSEXP, SEXP distSEXP, SEXP nmovesSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type N(NSEXP);
+    Rcpp::traits::input_parameter< int >::type L(LSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type obs_edges(obs_edgesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type gen_init(gen_initSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type w0_init(w0_initSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type loops_init(loops_initSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type ex_init(ex_initSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type bs_list(bs_listSEXP);
+    Rcpp::traits::input_parameter< bool >::type dc(dcSEXP);
+    Rcpp::traits::input_parameter< bool >::type dist(distSEXP);
+    Rcpp::traits::input_parameter< int >::type nmoves(nmovesSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_closure_check_moves(N, L, obs_edges, gen_init, w0_init, loops_init, ex_init, bs_list, dc, dist, nmoves, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_closure_infer
+Rcpp::List cpp_closure_infer(int N, int L, Rcpp::IntegerMatrix obs_edges, Rcpp::IntegerVector gen_init, Rcpp::IntegerVector w0_init, Rcpp::IntegerVector loops_init, Rcpp::List ex_init, Rcpp::List bs_list, bool dc, bool dist, int nsamples, int burnin, int thin, double beta, double pedges, double c_prop, double d_prop, bool sample_loops, bool collect_partitions, double q_max);
+RcppExport SEXP _rgraphtool_cpp_closure_infer(SEXP NSEXP, SEXP LSEXP, SEXP obs_edgesSEXP, SEXP gen_initSEXP, SEXP w0_initSEXP, SEXP loops_initSEXP, SEXP ex_initSEXP, SEXP bs_listSEXP, SEXP dcSEXP, SEXP distSEXP, SEXP nsamplesSEXP, SEXP burninSEXP, SEXP thinSEXP, SEXP betaSEXP, SEXP pedgesSEXP, SEXP c_propSEXP, SEXP d_propSEXP, SEXP sample_loopsSEXP, SEXP collect_partitionsSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type N(NSEXP);
+    Rcpp::traits::input_parameter< int >::type L(LSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type obs_edges(obs_edgesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type gen_init(gen_initSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type w0_init(w0_initSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type loops_init(loops_initSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type ex_init(ex_initSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type bs_list(bs_listSEXP);
+    Rcpp::traits::input_parameter< bool >::type dc(dcSEXP);
+    Rcpp::traits::input_parameter< bool >::type dist(distSEXP);
+    Rcpp::traits::input_parameter< int >::type nsamples(nsamplesSEXP);
+    Rcpp::traits::input_parameter< int >::type burnin(burninSEXP);
+    Rcpp::traits::input_parameter< int >::type thin(thinSEXP);
+    Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< double >::type pedges(pedgesSEXP);
+    Rcpp::traits::input_parameter< double >::type c_prop(c_propSEXP);
+    Rcpp::traits::input_parameter< double >::type d_prop(d_propSEXP);
+    Rcpp::traits::input_parameter< bool >::type sample_loops(sample_loopsSEXP);
+    Rcpp::traits::input_parameter< bool >::type collect_partitions(collect_partitionsSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_closure_infer(N, L, obs_edges, gen_init, w0_init, loops_init, ex_init, bs_list, dc, dist, nsamples, burnin, thin, beta, pedges, c_prop, d_prop, sample_loops, collect_partitions, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_graph_create
 SEXP cpp_graph_create(int n, bool directed);
 RcppExport SEXP _rgraphtool_cpp_graph_create(SEXP nSEXP, SEXP directedSEXP) {
@@ -1017,6 +1090,177 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_uncertain_entropy
+Rcpp::List cpp_uncertain_entropy(int model, int N, bool directed, bool self_loops, Rcpp::IntegerMatrix obs_edges, Rcpp::NumericVector obs_v1, Rcpp::NumericVector obs_v2, double def1, double def2, Rcpp::NumericVector hparams, double lp, double lq, Rcpp::IntegerMatrix latent_edges, Rcpp::IntegerVector latent_w, Rcpp::List bs_list, bool dc, bool dist, bool sbm, bool density, double aE, double q_max);
+RcppExport SEXP _rgraphtool_cpp_uncertain_entropy(SEXP modelSEXP, SEXP NSEXP, SEXP directedSEXP, SEXP self_loopsSEXP, SEXP obs_edgesSEXP, SEXP obs_v1SEXP, SEXP obs_v2SEXP, SEXP def1SEXP, SEXP def2SEXP, SEXP hparamsSEXP, SEXP lpSEXP, SEXP lqSEXP, SEXP latent_edgesSEXP, SEXP latent_wSEXP, SEXP bs_listSEXP, SEXP dcSEXP, SEXP distSEXP, SEXP sbmSEXP, SEXP densitySEXP, SEXP aESEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type model(modelSEXP);
+    Rcpp::traits::input_parameter< int >::type N(NSEXP);
+    Rcpp::traits::input_parameter< bool >::type directed(directedSEXP);
+    Rcpp::traits::input_parameter< bool >::type self_loops(self_loopsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type obs_edges(obs_edgesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type obs_v1(obs_v1SEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type obs_v2(obs_v2SEXP);
+    Rcpp::traits::input_parameter< double >::type def1(def1SEXP);
+    Rcpp::traits::input_parameter< double >::type def2(def2SEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type hparams(hparamsSEXP);
+    Rcpp::traits::input_parameter< double >::type lp(lpSEXP);
+    Rcpp::traits::input_parameter< double >::type lq(lqSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type latent_edges(latent_edgesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type latent_w(latent_wSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type bs_list(bs_listSEXP);
+    Rcpp::traits::input_parameter< bool >::type dc(dcSEXP);
+    Rcpp::traits::input_parameter< bool >::type dist(distSEXP);
+    Rcpp::traits::input_parameter< bool >::type sbm(sbmSEXP);
+    Rcpp::traits::input_parameter< bool >::type density(densitySEXP);
+    Rcpp::traits::input_parameter< double >::type aE(aESEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_uncertain_entropy(model, N, directed, self_loops, obs_edges, obs_v1, obs_v2, def1, def2, hparams, lp, lq, latent_edges, latent_w, bs_list, dc, dist, sbm, density, aE, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_uncertain_edge_probs
+Rcpp::NumericVector cpp_uncertain_edge_probs(int model, int N, bool directed, bool self_loops, Rcpp::IntegerMatrix obs_edges, Rcpp::NumericVector obs_v1, Rcpp::NumericVector obs_v2, double def1, double def2, Rcpp::NumericVector hparams, double lp, double lq, Rcpp::IntegerMatrix latent_edges, Rcpp::IntegerVector latent_w, Rcpp::List bs_list, bool dc, bool dist, Rcpp::IntegerMatrix query_edges, double epsilon, double q_max);
+RcppExport SEXP _rgraphtool_cpp_uncertain_edge_probs(SEXP modelSEXP, SEXP NSEXP, SEXP directedSEXP, SEXP self_loopsSEXP, SEXP obs_edgesSEXP, SEXP obs_v1SEXP, SEXP obs_v2SEXP, SEXP def1SEXP, SEXP def2SEXP, SEXP hparamsSEXP, SEXP lpSEXP, SEXP lqSEXP, SEXP latent_edgesSEXP, SEXP latent_wSEXP, SEXP bs_listSEXP, SEXP dcSEXP, SEXP distSEXP, SEXP query_edgesSEXP, SEXP epsilonSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type model(modelSEXP);
+    Rcpp::traits::input_parameter< int >::type N(NSEXP);
+    Rcpp::traits::input_parameter< bool >::type directed(directedSEXP);
+    Rcpp::traits::input_parameter< bool >::type self_loops(self_loopsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type obs_edges(obs_edgesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type obs_v1(obs_v1SEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type obs_v2(obs_v2SEXP);
+    Rcpp::traits::input_parameter< double >::type def1(def1SEXP);
+    Rcpp::traits::input_parameter< double >::type def2(def2SEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type hparams(hparamsSEXP);
+    Rcpp::traits::input_parameter< double >::type lp(lpSEXP);
+    Rcpp::traits::input_parameter< double >::type lq(lqSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type latent_edges(latent_edgesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type latent_w(latent_wSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type bs_list(bs_listSEXP);
+    Rcpp::traits::input_parameter< bool >::type dc(dcSEXP);
+    Rcpp::traits::input_parameter< bool >::type dist(distSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type query_edges(query_edgesSEXP);
+    Rcpp::traits::input_parameter< double >::type epsilon(epsilonSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_uncertain_edge_probs(model, N, directed, self_loops, obs_edges, obs_v1, obs_v2, def1, def2, hparams, lp, lq, latent_edges, latent_w, bs_list, dc, dist, query_edges, epsilon, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_uncertain_edge_dS
+Rcpp::NumericVector cpp_uncertain_edge_dS(int model, int N, bool directed, bool self_loops, Rcpp::IntegerMatrix obs_edges, Rcpp::NumericVector obs_v1, Rcpp::NumericVector obs_v2, double def1, double def2, Rcpp::NumericVector hparams, double lp, double lq, Rcpp::IntegerMatrix latent_edges, Rcpp::IntegerVector latent_w, Rcpp::List bs_list, bool dc, bool dist, Rcpp::IntegerMatrix query_edges, Rcpp::IntegerVector dm_vec, double q_max);
+RcppExport SEXP _rgraphtool_cpp_uncertain_edge_dS(SEXP modelSEXP, SEXP NSEXP, SEXP directedSEXP, SEXP self_loopsSEXP, SEXP obs_edgesSEXP, SEXP obs_v1SEXP, SEXP obs_v2SEXP, SEXP def1SEXP, SEXP def2SEXP, SEXP hparamsSEXP, SEXP lpSEXP, SEXP lqSEXP, SEXP latent_edgesSEXP, SEXP latent_wSEXP, SEXP bs_listSEXP, SEXP dcSEXP, SEXP distSEXP, SEXP query_edgesSEXP, SEXP dm_vecSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type model(modelSEXP);
+    Rcpp::traits::input_parameter< int >::type N(NSEXP);
+    Rcpp::traits::input_parameter< bool >::type directed(directedSEXP);
+    Rcpp::traits::input_parameter< bool >::type self_loops(self_loopsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type obs_edges(obs_edgesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type obs_v1(obs_v1SEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type obs_v2(obs_v2SEXP);
+    Rcpp::traits::input_parameter< double >::type def1(def1SEXP);
+    Rcpp::traits::input_parameter< double >::type def2(def2SEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type hparams(hparamsSEXP);
+    Rcpp::traits::input_parameter< double >::type lp(lpSEXP);
+    Rcpp::traits::input_parameter< double >::type lq(lqSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type latent_edges(latent_edgesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type latent_w(latent_wSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type bs_list(bs_listSEXP);
+    Rcpp::traits::input_parameter< bool >::type dc(dcSEXP);
+    Rcpp::traits::input_parameter< bool >::type dist(distSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type query_edges(query_edgesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type dm_vec(dm_vecSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_uncertain_edge_dS(model, N, directed, self_loops, obs_edges, obs_v1, obs_v2, def1, def2, hparams, lp, lq, latent_edges, latent_w, bs_list, dc, dist, query_edges, dm_vec, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_uncertain_check_moves
+Rcpp::NumericVector cpp_uncertain_check_moves(int model, int N, bool directed, bool self_loops, Rcpp::IntegerMatrix obs_edges, Rcpp::NumericVector obs_v1, Rcpp::NumericVector obs_v2, double def1, double def2, Rcpp::NumericVector hparams, double lp, double lq, Rcpp::IntegerMatrix latent_edges, Rcpp::IntegerVector latent_w, Rcpp::List bs_list, bool dc, bool dist, int nmoves, double q_max);
+RcppExport SEXP _rgraphtool_cpp_uncertain_check_moves(SEXP modelSEXP, SEXP NSEXP, SEXP directedSEXP, SEXP self_loopsSEXP, SEXP obs_edgesSEXP, SEXP obs_v1SEXP, SEXP obs_v2SEXP, SEXP def1SEXP, SEXP def2SEXP, SEXP hparamsSEXP, SEXP lpSEXP, SEXP lqSEXP, SEXP latent_edgesSEXP, SEXP latent_wSEXP, SEXP bs_listSEXP, SEXP dcSEXP, SEXP distSEXP, SEXP nmovesSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type model(modelSEXP);
+    Rcpp::traits::input_parameter< int >::type N(NSEXP);
+    Rcpp::traits::input_parameter< bool >::type directed(directedSEXP);
+    Rcpp::traits::input_parameter< bool >::type self_loops(self_loopsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type obs_edges(obs_edgesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type obs_v1(obs_v1SEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type obs_v2(obs_v2SEXP);
+    Rcpp::traits::input_parameter< double >::type def1(def1SEXP);
+    Rcpp::traits::input_parameter< double >::type def2(def2SEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type hparams(hparamsSEXP);
+    Rcpp::traits::input_parameter< double >::type lp(lpSEXP);
+    Rcpp::traits::input_parameter< double >::type lq(lqSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type latent_edges(latent_edgesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type latent_w(latent_wSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type bs_list(bs_listSEXP);
+    Rcpp::traits::input_parameter< bool >::type dc(dcSEXP);
+    Rcpp::traits::input_parameter< bool >::type dist(distSEXP);
+    Rcpp::traits::input_parameter< int >::type nmoves(nmovesSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_uncertain_check_moves(model, N, directed, self_loops, obs_edges, obs_v1, obs_v2, def1, def2, hparams, lp, lq, latent_edges, latent_w, bs_list, dc, dist, nmoves, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_uncertain_reconstruct
+Rcpp::List cpp_uncertain_reconstruct(int model, int N, bool directed, bool self_loops, Rcpp::IntegerMatrix obs_edges, Rcpp::NumericVector obs_v1, Rcpp::NumericVector obs_v2, double def1, double def2, Rcpp::NumericVector hparams, double lp, double lq, Rcpp::IntegerMatrix latent_edges, Rcpp::IntegerVector latent_w, Rcpp::List bs_list, bool dc, bool dist, int nsamples, int burnin, int thin, double beta, double pedges, double ph, double hstep, double c_prop, double d_prop, bool collect_partitions, double q_max);
+RcppExport SEXP _rgraphtool_cpp_uncertain_reconstruct(SEXP modelSEXP, SEXP NSEXP, SEXP directedSEXP, SEXP self_loopsSEXP, SEXP obs_edgesSEXP, SEXP obs_v1SEXP, SEXP obs_v2SEXP, SEXP def1SEXP, SEXP def2SEXP, SEXP hparamsSEXP, SEXP lpSEXP, SEXP lqSEXP, SEXP latent_edgesSEXP, SEXP latent_wSEXP, SEXP bs_listSEXP, SEXP dcSEXP, SEXP distSEXP, SEXP nsamplesSEXP, SEXP burninSEXP, SEXP thinSEXP, SEXP betaSEXP, SEXP pedgesSEXP, SEXP phSEXP, SEXP hstepSEXP, SEXP c_propSEXP, SEXP d_propSEXP, SEXP collect_partitionsSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type model(modelSEXP);
+    Rcpp::traits::input_parameter< int >::type N(NSEXP);
+    Rcpp::traits::input_parameter< bool >::type directed(directedSEXP);
+    Rcpp::traits::input_parameter< bool >::type self_loops(self_loopsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type obs_edges(obs_edgesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type obs_v1(obs_v1SEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type obs_v2(obs_v2SEXP);
+    Rcpp::traits::input_parameter< double >::type def1(def1SEXP);
+    Rcpp::traits::input_parameter< double >::type def2(def2SEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type hparams(hparamsSEXP);
+    Rcpp::traits::input_parameter< double >::type lp(lpSEXP);
+    Rcpp::traits::input_parameter< double >::type lq(lqSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type latent_edges(latent_edgesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type latent_w(latent_wSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type bs_list(bs_listSEXP);
+    Rcpp::traits::input_parameter< bool >::type dc(dcSEXP);
+    Rcpp::traits::input_parameter< bool >::type dist(distSEXP);
+    Rcpp::traits::input_parameter< int >::type nsamples(nsamplesSEXP);
+    Rcpp::traits::input_parameter< int >::type burnin(burninSEXP);
+    Rcpp::traits::input_parameter< int >::type thin(thinSEXP);
+    Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< double >::type pedges(pedgesSEXP);
+    Rcpp::traits::input_parameter< double >::type ph(phSEXP);
+    Rcpp::traits::input_parameter< double >::type hstep(hstepSEXP);
+    Rcpp::traits::input_parameter< double >::type c_prop(c_propSEXP);
+    Rcpp::traits::input_parameter< double >::type d_prop(d_propSEXP);
+    Rcpp::traits::input_parameter< bool >::type collect_partitions(collect_partitionsSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_uncertain_reconstruct(model, N, directed, self_loops, obs_edges, obs_v1, obs_v2, def1, def2, hparams, lp, lq, latent_edges, latent_w, bs_list, dc, dist, nsamples, burnin, thin, beta, pedges, ph, hstep, c_prop, d_prop, collect_partitions, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_latent_multigraph_em
+Rcpp::List cpp_latent_multigraph_em(SEXP pointer, double epsilon, int max_niter);
+RcppExport SEXP _rgraphtool_cpp_latent_multigraph_em(SEXP pointerSEXP, SEXP epsilonSEXP, SEXP max_niterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< double >::type epsilon(epsilonSEXP);
+    Rcpp::traits::input_parameter< int >::type max_niter(max_niterSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_latent_multigraph_em(pointer, epsilon, max_niter));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_weighted_entropy
 double cpp_weighted_entropy(SEXP pointer, Rcpp::IntegerVector blocks, Rcpp::NumericMatrix weights, Rcpp::CharacterVector types, Rcpp::List params, bool degree_corrected, bool distributed, bool include_rec, bool include_dl, double q_max);
 RcppExport SEXP _rgraphtool_cpp_weighted_entropy(SEXP pointerSEXP, SEXP blocksSEXP, SEXP weightsSEXP, SEXP typesSEXP, SEXP paramsSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP include_recSEXP, SEXP include_dlSEXP, SEXP q_maxSEXP) {
@@ -1173,6 +1417,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rgraphtool_cpp_nested_mcmc", (DL_FUNC) &_rgraphtool_cpp_nested_mcmc, 7},
     {"_rgraphtool_cpp_sbm_check_move_prob", (DL_FUNC) &_rgraphtool_cpp_sbm_check_move_prob, 4},
     {"_rgraphtool_cpp_nested_check_move_prob", (DL_FUNC) &_rgraphtool_cpp_nested_check_move_prob, 4},
+    {"_rgraphtool_cpp_closure_entropy", (DL_FUNC) &_rgraphtool_cpp_closure_entropy, 11},
+    {"_rgraphtool_cpp_closure_check_moves", (DL_FUNC) &_rgraphtool_cpp_closure_check_moves, 12},
+    {"_rgraphtool_cpp_closure_infer", (DL_FUNC) &_rgraphtool_cpp_closure_infer, 20},
     {"_rgraphtool_cpp_graph_create", (DL_FUNC) &_rgraphtool_cpp_graph_create, 2},
     {"_rgraphtool_cpp_add_vertices", (DL_FUNC) &_rgraphtool_cpp_add_vertices, 2},
     {"_rgraphtool_cpp_add_edges", (DL_FUNC) &_rgraphtool_cpp_add_edges, 2},
@@ -1221,6 +1468,12 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rgraphtool_cpp_nested_ranked_minimize", (DL_FUNC) &_rgraphtool_cpp_nested_ranked_minimize, 11},
     {"_rgraphtool_cpp_ranked_mcmc", (DL_FUNC) &_rgraphtool_cpp_ranked_mcmc, 11},
     {"_rgraphtool_cpp_nested_ranked_mcmc", (DL_FUNC) &_rgraphtool_cpp_nested_ranked_mcmc, 11},
+    {"_rgraphtool_cpp_uncertain_entropy", (DL_FUNC) &_rgraphtool_cpp_uncertain_entropy, 21},
+    {"_rgraphtool_cpp_uncertain_edge_probs", (DL_FUNC) &_rgraphtool_cpp_uncertain_edge_probs, 20},
+    {"_rgraphtool_cpp_uncertain_edge_dS", (DL_FUNC) &_rgraphtool_cpp_uncertain_edge_dS, 20},
+    {"_rgraphtool_cpp_uncertain_check_moves", (DL_FUNC) &_rgraphtool_cpp_uncertain_check_moves, 19},
+    {"_rgraphtool_cpp_uncertain_reconstruct", (DL_FUNC) &_rgraphtool_cpp_uncertain_reconstruct, 28},
+    {"_rgraphtool_cpp_latent_multigraph_em", (DL_FUNC) &_rgraphtool_cpp_latent_multigraph_em, 3},
     {"_rgraphtool_cpp_weighted_entropy", (DL_FUNC) &_rgraphtool_cpp_weighted_entropy, 10},
     {"_rgraphtool_cpp_weighted_check_moves", (DL_FUNC) &_rgraphtool_cpp_weighted_check_moves, 9},
     {"_rgraphtool_cpp_weighted_minimize", (DL_FUNC) &_rgraphtool_cpp_weighted_minimize, 11},

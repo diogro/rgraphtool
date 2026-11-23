@@ -61,6 +61,18 @@ cpp_nested_check_move_prob <- function(pointer, bs, c, nmoves) {
     .Call(`_rgraphtool_cpp_nested_check_move_prob`, pointer, bs, c, nmoves)
 }
 
+cpp_closure_entropy <- function(N, L, obs_edges, gen_init, w0_init, loops_init, ex_init, bs_list, dc, dist, q_max) {
+    .Call(`_rgraphtool_cpp_closure_entropy`, N, L, obs_edges, gen_init, w0_init, loops_init, ex_init, bs_list, dc, dist, q_max)
+}
+
+cpp_closure_check_moves <- function(N, L, obs_edges, gen_init, w0_init, loops_init, ex_init, bs_list, dc, dist, nmoves, q_max) {
+    .Call(`_rgraphtool_cpp_closure_check_moves`, N, L, obs_edges, gen_init, w0_init, loops_init, ex_init, bs_list, dc, dist, nmoves, q_max)
+}
+
+cpp_closure_infer <- function(N, L, obs_edges, gen_init, w0_init, loops_init, ex_init, bs_list, dc, dist, nsamples, burnin, thin, beta, pedges, c_prop, d_prop, sample_loops, collect_partitions, q_max) {
+    .Call(`_rgraphtool_cpp_closure_infer`, N, L, obs_edges, gen_init, w0_init, loops_init, ex_init, bs_list, dc, dist, nsamples, burnin, thin, beta, pedges, c_prop, d_prop, sample_loops, collect_partitions, q_max)
+}
+
 cpp_graph_create <- function(n, directed) {
     .Call(`_rgraphtool_cpp_graph_create`, n, directed)
 }
@@ -251,6 +263,30 @@ cpp_ranked_mcmc <- function(pointer, blocks, u, distance, unique, M_pos, degree_
 
 cpp_nested_ranked_mcmc <- function(pointer, bs, u, distance, unique, M_pos, degree_corrected, distributed, mcmc_opts, eq_opts, q_max) {
     .Call(`_rgraphtool_cpp_nested_ranked_mcmc`, pointer, bs, u, distance, unique, M_pos, degree_corrected, distributed, mcmc_opts, eq_opts, q_max)
+}
+
+cpp_uncertain_entropy <- function(model, N, directed, self_loops, obs_edges, obs_v1, obs_v2, def1, def2, hparams, lp, lq, latent_edges, latent_w, bs_list, dc, dist, sbm, density, aE, q_max) {
+    .Call(`_rgraphtool_cpp_uncertain_entropy`, model, N, directed, self_loops, obs_edges, obs_v1, obs_v2, def1, def2, hparams, lp, lq, latent_edges, latent_w, bs_list, dc, dist, sbm, density, aE, q_max)
+}
+
+cpp_uncertain_edge_probs <- function(model, N, directed, self_loops, obs_edges, obs_v1, obs_v2, def1, def2, hparams, lp, lq, latent_edges, latent_w, bs_list, dc, dist, query_edges, epsilon, q_max) {
+    .Call(`_rgraphtool_cpp_uncertain_edge_probs`, model, N, directed, self_loops, obs_edges, obs_v1, obs_v2, def1, def2, hparams, lp, lq, latent_edges, latent_w, bs_list, dc, dist, query_edges, epsilon, q_max)
+}
+
+cpp_uncertain_edge_dS <- function(model, N, directed, self_loops, obs_edges, obs_v1, obs_v2, def1, def2, hparams, lp, lq, latent_edges, latent_w, bs_list, dc, dist, query_edges, dm_vec, q_max) {
+    .Call(`_rgraphtool_cpp_uncertain_edge_dS`, model, N, directed, self_loops, obs_edges, obs_v1, obs_v2, def1, def2, hparams, lp, lq, latent_edges, latent_w, bs_list, dc, dist, query_edges, dm_vec, q_max)
+}
+
+cpp_uncertain_check_moves <- function(model, N, directed, self_loops, obs_edges, obs_v1, obs_v2, def1, def2, hparams, lp, lq, latent_edges, latent_w, bs_list, dc, dist, nmoves, q_max) {
+    .Call(`_rgraphtool_cpp_uncertain_check_moves`, model, N, directed, self_loops, obs_edges, obs_v1, obs_v2, def1, def2, hparams, lp, lq, latent_edges, latent_w, bs_list, dc, dist, nmoves, q_max)
+}
+
+cpp_uncertain_reconstruct <- function(model, N, directed, self_loops, obs_edges, obs_v1, obs_v2, def1, def2, hparams, lp, lq, latent_edges, latent_w, bs_list, dc, dist, nsamples, burnin, thin, beta, pedges, ph, hstep, c_prop, d_prop, collect_partitions, q_max) {
+    .Call(`_rgraphtool_cpp_uncertain_reconstruct`, model, N, directed, self_loops, obs_edges, obs_v1, obs_v2, def1, def2, hparams, lp, lq, latent_edges, latent_w, bs_list, dc, dist, nsamples, burnin, thin, beta, pedges, ph, hstep, c_prop, d_prop, collect_partitions, q_max)
+}
+
+cpp_latent_multigraph_em <- function(pointer, epsilon, max_niter) {
+    .Call(`_rgraphtool_cpp_latent_multigraph_em`, pointer, epsilon, max_niter)
 }
 
 cpp_weighted_entropy <- function(pointer, blocks, weights, types, params, degree_corrected, distributed, include_rec, include_dl, q_max) {
