@@ -235,6 +235,11 @@ generative class, and the cookbook comparison workflow runs end to end.
 
 ### 9. Large networks
 
+- [ ] Build parallel and scalable inference infrastructure for very large
+  networks (`N > 10^4`, `E > 10^5`), using OpenMP multithreading (with graceful
+  fallback where unsupported, e.g., Apple clang without libomp) or C++ standard
+  thread pools, incremental upper-level updates for nested overlap states, and
+  memory-compact graph/state representations.
 - [ ] Implement the guide's strictly agglomerative search and hierarchy-shape
   initialization, including the relevant performance controls.
 - [ ] Run and benchmark the large-network examples; document hardware,
