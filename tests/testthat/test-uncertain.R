@@ -333,6 +333,42 @@ test_that("predict_edges and evaluate_edge_prediction work end-to-end", {
   expect_equal(ev_tie$roc_auc, 0.5)
 })
 
+test_that("edge MCMC sampler reproduces exact Boltzmann distribution on small graph", {
+  set.seed(42)
+  g3 <- graph_create(3L, directed = FALSE)
+  graph_add_edges(g3, matrix(c(1L, 2L, 2L, 3L), ncol = 2L, byrow = TRUE),
+                  properties = list(n = c(2, 2), x = c(2, 1)))
+  st3 <- measured_block_state(
+    g3, n = "n", x = "x", n_default = 2L, x_default = 0L,
+    lp = log(0.2), lq = log(0.1), nested = FALSE,
+    blocks = c(1L, 1L, 1L), degree_corrected = FALSE
+  )
+  pairs3 <- matrix(c(1L, 2L, 2L, 3L, 1L, 3L), ncol = 2L, byrow = TRUE)
+  grid <- expand.grid(w1 = 0:5, w2 = 0:5, w3 = 0:5)
+  S_all <- numeric(nrow(grid))
+  for (i in seq_len(nrow(grid))) {
+    w <- as.integer(grid[i, ])
+    keep <- w > 0L
+    sti <- measured_block_state(
+      g3, n = "n", x = "x", n_default = 2L, x_default = 0L,
+      lp = log(0.2), lq = log(0.1), nested = FALSE,
+      blocks = c(1L, 1L, 1L), degree_corrected = FALSE,
+      latent_edges = pairs3[keep, , drop = FALSE], latent_weights = w[keep]
+    )
+    S_all[i] <- uncertain_description_length(sti)
+  }
+  mS <- max(-S_all)
+  P_all <- exp(-S_all - (mS + log(sum(exp(-S_all - mS)))))
+  exact_p <- c(sum(P_all[grid$w1 > 0]), sum(P_all[grid$w2 > 0]), sum(P_all[grid$w3 > 0]))
+
+  rec3 <- reconstruct_network(st3, nsamples = 3000L, burnin = 400L, thin = 2L,
+                              pedges = 1.0, init_sbm = FALSE)
+  ek <- function(u, v) paste0(pmin(u, v), ":", pmax(u, v))
+  m3 <- match(c("1:2", "2:3", "1:3"), ek(rec3$edges$from, rec3$edges$to))
+  mcmc_p <- ifelse(is.na(m3), 0, rec3$edges$prob[m3])
+  expect_lt(max(abs(exact_p - mcmc_p)), 0.03)
+})
+
 test_that("uncertain constructors validate inputs cleanly", {
   g <- make_m10_ref_graph(FALSE)
   expect_error(measured_block_state(g, n = rep(1, 7), x = rep(2, 7)), "0 <= x <= n")

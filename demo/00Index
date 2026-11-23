@@ -9,3 +9,5 @@ layered_sbm   Layered stochastic block models and layer-model selection
 assortative_sbm   Assortative planted-partition SBM and model selection
 ordered_sbm   Ordered (ranked) stochastic block models on C. elegans
 large_networks   Scalable and parallel SBM inference on large networks
+uncertain_reconstruction   Uncertain network reconstruction, latent multigraphs, and edge prediction
+triadic_closure   Disentangling community structure and triadic closure

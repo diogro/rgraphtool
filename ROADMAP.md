@@ -392,10 +392,55 @@ correctness and scaling benchmarks up to `N = 100,000, E = 500,000`, and
 
 ### 10. Uncertain network reconstruction
 
-- [ ] Implement measured networks, heterogeneous error models, extraneous error
-  estimates, latent Poisson multigraphs, and latent triadic closures.
-- [ ] Add posterior edge probabilities and the edge-prediction classification
-  workflow; run the direct reconstruction examples.
+- [x] Implement native C++ uncertain-network reconstruction engines
+  (`src/dyn_sbm.h`, `src/uncertain.cpp`, `src/closure.cpp`) with exact dynamic
+  flat and nested SBM priors supporting $O(1)$ / $O(L)$ edge multiplicity edits
+  and $O(\deg(v))$ vertex block moves:
+  - Measured networks with unknown Beta-prior or fixed homogeneous FN/FP error
+    rates (`measured_block_state()`, `measured_error_posterior()`), matching
+    `MeasuredBlockState` (Peixoto 2018).
+  - Heterogeneous per-dyad Beta-Binomial error models with joint hyperparameter
+    MCMC (`mixed_measured_block_state()`), matching `MixedMeasuredBlockState`
+    (Peixoto 2018).
+  - Extraneous edge probability estimates (`uncertain_block_state()`), matching
+    `UncertainBlockState` (Peixoto 2018).
+  - Latent Poisson multigraphs: fast $O(V + E)$ EM (`latent_multigraph()`) and
+    full Bayesian multigraph SBM (`latent_multigraph_block_state()`), matching
+    `latent_multigraph()` and `LatentMultigraphBlockState` (Peixoto 2020).
+  - Latent triadic closures (`latent_closure_block_state()`,
+    `closure_description_length()`, `infer_triadic_closure()`), supporting
+    $L \ge 1$ generations of zero-inflated triadic closures over flat or nested
+    SBM substrates and per-vertex $(t, m, c)$ transitivity statistics, matching
+    `LatentClosureBlockState` (Peixoto 2022).
+- [x] Add exact conditional posterior edge probabilities
+  (`edge_probabilities()`), joint Bayesian reconstruction
+  (`reconstruct_network()`), and the declarative callback-free edge-prediction
+  and evaluation workflow (`predict_edges()`, `evaluate_edge_prediction()` with
+  tie-aware ROC-AUC, PR-AUC, Brier score, and ROC/PR curves), plus runnable
+  cookbook demos (`demo("uncertain_reconstruction")`, `demo("triadic_closure")`).
+
+Exact description lengths, Beta error posteriors, conditional edge
+log-probabilities, and $L = 2$ triadic-closure layer entropies and $(M, E)$
+triad counts match pinned graph-tool 3.9 to `< 2.4e-12` across flat and nested,
+directed and undirected, degree-corrected and non-degree-corrected
+configurations; incremental edge, vertex, and closure moves match full
+recomputation to `< 3.2e-14`, and the edge MCMC sampler reproduces the exact
+enumerated Boltzmann stationary distribution on small graphs to within Monte
+Carlo error (`< 0.012`). Note two deliberate mathematical fixes relative to
+graph-tool 3.9: (1) flat SBM edge deltas include exact `edges_dl` changes so
+incremental `dS` matches `S(after) - S(before)` identically, and (2)
+`uncertain_block_state()` uses the exact logit `log(q_default) - log1p(-q_default)`
+for `q_default > 0` (fixing upstream's `log1p(+q_default)` typo). Both cookbook
+demos run end to end offline in `< 0.5 s` (`demo("uncertain_reconstruction")`
+achieves repeated-trial ROC-AUC `0.99` with posterior error rates `p = 0.196,
+q = 0.050` vs true `0.20, 0.05`, and single-snapshot ROC-AUC `0.91` vs `0.84`
+raw; `demo("triadic_closure")` separates closure vs substrate edges with
+ROC-AUC `1.00`).
+
+**Done when:** all six uncertain/latent models agree with pinned graph-tool 3.9
+to machine precision, incremental moves and exact small-graph Boltzmann
+stationary distributions pass, edge-prediction evaluation and triadic-closure
+recovery work end to end, and both cookbook demos run cleanly. **Complete.**
 
 ### 11. Reconstruction from dynamics and behavior
 
