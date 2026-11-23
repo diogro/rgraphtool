@@ -23,6 +23,16 @@ defaults, output formats, and supported graph types. The matplotlib and C++
 extension chapters need R-native equivalents, not a Python compatibility
 layer.
 
+**User-facing API over callbacks:** graph-tool relies heavily on user-supplied
+`callback` functions inside `mcmc_equilibrate()` to collect partitions,
+marginals, histograms, edge probabilities, and model-evidence traces. In
+`graph-tool-R`, prefer declarative function arguments and dedicated high-level
+workflows (such as `sample_posterior()`, `collect = TRUE`, `history = TRUE`,
+and future `predict_edges()` / `reconstruct_network()` helpers) so cookbook
+analyses run natively in C++ with ordinary arguments rather than mutable
+closure callbacks. Keep `callback` minimal—an optional power-user escape hatch,
+never the default path for core cookbook tasks.
+
 ## Current state
 
 - [x] Native directed and undirected multigraph construction and inspection.
