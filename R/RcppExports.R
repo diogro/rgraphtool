@@ -185,6 +185,58 @@ cpp_mode_lprob <- function(marginals, partition, nested, mle) {
     .Call(`_graphtool_cpp_mode_lprob`, marginals, partition, nested, mle)
 }
 
+cpp_pp_entropy <- function(pointer, blocks, uniform, degree_corrected, distributed, q_max) {
+    .Call(`_graphtool_cpp_pp_entropy`, pointer, blocks, uniform, degree_corrected, distributed, q_max)
+}
+
+cpp_pp_stats <- function(pointer, blocks, uniform, degree_corrected, distributed, q_max) {
+    .Call(`_graphtool_cpp_pp_stats`, pointer, blocks, uniform, degree_corrected, distributed, q_max)
+}
+
+cpp_pp_check_moves <- function(pointer, blocks, uniform, degree_corrected, distributed, nmoves, q_max) {
+    .Call(`_graphtool_cpp_pp_check_moves`, pointer, blocks, uniform, degree_corrected, distributed, nmoves, q_max)
+}
+
+cpp_pp_minimize <- function(pointer, uniform, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max) {
+    .Call(`_graphtool_cpp_pp_minimize`, pointer, uniform, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max)
+}
+
+cpp_pp_mcmc <- function(pointer, blocks, uniform, degree_corrected, distributed, mcmc_opts, eq_opts, q_max) {
+    .Call(`_graphtool_cpp_pp_mcmc`, pointer, blocks, uniform, degree_corrected, distributed, mcmc_opts, eq_opts, q_max)
+}
+
+cpp_ranked_entropy <- function(pointer, blocks, u, distance, unique, M_pos, degree_corrected, distributed, include_label_dl, q_max) {
+    .Call(`_graphtool_cpp_ranked_entropy`, pointer, blocks, u, distance, unique, M_pos, degree_corrected, distributed, include_label_dl, q_max)
+}
+
+cpp_ranked_stats <- function(pointer, blocks, u, distance, unique, M_pos, degree_corrected, distributed, q_max) {
+    .Call(`_graphtool_cpp_ranked_stats`, pointer, blocks, u, distance, unique, M_pos, degree_corrected, distributed, q_max)
+}
+
+cpp_ranked_check_moves <- function(pointer, blocks, u, distance, unique, M_pos, degree_corrected, distributed, nmoves, q_max) {
+    .Call(`_graphtool_cpp_ranked_check_moves`, pointer, blocks, u, distance, unique, M_pos, degree_corrected, distributed, nmoves, q_max)
+}
+
+cpp_ranked_minimize <- function(pointer, distance, unique, M_pos, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max) {
+    .Call(`_graphtool_cpp_ranked_minimize`, pointer, distance, unique, M_pos, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max)
+}
+
+cpp_nested_ranked_entropy <- function(pointer, bs, u, distance, unique, M_pos, degree_corrected, distributed, q_max) {
+    .Call(`_graphtool_cpp_nested_ranked_entropy`, pointer, bs, u, distance, unique, M_pos, degree_corrected, distributed, q_max)
+}
+
+cpp_nested_ranked_minimize <- function(pointer, distance, unique, M_pos, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max) {
+    .Call(`_graphtool_cpp_nested_ranked_minimize`, pointer, distance, unique, M_pos, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max)
+}
+
+cpp_ranked_mcmc <- function(pointer, blocks, u, distance, unique, M_pos, degree_corrected, distributed, mcmc_opts, eq_opts, q_max) {
+    .Call(`_graphtool_cpp_ranked_mcmc`, pointer, blocks, u, distance, unique, M_pos, degree_corrected, distributed, mcmc_opts, eq_opts, q_max)
+}
+
+cpp_nested_ranked_mcmc <- function(pointer, bs, u, distance, unique, M_pos, degree_corrected, distributed, mcmc_opts, eq_opts, q_max) {
+    .Call(`_graphtool_cpp_nested_ranked_mcmc`, pointer, bs, u, distance, unique, M_pos, degree_corrected, distributed, mcmc_opts, eq_opts, q_max)
+}
+
 cpp_weighted_entropy <- function(pointer, blocks, weights, types, params, degree_corrected, distributed, include_rec, include_dl, q_max) {
     .Call(`_graphtool_cpp_weighted_entropy`, pointer, blocks, weights, types, params, degree_corrected, distributed, include_rec, include_dl, q_max)
 }

@@ -76,6 +76,10 @@ nested_levels <- function(state) {
     validate_nested_layered_state(state)
     return(state$levels)
   }
+  if (inherits(state, "graphtool_nested_ranked_block_state")) {
+    validate_nested_ranked_state(state)
+    return(state$levels)
+  }
   validate_nested_state(state)
   state$levels
 }
@@ -85,6 +89,8 @@ nested_project <- function(state, level = 0L) {
     validate_nested_weighted_state(state)
   } else if (inherits(state, "graphtool_nested_layered_block_state")) {
     validate_nested_layered_state(state)
+  } else if (inherits(state, "graphtool_nested_ranked_block_state")) {
+    validate_nested_ranked_state(state)
   } else {
     validate_nested_state(state)
   }
@@ -114,6 +120,9 @@ nested_summary <- function(state) {
   } else if (inherits(state, "graphtool_nested_layered_block_state")) {
     validate_nested_layered_state(state)
     lv_ent <- nested_layered_level_entropy(state)
+  } else if (inherits(state, "graphtool_nested_ranked_block_state")) {
+    validate_nested_ranked_state(state)
+    lv_ent <- nested_ranked_level_entropy(state)
   } else {
     validate_nested_state(state)
     lv_ent <- nested_level_entropy(state)

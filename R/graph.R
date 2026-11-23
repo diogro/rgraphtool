@@ -18,7 +18,8 @@ graph_create <- function(n = 0L, directed = TRUE) {
   if (!is.logical(directed) || length(directed) != 1L || is.na(directed)) {
     stop("directed must be TRUE or FALSE", call. = FALSE)
   }
-  structure(list(pointer = cpp_graph_create(n, directed)), class = "graphtool_graph")
+  structure(list(pointer = cpp_graph_create(n, directed), directed = directed),
+            class = "graphtool_graph")
 }
 
 graph_add_vertices <- function(graph, n = 1L) {

@@ -31,8 +31,16 @@ state_description_length <- function(state) {
   if (inherits(state, "graphtool_nested_layered_block_state")) {
     return(nested_layered_description_length(state))
   }
-  stop("state must be a block, nested, overlap, nested overlap, weighted, nested weighted, layered, or nested layered block state",
-       call. = FALSE)
+  if (inherits(state, "graphtool_pp_block_state")) {
+    return(pp_description_length(state))
+  }
+  if (inherits(state, "graphtool_ranked_block_state")) {
+    return(ranked_description_length(state))
+  }
+  if (inherits(state, "graphtool_nested_ranked_block_state")) {
+    return(nested_ranked_description_length(state))
+  }
+  stop("state must be a supported block state object", call. = FALSE)
 }
 
 state_num_groups <- function(state) {
@@ -47,11 +55,14 @@ state_num_groups <- function(state) {
     return(as.integer(overlap_groups(state)$B))
   }
   if (inherits(state, "graphtool_weighted_block_state") ||
-      inherits(state, "graphtool_layered_block_state")) {
+      inherits(state, "graphtool_layered_block_state") ||
+      inherits(state, "graphtool_pp_block_state") ||
+      inherits(state, "graphtool_ranked_block_state")) {
     return(as.integer(state$B))
   }
   if (inherits(state, "graphtool_nested_weighted_block_state") ||
-      inherits(state, "graphtool_nested_layered_block_state")) {
+      inherits(state, "graphtool_nested_layered_block_state") ||
+      inherits(state, "graphtool_nested_ranked_block_state")) {
     return(as.integer(state$B[1L]))
   }
   NA_integer_
@@ -61,7 +72,9 @@ state_num_levels <- function(state) {
   if (inherits(state, "graphtool_block_state") ||
       inherits(state, "graphtool_overlap_block_state") ||
       inherits(state, "graphtool_weighted_block_state") ||
-      inherits(state, "graphtool_layered_block_state")) {
+      inherits(state, "graphtool_layered_block_state") ||
+      inherits(state, "graphtool_pp_block_state") ||
+      inherits(state, "graphtool_ranked_block_state")) {
     return(1L)
   }
   if (inherits(state, "graphtool_nested_block_state")) {
@@ -71,7 +84,8 @@ state_num_levels <- function(state) {
     return(length(state$upper_levels) + 1L)
   }
   if (inherits(state, "graphtool_nested_weighted_block_state") ||
-      inherits(state, "graphtool_nested_layered_block_state")) {
+      inherits(state, "graphtool_nested_layered_block_state") ||
+      inherits(state, "graphtool_nested_ranked_block_state")) {
     return(length(state$levels))
   }
   NA_integer_
@@ -104,15 +118,17 @@ model_evidence <- function(state, nsamples = 200L, thin = 5L, burnin = NULL,
 
   is_flat <- inherits(state, "graphtool_block_state") ||
     inherits(state, "graphtool_weighted_block_state") ||
-    inherits(state, "graphtool_layered_block_state")
+    inherits(state, "graphtool_layered_block_state") ||
+    inherits(state, "graphtool_pp_block_state") ||
+    inherits(state, "graphtool_ranked_block_state")
   is_nested <- inherits(state, "graphtool_nested_block_state") ||
     inherits(state, "graphtool_nested_weighted_block_state") ||
-    inherits(state, "graphtool_nested_layered_block_state")
+    inherits(state, "graphtool_nested_layered_block_state") ||
+    inherits(state, "graphtool_nested_ranked_block_state")
   is_ov_flat <- inherits(state, "graphtool_overlap_block_state")
   is_ov_nested <- inherits(state, "graphtool_nested_overlap_block_state")
   if (!is_flat && !is_nested && !is_ov_flat && !is_ov_nested) {
-    stop("state must be a block, nested, overlap, nested overlap, weighted, nested weighted, layered, or nested layered block state",
-         call. = FALSE)
+    stop("state must be a supported block state object", call. = FALSE)
   }
 
   init_dl <- state_description_length(state)
