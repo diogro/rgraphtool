@@ -41,9 +41,40 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_max_threads
+int cpp_max_threads();
+RcppExport SEXP _rgraphtool_cpp_max_threads() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    rcpp_result_gen = Rcpp::wrap(cpp_max_threads());
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_get_num_threads
+int cpp_get_num_threads();
+RcppExport SEXP _rgraphtool_cpp_get_num_threads() {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    rcpp_result_gen = Rcpp::wrap(cpp_get_num_threads());
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_set_num_threads
+int cpp_set_num_threads(int nthreads);
+RcppExport SEXP _rgraphtool_cpp_set_num_threads(SEXP nthreadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type nthreads(nthreadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_set_num_threads(nthreads));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_sbm_minimize
-Rcpp::List cpp_sbm_minimize(SEXP pointer, bool degree_corrected, bool distributed, Rcpp::List control, bool refine, double q_max);
-RcppExport SEXP _rgraphtool_cpp_sbm_minimize(SEXP pointerSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP controlSEXP, SEXP refineSEXP, SEXP q_maxSEXP) {
+Rcpp::List cpp_sbm_minimize(SEXP pointer, bool degree_corrected, bool distributed, Rcpp::List control, bool refine, double q_max, Rcpp::Nullable<Rcpp::IntegerVector> init_blocks);
+RcppExport SEXP _rgraphtool_cpp_sbm_minimize(SEXP pointerSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP controlSEXP, SEXP refineSEXP, SEXP q_maxSEXP, SEXP init_blocksSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -53,7 +84,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< Rcpp::List >::type control(controlSEXP);
     Rcpp::traits::input_parameter< bool >::type refine(refineSEXP);
     Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_sbm_minimize(pointer, degree_corrected, distributed, control, refine, q_max));
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::IntegerVector> >::type init_blocks(init_blocksSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_sbm_minimize(pointer, degree_corrected, distributed, control, refine, q_max, init_blocks));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -118,8 +150,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_nested_minimize
-Rcpp::List cpp_nested_minimize(SEXP pointer, bool degree_corrected, bool distributed, Rcpp::List control, bool refine, double q_max);
-RcppExport SEXP _rgraphtool_cpp_nested_minimize(SEXP pointerSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP controlSEXP, SEXP refineSEXP, SEXP q_maxSEXP) {
+Rcpp::List cpp_nested_minimize(SEXP pointer, bool degree_corrected, bool distributed, Rcpp::List control, bool refine, double q_max, bool simple_init, bool simple_init_reverse, double base_factor, int B_min_base, double top_factor, bool strict, Rcpp::Nullable<Rcpp::List> init_levels);
+RcppExport SEXP _rgraphtool_cpp_nested_minimize(SEXP pointerSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP controlSEXP, SEXP refineSEXP, SEXP q_maxSEXP, SEXP simple_initSEXP, SEXP simple_init_reverseSEXP, SEXP base_factorSEXP, SEXP B_min_baseSEXP, SEXP top_factorSEXP, SEXP strictSEXP, SEXP init_levelsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -129,7 +161,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< Rcpp::List >::type control(controlSEXP);
     Rcpp::traits::input_parameter< bool >::type refine(refineSEXP);
     Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_nested_minimize(pointer, degree_corrected, distributed, control, refine, q_max));
+    Rcpp::traits::input_parameter< bool >::type simple_init(simple_initSEXP);
+    Rcpp::traits::input_parameter< bool >::type simple_init_reverse(simple_init_reverseSEXP);
+    Rcpp::traits::input_parameter< double >::type base_factor(base_factorSEXP);
+    Rcpp::traits::input_parameter< int >::type B_min_base(B_min_baseSEXP);
+    Rcpp::traits::input_parameter< double >::type top_factor(top_factorSEXP);
+    Rcpp::traits::input_parameter< bool >::type strict(strictSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::List> >::type init_levels(init_levelsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_nested_minimize(pointer, degree_corrected, distributed, control, refine, q_max, simple_init, simple_init_reverse, base_factor, B_min_base, top_factor, strict, init_levels));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -618,6 +657,24 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_nested_overlap_check_moves
+Rcpp::NumericVector cpp_nested_overlap_check_moves(SEXP pointer, Rcpp::IntegerMatrix half_edges, Rcpp::List upper_bs, bool degree_corrected, bool distributed, bool gen_overlap, int nmoves, double q_max);
+RcppExport SEXP _rgraphtool_cpp_nested_overlap_check_moves(SEXP pointerSEXP, SEXP half_edgesSEXP, SEXP upper_bsSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP gen_overlapSEXP, SEXP nmovesSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type half_edges(half_edgesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type upper_bs(upper_bsSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< bool >::type gen_overlap(gen_overlapSEXP);
+    Rcpp::traits::input_parameter< int >::type nmoves(nmovesSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_nested_overlap_check_moves(pointer, half_edges, upper_bs, degree_corrected, distributed, gen_overlap, nmoves, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_align_partition_labels
 Rcpp::IntegerVector cpp_align_partition_labels(Rcpp::IntegerVector x, Rcpp::IntegerVector y);
 RcppExport SEXP _rgraphtool_cpp_align_partition_labels(SEXP xSEXP, SEXP ySEXP) {
@@ -1103,12 +1160,15 @@ END_RCPP
 static const R_CallMethodDef CallEntries[] = {
     {"_rgraphtool_cpp_sbm_entropy", (DL_FUNC) &_rgraphtool_cpp_sbm_entropy, 5},
     {"_rgraphtool_cpp_sbm_check_moves", (DL_FUNC) &_rgraphtool_cpp_sbm_check_moves, 6},
-    {"_rgraphtool_cpp_sbm_minimize", (DL_FUNC) &_rgraphtool_cpp_sbm_minimize, 6},
+    {"_rgraphtool_cpp_max_threads", (DL_FUNC) &_rgraphtool_cpp_max_threads, 0},
+    {"_rgraphtool_cpp_get_num_threads", (DL_FUNC) &_rgraphtool_cpp_get_num_threads, 0},
+    {"_rgraphtool_cpp_set_num_threads", (DL_FUNC) &_rgraphtool_cpp_set_num_threads, 1},
+    {"_rgraphtool_cpp_sbm_minimize", (DL_FUNC) &_rgraphtool_cpp_sbm_minimize, 7},
     {"_rgraphtool_cpp_sbm_refine", (DL_FUNC) &_rgraphtool_cpp_sbm_refine, 6},
     {"_rgraphtool_cpp_log_q", (DL_FUNC) &_rgraphtool_cpp_log_q, 3},
     {"_rgraphtool_cpp_nested_entropy", (DL_FUNC) &_rgraphtool_cpp_nested_entropy, 5},
     {"_rgraphtool_cpp_nested_check_moves", (DL_FUNC) &_rgraphtool_cpp_nested_check_moves, 6},
-    {"_rgraphtool_cpp_nested_minimize", (DL_FUNC) &_rgraphtool_cpp_nested_minimize, 6},
+    {"_rgraphtool_cpp_nested_minimize", (DL_FUNC) &_rgraphtool_cpp_nested_minimize, 13},
     {"_rgraphtool_cpp_sbm_mcmc", (DL_FUNC) &_rgraphtool_cpp_sbm_mcmc, 7},
     {"_rgraphtool_cpp_nested_mcmc", (DL_FUNC) &_rgraphtool_cpp_nested_mcmc, 7},
     {"_rgraphtool_cpp_sbm_check_move_prob", (DL_FUNC) &_rgraphtool_cpp_sbm_check_move_prob, 4},
@@ -1140,6 +1200,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rgraphtool_cpp_nested_overlap_minimize", (DL_FUNC) &_rgraphtool_cpp_nested_overlap_minimize, 10},
     {"_rgraphtool_cpp_overlap_mcmc", (DL_FUNC) &_rgraphtool_cpp_overlap_mcmc, 14},
     {"_rgraphtool_cpp_nested_overlap_mcmc", (DL_FUNC) &_rgraphtool_cpp_nested_overlap_mcmc, 15},
+    {"_rgraphtool_cpp_nested_overlap_check_moves", (DL_FUNC) &_rgraphtool_cpp_nested_overlap_check_moves, 8},
     {"_rgraphtool_cpp_align_partition_labels", (DL_FUNC) &_rgraphtool_cpp_align_partition_labels, 2},
     {"_rgraphtool_cpp_partition_overlap", (DL_FUNC) &_rgraphtool_cpp_partition_overlap, 3},
     {"_rgraphtool_cpp_align_nested_partition_labels", (DL_FUNC) &_rgraphtool_cpp_align_nested_partition_labels, 2},

@@ -26,6 +26,7 @@
 #include <queue>
 #include <vector>
 #include "graph_types.h"
+#include "parallel.hpp"
 #include "vendor/hash_map_wrap.hh"
 
 namespace {
@@ -53,7 +54,7 @@ struct RRng {
 // std::log for cached integer arguments).
 
 struct MathTables {
-    static constexpr size_t MAX_TABLE = 524288;
+    static constexpr size_t MAX_TABLE = 2097152;
     std::vector<double> lgamma_tab;
     std::vector<double> log_tab;
 
@@ -145,14 +146,15 @@ public:
             return -inf;
         if (static_cast<size_t>(n) <= _n_max)
             return get(n, k);
+        thread_local gt_hash_map<uint64_t, double> approx_cache;
         uint64_t key = pair_key(static_cast<uint64_t>(n), static_cast<uint64_t>(k));
-        auto it = _approx_cache.find(key);
-        if (it != _approx_cache.end())
+        auto it = approx_cache.find(key);
+        if (it != approx_cache.end())
             return it->second;
         double val = approx(static_cast<double>(n), static_cast<double>(k));
-        if (_approx_cache.size() >= 65536)
-            _approx_cache.clear();
-        _approx_cache.emplace(key, val);
+        if (approx_cache.size() >= 65536)
+            approx_cache.clear();
+        approx_cache.emplace(key, val);
         return val;
     }
     // graph-tool's log_q_approx: the Szekeres saddle-point formula, with the
@@ -202,7 +204,6 @@ public:
 private:
     size_t _n_max = 0;
     std::vector<double> _table;
-    mutable gt_hash_map<uint64_t, double> _approx_cache;
     double& at(size_t n, size_t k) { return _table[n * (n - 1) / 2 + (k - 1)]; }
     double get(size_t n, size_t k) const { return _table[n * (n - 1) / 2 + (k - 1)]; }
     double get_raw(size_t n, size_t k) const {
@@ -225,6 +226,64 @@ LogQ& log_q_cache() {
 struct Delta {
     int x, y;
     long d;
+};
+
+// Accumulates group-pair count changes, normalising undirected keys to x <= y.
+class DeltaAcc {
+public:
+    void reset(bool directed) {
+        _directed = directed;
+        clear();
+        _idx.reserve(64);
+    }
+    void clear() {
+        _v.clear();
+        _idx.clear();
+    }
+    void add(int x, int y, long d) {
+        if (!_directed && x > y)
+            std::swap(x, y);
+        uint64_t key = pair_key(static_cast<uint64_t>(x), static_cast<uint64_t>(y));
+        auto it = _idx.find(key);
+        if (it == _idx.end()) {
+            _idx.emplace(key, _v.size());
+            _v.push_back({x, y, d});
+        } else {
+            _v[it->second].d += d;
+        }
+    }
+    const std::vector<Delta>& items() const { return _v; }
+private:
+    bool _directed = false;
+    std::vector<Delta> _v;
+    gt_hash_map<uint64_t, size_t> _idx;
+};
+
+// Changes passed from one level to the level above: group-pair count changes
+// (node-pair changes for the upper level) and nodes whose weight changes.
+struct ChangeSet {
+    std::vector<Delta> edges;
+    std::vector<std::pair<int, int>> weights;
+    void clear() {
+        edges.clear();
+        weights.clear();
+    }
+    bool empty() const { return edges.empty() && weights.empty(); }
+};
+
+// Per-thread scratch buffers for lock-free read-only virtual_move / virtual_merge.
+struct MergeScratch {
+    std::vector<Delta> deltas;
+    std::vector<ChangeSet> cs;
+    DeltaAcc acc, pairs;
+    std::vector<std::pair<int, int>> wd;
+    gt_hash_map<int, long> cnt_out, cnt_in;
+
+    void init(bool directed, int levels) {
+        acc.reset(directed);
+        pairs.reset(directed);
+        cs.resize(static_cast<size_t>(levels) + 1);
+    }
 };
 
 class SBM {
@@ -595,7 +654,73 @@ public:
         push_empty(r);
     }
 
-    int random_occupied(RRng& rng) const { return _occupied[rng.index(_occupied.size())]; }
+    // Thread-safe read-only virtual_move using caller-supplied scratch (zero O(N) allocs).
+    double virtual_move_const(int v, int s, MergeScratch& sc) const {
+        int r = _b[v];
+        if (r == s)
+            return 0;
+        double dS = 0;
+        int dB = (_wr[s] == 0 ? 1 : 0) - (_wr[r] == 1 ? 1 : 0);
+        if (dB != 0)
+            dS += global_term(B() + dB) - global_term(B());
+        long ko = _kout[v], ki = _kin[v];
+        dS += group_term(_wr[r] - 1, _ep[r] - ko, _em[r] - ki) -
+              group_term(_wr[r], _ep[r], _em[r]);
+        dS += group_term(_wr[s] + 1, _ep[s] + ko, _em[s] + ki) -
+              group_term(_wr[s], _ep[s], _em[s]);
+        if (_dc && _dist) {
+            dS += hist_delta(_h_out, r, s, ko);
+            if (_directed)
+                dS += hist_delta(_h_in, r, s, ki);
+        }
+        collect_deltas_const(v, r, s, sc);
+        for (const Delta& e : sc.deltas) {
+            long m = get_m(e.x, e.y);
+            dS -= edge_term(e.x, e.y, m + e.d) - edge_term(e.x, e.y, m);
+        }
+        return dS;
+    }
+
+    // Thread-safe read-only virtual_merge using caller-supplied scratch.
+    double virtual_merge_const(int r, int s, MergeScratch& sc) const {
+        if (r == s)
+            return 0;
+        double dS = global_term(B() - 1) - global_term(B());
+        dS += group_term(_wr[s] + _wr[r], _ep[s] + _ep[r], _em[s] + _em[r]) -
+              group_term(_wr[s], _ep[s], _em[s]) -
+              group_term(_wr[r], _ep[r], _em[r]);
+        if (_dc && _dist) {
+            for (const auto& [k, cr] : _h_out[r]) {
+                auto it = _h_out[s].find(k);
+                if (it != _h_out[s].end()) {
+                    long cs = it->second;
+                    dS += lgam_int(cr + 1) + lgam_int(cs + 1) - lgam_int(cr + cs + 1);
+                }
+            }
+            if (_directed) {
+                for (const auto& [k, cr] : _h_in[r]) {
+                    auto it = _h_in[s].find(k);
+                    if (it != _h_in[s].end()) {
+                        long cs = it->second;
+                        dS += lgam_int(cr + 1) + lgam_int(cs + 1) - lgam_int(cr + cs + 1);
+                    }
+                }
+            }
+        }
+        collect_merge_deltas_into(r, s, sc.deltas);
+        for (const Delta& e : sc.deltas) {
+            if (e.d < 0) {
+                dS += edge_term(e.x, e.y, -e.d);
+            } else {
+                long m = get_m(e.x, e.y);
+                dS -= edge_term(e.x, e.y, m + e.d) - edge_term(e.x, e.y, m);
+            }
+        }
+        return dS;
+    }
+
+    template <class Rng>
+    int random_occupied(Rng& rng) const { return _occupied[rng.index(_occupied.size())]; }
 
     int empty_group() const { return _empty.empty() ? -1 : _empty.back(); }
 
@@ -767,7 +892,8 @@ public:
 
     // Neighbour-based proposal of graph-tool's BlockState::sample_group with
     // d = 0 and the fast (non-edge-group) proposal.
-    int sample_group(int v, double c, RRng& rng) {
+    template <class Rng>
+    int sample_group(int v, double c, Rng& rng) const {
         if (std::isinf(c) || _all[v].empty())
             return random_occupied(rng);
         int u = _all[v][rng.index(_all[v].size())];
@@ -963,8 +1089,72 @@ private:
         }
     }
 
-    void collect_merge_deltas(int r, int s) {
-        _deltas.clear();
+    void collect_deltas_const(int v, int r, int s, MergeScratch& sc) const {
+        auto& deltas = sc.deltas;
+        deltas.clear();
+        if (_directed) {
+            auto& co = sc.cnt_out;
+            auto& ci = sc.cnt_in;
+            co.clear();
+            ci.clear();
+            for (int u : _out[v]) co[_b[u]]++;
+            for (int u : _in[v]) ci[_b[u]]++;
+            auto get_c = [](const gt_hash_map<int, long>& mp, int k) -> long {
+                auto it = mp.find(k);
+                return it == mp.end() ? 0L : it->second;
+            };
+            long co_r = get_c(co, r), co_s = get_c(co, s);
+            long ci_r = get_c(ci, r), ci_s = get_c(ci, s);
+            long lp = _loops[v];
+            for (const auto& [t, c] : co) {
+                if (t == r || t == s) continue;
+                deltas.push_back({r, t, -c});
+                deltas.push_back({s, t, c});
+            }
+            for (const auto& [t, c] : ci) {
+                if (t == r || t == s) continue;
+                deltas.push_back({t, r, -c});
+                deltas.push_back({t, s, c});
+            }
+            long d_rr = -co_r - ci_r - lp;
+            long d_rs = -co_s + ci_r;
+            long d_sr = co_r - ci_s;
+            long d_ss = co_s + ci_s + lp;
+            if (d_rr != 0) deltas.push_back({r, r, d_rr});
+            if (d_rs != 0) deltas.push_back({r, s, d_rs});
+            if (d_sr != 0) deltas.push_back({s, r, d_sr});
+            if (d_ss != 0) deltas.push_back({s, s, d_ss});
+        } else {
+            auto& co = sc.cnt_out;
+            co.clear();
+            for (int u : _out[v]) co[_b[u]]++;
+            auto get_c = [](const gt_hash_map<int, long>& mp, int k) -> long {
+                auto it = mp.find(k);
+                return it == mp.end() ? 0L : it->second;
+            };
+            long cr = get_c(co, r), cs = get_c(co, s);
+            long lp = _loops[v];
+            for (const auto& [t, c] : co) {
+                if (t == r || t == s) continue;
+                int x1 = r < t ? r : t, y1 = r < t ? t : r;
+                int x2 = s < t ? s : t, y2 = s < t ? t : s;
+                deltas.push_back({x1, y1, -c});
+                deltas.push_back({x2, y2, c});
+            }
+            long d_rr = -2 * cr - 2 * lp;
+            long d_rs = cr - cs;
+            long d_ss = 2 * cs + 2 * lp;
+            if (d_rr != 0) deltas.push_back({r, r, d_rr});
+            if (d_rs != 0) {
+                int x = r < s ? r : s, y = r < s ? s : r;
+                deltas.push_back({x, y, d_rs});
+            }
+            if (d_ss != 0) deltas.push_back({s, s, d_ss});
+        }
+    }
+
+    void collect_merge_deltas_into(int r, int s, std::vector<Delta>& deltas) const {
+        deltas.clear();
         if (_directed) {
             long m_rr = 0, m_rs = 0, m_sr = 0;
             for (const auto& [t, m] : _m_out[r]) {
@@ -973,8 +1163,8 @@ private:
                 } else if (t == s) {
                     m_rs = m;
                 } else {
-                    _deltas.push_back({r, t, -m});
-                    _deltas.push_back({s, t, m});
+                    deltas.push_back({r, t, -m});
+                    deltas.push_back({s, t, m});
                 }
             }
             for (const auto& [t, m] : _m_in[r]) {
@@ -983,15 +1173,15 @@ private:
                 } else if (t == s) {
                     m_sr = m;
                 } else {
-                    _deltas.push_back({t, r, -m});
-                    _deltas.push_back({t, s, m});
+                    deltas.push_back({t, r, -m});
+                    deltas.push_back({t, s, m});
                 }
             }
-            if (m_rr != 0) _deltas.push_back({r, r, -m_rr});
-            if (m_rs != 0) _deltas.push_back({r, s, -m_rs});
-            if (m_sr != 0) _deltas.push_back({s, r, -m_sr});
+            if (m_rr != 0) deltas.push_back({r, r, -m_rr});
+            if (m_rs != 0) deltas.push_back({r, s, -m_rs});
+            if (m_sr != 0) deltas.push_back({s, r, -m_sr});
             long d_ss = m_rr + m_rs + m_sr;
-            if (d_ss != 0) _deltas.push_back({s, s, d_ss});
+            if (d_ss != 0) deltas.push_back({s, s, d_ss});
         } else {
             long m_rr = 0, m_rs = 0;
             for (const auto& [t, m] : _m_out[r]) {
@@ -1002,18 +1192,22 @@ private:
                 } else {
                     int x1 = r < t ? r : t, y1 = r < t ? t : r;
                     int x2 = s < t ? s : t, y2 = s < t ? t : s;
-                    _deltas.push_back({x1, y1, -m});
-                    _deltas.push_back({x2, y2, m});
+                    deltas.push_back({x1, y1, -m});
+                    deltas.push_back({x2, y2, m});
                 }
             }
-            if (m_rr != 0) _deltas.push_back({r, r, -m_rr});
+            if (m_rr != 0) deltas.push_back({r, r, -m_rr});
             if (m_rs != 0) {
                 int x = r < s ? r : s, y = r < s ? s : r;
-                _deltas.push_back({x, y, -m_rs});
+                deltas.push_back({x, y, -m_rs});
             }
             long d_ss = m_rr + 2 * m_rs;
-            if (d_ss != 0) _deltas.push_back({s, s, d_ss});
+            if (d_ss != 0) deltas.push_back({s, s, d_ss});
         }
+    }
+
+    void collect_merge_deltas(int r, int s) {
+        collect_merge_deltas_into(r, s, _deltas);
     }
 };
 
@@ -1026,49 +1220,6 @@ private:
 // multiplicities equal to the level-(l-1) group-pair counts. Only the top level
 // carries the edge-count prior. This is graph-tool's NestedBlockState with the
 // default BlockState arguments.
-
-// Accumulates group-pair count changes, normalising undirected keys to x <= y.
-class DeltaAcc {
-public:
-    void reset(bool directed) {
-        _directed = directed;
-        clear();
-        _idx.reserve(64);
-    }
-    void clear() {
-        _v.clear();
-        _idx.clear();
-    }
-    void add(int x, int y, long d) {
-        if (!_directed && x > y)
-            std::swap(x, y);
-        uint64_t key = pair_key(static_cast<uint64_t>(x), static_cast<uint64_t>(y));
-        auto it = _idx.find(key);
-        if (it == _idx.end()) {
-            _idx.emplace(key, _v.size());
-            _v.push_back({x, y, d});
-        } else {
-            _v[it->second].d += d;
-        }
-    }
-    const std::vector<Delta>& items() const { return _v; }
-private:
-    bool _directed = false;
-    std::vector<Delta> _v;
-    gt_hash_map<uint64_t, size_t> _idx;
-};
-
-// Changes passed from one level to the level above: group-pair count changes
-// (node-pair changes for the upper level) and nodes whose weight changes.
-struct ChangeSet {
-    std::vector<Delta> edges;
-    std::vector<std::pair<int, int>> weights;
-    void clear() {
-        edges.clear();
-        weights.clear();
-    }
-    bool empty() const { return edges.empty() && weights.empty(); }
-};
 
 // The statistics of the level below, which form this level's weighted graph.
 struct LowerView {
@@ -1103,11 +1254,43 @@ public:
     const std::vector<int>& members(int r) const { return _members[r]; }
     const std::vector<int>& blocks() const { return _b; }
     int empty_group() const { return _empty.empty() ? -1 : _empty.back(); }
-    int random_occupied(RRng& rng) const { return _occupied[rng.index(_occupied.size())]; }
+
+    void ensure_cap(int need_cap) {
+        if (need_cap <= _cap)
+            return;
+        int new_cap = std::max(need_cap, _cap * 2);
+        int old_cap = _cap;
+        _cap = new_cap;
+        _b.resize(new_cap, 0);
+        _wr.resize(new_cap, 0);
+        _pos.resize(new_cap, 0);
+        _occ_pos.resize(new_cap, -1);
+        _empty_pos.resize(new_cap, -1);
+        _ep.resize(new_cap, 0);
+        _em.resize(new_cap, 0);
+        _m_out.resize(new_cap);
+        if (_directed) _m_in.resize(new_cap);
+        _members.resize(new_cap);
+        _cnt_out.resize(new_cap, 0);
+        if (_directed) _cnt_in.resize(new_cap, 0);
+        _empty.reserve(new_cap);
+        for (int r = new_cap - 1; r >= old_cap; --r)
+            push_empty(r);
+    }
+
+    template <class Rng>
+    int random_occupied(Rng& rng) const { return _occupied[rng.index(_occupied.size())]; }
 
     LowerView view() const { return {&_m_out, &_m_in, &_ep, &_em, &_wr, &_occupied}; }
 
     void build(const std::vector<int>& b, const LowerView& lower) {
+        int max_id = 0;
+        for (int x : *lower.occupied) {
+            if (x > max_id) max_id = x;
+            int g = (x < static_cast<int>(b.size())) ? b[x] : 0;
+            if (g > max_id) max_id = g;
+        }
+        ensure_cap(max_id + 1);
         for (int r : _occupied) {
             _wr[r] = 0;
             _ep[r] = 0;
@@ -1120,7 +1303,57 @@ public:
             push_empty(r);
         }
         _occupied.clear();
-        _b = b;
+        for (int x : *lower.occupied) {
+            int g = (x < static_cast<int>(b.size())) ? b[x] : 0;
+            _b[x] = g;
+        }
+        _N = 0;
+        for (int x : *lower.occupied) {
+            int g = _b[x];
+            if (_wr[g] == 0)
+                take_empty(g);
+            add_member(x, g);
+            ++_N;
+        }
+        for (int x : *lower.occupied) {
+            int g = _b[x];
+            auto& row = _m_out[g];
+            for (const auto& [y, val] : (*lower.m_out)[x]) {
+                int h = _b[y];
+                row[h] += val;
+                _ep[g] += val;
+                if (_directed) {
+                    _m_in[h][g] += val;
+                    _em[h] += val;
+                }
+            }
+        }
+    }
+
+    void build_sparse(const std::vector<std::pair<int, int>>& entries, const LowerView& lower) {
+        int max_id = 0;
+        for (const auto& [x, g] : entries) {
+            if (x > max_id) max_id = x;
+            if (g > max_id) max_id = g;
+        }
+        for (int x : *lower.occupied) {
+            if (x > max_id) max_id = x;
+        }
+        ensure_cap(max_id + 1);
+        for (int r : _occupied) {
+            _wr[r] = 0;
+            _ep[r] = 0;
+            _em[r] = 0;
+            _m_out[r].clear();
+            if (_directed)
+                _m_in[r].clear();
+            _members[r].clear();
+            _occ_pos[r] = -1;
+            push_empty(r);
+        }
+        _occupied.clear();
+        for (const auto& [x, g] : entries)
+            _b[x] = g;
         _N = 0;
         for (int x : *lower.occupied) {
             int g = _b[x];
@@ -1397,9 +1630,175 @@ public:
     }
 
     // Assign an empty (weight-zero) node to a group; this changes no statistics.
-    void set_empty_label(int x, int g) { _b[x] = g; }
+    void set_empty_label(int x, int g) {
+        ensure_cap(std::max(x, g) + 1);
+        _b[x] = g;
+    }
 
-    int random_neighbor(int x, const LowerView& lower, RRng& rng) const {
+    // Thread-safe read-only evaluation of lower_changes, node_move, and group_merge.
+    double lower_changes_eval(const ChangeSet& in, ChangeSet& out, MergeScratch& sc) const {
+        sc.acc.clear();
+        for (const Delta& e : in.edges) {
+            int gx = _b[e.x], gy = _b[e.y];
+            if (_directed)
+                sc.acc.add(gx, gy, e.d);
+            else if (e.x == e.y)
+                sc.acc.add(gx, gx, e.d);
+            else if (gx == gy)
+                sc.acc.add(gx, gx, 2 * e.d);
+            else
+                sc.acc.add(gx, gy, e.d);
+        }
+        sc.wd.clear();
+        int dN = 0;
+        for (const auto& [x, dw] : in.weights) {
+            int g = _b[x];
+            bool found = false;
+            for (auto& p : sc.wd) {
+                if (p.first == g) { p.second += dw; found = true; break; }
+            }
+            if (!found) sc.wd.emplace_back(g, dw);
+            dN += dw;
+        }
+        out.clear();
+        for (const Delta& e : sc.acc.items())
+            if (e.d != 0)
+                out.edges.push_back(e);
+        return process_eval(dN, out, sc);
+    }
+
+    double node_move_eval(int x, int h, const LowerView& lower, ChangeSet& out,
+                          MergeScratch& sc) const {
+        int g = _b[x];
+        out.clear();
+        if (_directed) {
+            auto& co = sc.cnt_out;
+            auto& ci = sc.cnt_in;
+            co.clear();
+            ci.clear();
+            long lp = 0;
+            for (const auto& [y, val] : (*lower.m_out)[x]) {
+                if (y == x) lp = val;
+                else co[_b[y]] += val;
+            }
+            for (const auto& [y, val] : (*lower.m_in)[x]) {
+                if (y == x) continue;
+                ci[_b[y]] += val;
+            }
+            auto get_c = [](const gt_hash_map<int, long>& mp, int k) -> long {
+                auto it = mp.find(k);
+                return it == mp.end() ? 0L : it->second;
+            };
+            long co_g = get_c(co, g), co_h = get_c(co, h);
+            long ci_g = get_c(ci, g), ci_h = get_c(ci, h);
+            for (const auto& [t, c] : co) {
+                if (t == g || t == h) continue;
+                out.edges.push_back({g, t, -c});
+                out.edges.push_back({h, t, c});
+            }
+            for (const auto& [t, c] : ci) {
+                if (t == g || t == h) continue;
+                out.edges.push_back({t, g, -c});
+                out.edges.push_back({t, h, c});
+            }
+            long d_gg = -co_g - ci_g - lp;
+            long d_gh = -co_h + ci_g;
+            long d_hg = co_g - ci_h;
+            long d_hh = co_h + ci_h + lp;
+            if (d_gg != 0) out.edges.push_back({g, g, d_gg});
+            if (d_gh != 0) out.edges.push_back({g, h, d_gh});
+            if (d_hg != 0) out.edges.push_back({h, g, d_hg});
+            if (d_hh != 0) out.edges.push_back({h, h, d_hh});
+        } else {
+            auto& co = sc.cnt_out;
+            co.clear();
+            long lp = 0;
+            for (const auto& [y, val] : (*lower.m_out)[x]) {
+                if (y == x) lp = val;
+                else co[_b[y]] += val;
+            }
+            auto get_c = [](const gt_hash_map<int, long>& mp, int k) -> long {
+                auto it = mp.find(k);
+                return it == mp.end() ? 0L : it->second;
+            };
+            long cg = get_c(co, g), ch = get_c(co, h);
+            for (const auto& [t, c] : co) {
+                if (t == g || t == h) continue;
+                int x1 = g < t ? g : t, y1 = g < t ? t : g;
+                int x2 = h < t ? h : t, y2 = h < t ? t : h;
+                out.edges.push_back({x1, y1, -c});
+                out.edges.push_back({x2, y2, c});
+            }
+            long d_gg = -2 * cg - lp;
+            long d_gh = cg - ch;
+            long d_hh = 2 * ch + lp;
+            if (d_gg != 0) out.edges.push_back({g, g, d_gg});
+            if (d_gh != 0) {
+                int a = g < h ? g : h, b = g < h ? h : g;
+                out.edges.push_back({a, b, d_gh});
+            }
+            if (d_hh != 0) out.edges.push_back({h, h, d_hh});
+        }
+        sc.wd.clear();
+        sc.wd.emplace_back(g, -1);
+        sc.wd.emplace_back(h, +1);
+        return process_eval(0, out, sc);
+    }
+
+    double group_merge_eval(int r, int s, ChangeSet& out, MergeScratch& sc) const {
+        if (r == s) return 0;
+        out.clear();
+        if (_directed) {
+            long m_rr = 0, m_rs = 0, m_sr = 0;
+            for (const auto& [t, m] : _m_out[r]) {
+                if (t == r) m_rr = m;
+                else if (t == s) m_rs = m;
+                else {
+                    out.edges.push_back({r, t, -m});
+                    out.edges.push_back({s, t, m});
+                }
+            }
+            for (const auto& [t, m] : _m_in[r]) {
+                if (t == r) continue;
+                else if (t == s) m_sr = m;
+                else {
+                    out.edges.push_back({t, r, -m});
+                    out.edges.push_back({t, s, m});
+                }
+            }
+            if (m_rr != 0) out.edges.push_back({r, r, -m_rr});
+            if (m_rs != 0) out.edges.push_back({r, s, -m_rs});
+            if (m_sr != 0) out.edges.push_back({s, r, -m_sr});
+            long d_ss = m_rr + m_rs + m_sr;
+            if (d_ss != 0) out.edges.push_back({s, s, d_ss});
+        } else {
+            long m_rr = 0, m_rs = 0;
+            for (const auto& [t, m] : _m_out[r]) {
+                if (t == r) m_rr = m;
+                else if (t == s) m_rs = m;
+                else {
+                    int x1 = r < t ? r : t, y1 = r < t ? t : r;
+                    int x2 = s < t ? s : t, y2 = s < t ? t : s;
+                    out.edges.push_back({x1, y1, -m});
+                    out.edges.push_back({x2, y2, m});
+                }
+            }
+            if (m_rr != 0) out.edges.push_back({r, r, -m_rr});
+            if (m_rs != 0) {
+                int x = r < s ? r : s, y = r < s ? s : r;
+                out.edges.push_back({x, y, -m_rs});
+            }
+            long d_ss = m_rr + 2 * m_rs;
+            if (d_ss != 0) out.edges.push_back({s, s, d_ss});
+        }
+        sc.wd.clear();
+        sc.wd.emplace_back(r, -_wr[r]);
+        sc.wd.emplace_back(s, _wr[r]);
+        return process_eval(0, out, sc);
+    }
+
+    template <class Rng>
+    int random_neighbor(int x, const LowerView& lower, Rng& rng) const {
         double total = (*lower.ep)[x] + (_directed ? (*lower.em)[x] : 0);
         if (total <= 0)
             return -1;
@@ -1590,7 +1989,8 @@ public:
         return (q_dir(r) + q_dir(s)) / static_cast<double>(B_occ);
     }
 
-    int sample_group(int x, double c, const LowerView& lower, RRng& rng) const {
+    template <class Rng>
+    int sample_group(int x, double c, const LowerView& lower, Rng& rng) const {
         int u = std::isinf(c) ? -1 : random_neighbor(x, lower, rng);
         if (u < 0)
             return random_occupied(rng);
@@ -1640,6 +2040,60 @@ private:
             if (p.first == g)
                 w += p.second;
         return w;
+    }
+
+    double process_eval(int dN, ChangeSet& out, MergeScratch& sc) const {
+        bool any_wd = false;
+        long B0 = B(), B1 = B0;
+        for (const auto& [g, dw] : sc.wd) {
+            if (dw == 0)
+                continue;
+            any_wd = true;
+            int w0 = _wr[g], w1 = w0 + dw;
+            if (w0 == 0 && w1 > 0) {
+                ++B1;
+                out.weights.emplace_back(g, +1);
+            } else if (w0 > 0 && w1 == 0) {
+                --B1;
+                out.weights.emplace_back(g, -1);
+            }
+        }
+        if (dN == 0 && !any_wd && out.edges.empty())
+            return 0;
+
+        double dS = 0;
+        if (dN != 0 || B1 != B0) {
+            dS += partition_term(_N + dN, B1) - partition_term(_N, B0);
+            dS += edges_term(B1) - edges_term(B0);
+        }
+        for (const auto& [g, dw] : sc.wd) {
+            if (dw != 0)
+                dS += lgam_int(_wr[g] + 1) - lgam_int(_wr[g] + dw + 1);
+        }
+        sc.pairs.clear();
+        for (const Delta& e : out.edges)
+            sc.pairs.add(e.x, e.y, e.d);
+        for (const auto& [g, dw] : sc.wd) {
+            if (dw == 0)
+                continue;
+            for (const auto& [t, m] : _m_out[g])
+                sc.pairs.add(g, t, 0);
+            if (_directed)
+                for (const auto& [t, m] : _m_in[g])
+                    sc.pairs.add(t, g, 0);
+        }
+        auto new_w = [&](int g) {
+            int w = _wr[g];
+            for (const auto& p : sc.wd)
+                if (p.first == g) w += p.second;
+            return w;
+        };
+        for (const Delta& p : sc.pairs.items()) {
+            long m0 = get_m(p.x, p.y);
+            dS += dense_term(p.x, p.y, m0 + p.d, new_w(p.x), new_w(p.y)) -
+                  dense_term(p.x, p.y, m0, _wr[p.x], _wr[p.y]);
+        }
+        return dS;
     }
 
     double process(int dN, ChangeSet& out, bool apply) {
@@ -1778,18 +2232,32 @@ class Nested {
 public:
     typedef std::vector<std::vector<int>> Hierarchy;
 
+    // Compact snapshot: level 0 has length N; upper levels store only (node, group)
+    // pairs for occupied lower-level groups, reducing cache memory by ~15-20x on
+    // large networks (N >= 10^4).
+    struct CompactHierarchy {
+        std::vector<int> b0;
+        std::vector<std::vector<std::pair<int, int>>> upper;
+    };
+
     Nested(const Graph& graph, bool dc, bool dist, size_t q_cache_max, int levels)
         : _base(graph, dc, dist, q_cache_max, levels <= 1) {
-        int cap = std::max(_base.N(), 1);
+        int max_n = std::max(_base.N(), 1);
         _up.reserve(levels > 1 ? levels - 1 : 0);
-        for (int l = 1; l < levels; ++l)
-            _up.emplace_back(cap, _base.directed(), _base.E(), l == levels - 1);
+        for (int l = 1; l < levels; ++l) {
+            // Start compact and grow dynamically on demand via ensure_cap().
+            int init_cap = (l == 1) ? std::min(max_n, 1024) : std::min(max_n, 64);
+            _up.emplace_back(std::max(init_cap, 1), _base.directed(), _base.E(), l == levels - 1);
+        }
         _cs.resize(levels + 1);
     }
 
     int levels() const { return static_cast<int>(_up.size()) + 1; }
+    bool directed() const { return _base.directed(); }
     SBM& base() { return _base; }
+    const SBM& base() const { return _base; }
     BlockLevel& upper(int l) { return _up[l - 1]; }
+    const BlockLevel& upper(int l) const { return _up[l - 1]; }
     LowerView lower(int l) const {
         if (l == 1)
             return {&_base.m_out(), &_base.m_in(), &_base.ep(), &_base.em(), &_base.wr(),
@@ -1801,6 +2269,27 @@ public:
         _base.set_partition(bs[0]);
         for (size_t l = 1; l < bs.size(); ++l)
             _up[l - 1].build(bs[l], lower(l));
+    }
+
+    CompactHierarchy save_compact() const {
+        CompactHierarchy snap;
+        snap.b0 = _base.blocks();
+        snap.upper.resize(_up.size());
+        for (size_t l = 0; l < _up.size(); ++l) {
+            const auto& locc = (l == 0) ? _base.occupied() : _up[l - 1].occupied();
+            auto& dst = snap.upper[l];
+            dst.reserve(locc.size());
+            const auto& bl = _up[l].blocks();
+            for (int x : locc)
+                dst.emplace_back(x, bl[x]);
+        }
+        return snap;
+    }
+
+    void restore_compact(const CompactHierarchy& snap) {
+        _base.set_partition(snap.b0);
+        for (size_t l = 0; l < _up.size(); ++l)
+            _up[l].build_sparse(snap.upper[l], lower(static_cast<int>(l) + 1));
     }
 
     void rebuild_from(int l, const std::vector<int>& bl,
@@ -1848,6 +2337,56 @@ public:
 
     double virtual_merge(int l, int r, int s) { return merge_groups(l, r, s, false); }
     void merge(int l, int r, int s) { merge_groups(l, r, s, true); }
+
+    // Thread-safe read-only virtual_move and virtual_merge using per-thread scratch.
+    double virtual_move_const(int l, int v, int s, MergeScratch& sc) const {
+        int r = group(l, v);
+        if (r == s) return 0;
+        double dS = 0;
+        ChangeSet& cs = sc.cs[l];
+        if (l == 0) {
+            bool empties = _base.size(r) == 1, fills = _base.size(s) == 0;
+            dS += _base.virtual_move_const(v, s, sc);
+            if (levels() == 1) return dS;
+            if (!empties && !fills && _up[0].group(r) == _up[0].group(s))
+                return dS;
+            cs.clear();
+            cs.edges = sc.deltas;
+            if (empties) cs.weights.emplace_back(r, -1);
+            if (fills) cs.weights.emplace_back(s, +1);
+        } else {
+            bool empties = _up[l - 1].size(r) == 1, fills = _up[l - 1].size(s) == 0;
+            dS += _up[l - 1].node_move_eval(v, s, lower(l), cs, sc);
+            if (l + 1 < levels() && !empties && !fills &&
+                _up[l].group(r) == _up[l].group(s))
+                return dS;
+        }
+        for (int k = l + 1; k < levels(); ++k) {
+            if (sc.cs[k - 1].empty()) break;
+            dS += _up[k - 1].lower_changes_eval(sc.cs[k - 1], sc.cs[k], sc);
+        }
+        return dS;
+    }
+
+    double virtual_merge_const(int l, int r, int s, MergeScratch& sc) const {
+        if (r == s) return 0;
+        double dS = 0;
+        ChangeSet& cs = sc.cs[l];
+        if (l == 0) {
+            cs.clear();
+            dS += _base.virtual_merge_const(r, s, sc);
+            if (levels() == 1) return dS;
+            cs.edges = sc.deltas;
+            cs.weights.emplace_back(r, -1);
+        } else {
+            dS += _up[l - 1].group_merge_eval(r, s, cs, sc);
+        }
+        for (int k = l + 1; k < levels(); ++k) {
+            if (sc.cs[k - 1].empty()) break;
+            dS += _up[k - 1].lower_changes_eval(sc.cs[k - 1], sc.cs[k], sc);
+        }
+        return dS;
+    }
 
     // A new group t at level l takes the upper-level label of group r.
     void inherit(int l, int t, int r) {
@@ -1938,7 +2477,7 @@ private:
 
 class LevelView {
 public:
-    typedef Nested::Hierarchy Snapshot;
+    typedef Nested::CompactHierarchy Snapshot;
     LevelView(Nested& n, int l) : _n(n), _l(l) {
         if (l == 0) {
             _nodes.resize(n.base().N());
@@ -1947,6 +2486,8 @@ public:
             _nodes = *n.lower(l).occupied;
         }
     }
+    bool directed() const { return _n.directed(); }
+    int num_levels() const { return _n.levels(); }
     size_t N() const { return _nodes.size(); }
     const std::vector<int>& nodes() const { return _nodes; }
     int B() const { return _l == 0 ? _n.base().B() : _n.upper(_l).B(); }
@@ -1959,10 +2500,17 @@ public:
         return _l == 0 ? _n.base().members(r) : _n.upper(_l).members(r);
     }
     double virtual_move(int v, int s) { return _n.virtual_move(_l, v, s); }
+    double virtual_move_const(int v, int s, MergeScratch& sc) const {
+        return _n.virtual_move_const(_l, v, s, sc);
+    }
     void move(int v, int s) { _n.move(_l, v, s); }
     double virtual_merge(int r, int s) { return _n.virtual_merge(_l, r, s); }
+    double virtual_merge_const(int r, int s, MergeScratch& sc) const {
+        return _n.virtual_merge_const(_l, r, s, sc);
+    }
     void merge(int r, int s) { _n.merge(_l, r, s); }
-    int sample_group(int v, double c, RRng& rng) {
+    template <class Rng>
+    int sample_group(int v, double c, Rng& rng) const {
         if (_l == 0)
             return _n.base().sample_group(v, c, rng);
         return _n.upper(_l).sample_group(v, c, _n.lower(_l), rng);
@@ -1990,24 +2538,29 @@ public:
             return _n.base().merge_prob(r, s, c);
         return _n.upper(_l).merge_prob(r, s, c);
     }
-    int random_occupied(RRng& rng) const {
+    template <class Rng>
+    int random_occupied(Rng& rng) const {
         return _l == 0 ? _n.base().random_occupied(rng) : _n.upper(_l).random_occupied(rng);
     }
     double entropy() const { return _n.entropy(); }
-    Snapshot save() const { return _n.hierarchy(); }
-    void restore(const Snapshot& bs) { _n.build(bs); }
+    Snapshot save() const { return _n.save_compact(); }
+    void restore(const Snapshot& bs) { _n.restore_compact(bs); }
     void spread() {
-        int cap = std::max(_n.base().N(), 1);
-        std::vector<int> bl(_l == 0 ? _n.base().N() : cap, 0);
+        int max_v = 0;
+        for (int v : _nodes) if (v > max_v) max_v = v;
+        int sz = (_l == 0) ? _n.base().N() : (max_v + 1);
+        std::vector<int> bl(std::max(sz, 1), 0);
         std::vector<int> b_next;
         bool has_upper = (_l + 1 < _n.levels());
         if (has_upper) {
             b_next = _n.upper(_l + 1).blocks();
             const std::vector<int> old_next = b_next;
+            if (static_cast<int>(b_next.size()) <= max_v)
+                b_next.resize(max_v + 1, 0);
             for (int v : _nodes) {
                 int r = group(v);
                 bl[v] = v;
-                b_next[v] = old_next[r];
+                b_next[v] = (r < static_cast<int>(old_next.size())) ? old_next[r] : 0;
             }
             _n.rebuild_from(_l, bl, &b_next);
         } else {
@@ -2017,8 +2570,10 @@ public:
         }
     }
     void collapse(int t) {
-        int cap = std::max(_n.base().N(), 1);
-        std::vector<int> bl(_l == 0 ? _n.base().N() : cap, t);
+        int max_v = 0;
+        for (int v : _nodes) if (v > max_v) max_v = v;
+        int sz = (_l == 0) ? _n.base().N() : (max_v + 1);
+        std::vector<int> bl(std::max(sz, 1), t);
         _n.rebuild_from(_l, bl, nullptr);
     }
 private:
@@ -2037,6 +2592,8 @@ public:
     explicit FlatView(SBM& s) : _s(s), _nodes(s.N()) {
         std::iota(_nodes.begin(), _nodes.end(), 0);
     }
+    bool directed() const { return _s.directed(); }
+    int num_levels() const { return 1; }
     size_t N() const { return _nodes.size(); }
     const std::vector<int>& nodes() const { return _nodes; }
     int B() const { return _s.B(); }
@@ -2045,10 +2602,17 @@ public:
     const std::vector<int>& occupied() const { return _s.occupied(); }
     const std::vector<int>& members(int r) const { return _s.members(r); }
     double virtual_move(int v, int s) { return _s.virtual_move(v, s); }
+    double virtual_move_const(int v, int s, MergeScratch& sc) const {
+        return _s.virtual_move_const(v, s, sc);
+    }
     void move(int v, int s) { _s.move(v, s); }
     double virtual_merge(int r, int s) { return _s.virtual_merge(r, s); }
+    double virtual_merge_const(int r, int s, MergeScratch& sc) const {
+        return _s.virtual_merge_const(r, s, sc);
+    }
     void merge(int r, int s) { _s.merge(r, s); }
-    int sample_group(int v, double c, RRng& rng) { return _s.sample_group(v, c, rng); }
+    template <class Rng>
+    int sample_group(int v, double c, Rng& rng) const { return _s.sample_group(v, c, rng); }
     int empty_group() const { return _s.empty_group(); }
     void inherit(int, int) {}
     bool same_parent(int, int) const { return true; }
@@ -2062,7 +2626,8 @@ public:
         return _s.sample_merge_target(r, c, rng);
     }
     double merge_prob(int r, int s, double c) const { return _s.merge_prob(r, s, c); }
-    int random_occupied(RRng& rng) const { return _s.random_occupied(rng); }
+    template <class Rng>
+    int random_occupied(Rng& rng) const { return _s.random_occupied(rng); }
     double entropy() const { return _s.entropy(); }
     Snapshot save() const { return _s.blocks(); }
     void restore(const Snapshot& b) { _s.set_partition(b); }
@@ -2093,6 +2658,8 @@ struct Params {
     size_t B_max = std::numeric_limits<size_t>::max();
     double epsilon = 1e-3;
     size_t max_refine = 1000;
+    bool bisection = true;
+    int nthreads = 1;
     bool verbose = false;
 };
 
@@ -2116,6 +2683,62 @@ public:
         std::vector<int> vs = _s.nodes();
         _rng.shuffle(vs);
         double S = 0;
+
+        int nw = rgt_parallel::resolve_threads(_p.nthreads);
+        if (std::isinf(beta) && nw > 1 && N >= 2048) {
+            // Parallel batch proposal filtering for zero-temperature sweeps:
+            // read-only workers screen out non-improving moves across all cores,
+            // then the main thread re-verifies and commits only exact dS < 0 moves.
+            size_t batch = std::min(N, std::max<size_t>(2048, static_cast<size_t>(nw) * 512));
+            std::vector<rgt_parallel::ThreadRng> trngs;
+            trngs.reserve(static_cast<size_t>(nw));
+            for (int t = 0; t < nw; ++t) {
+                uint64_t seed = static_cast<uint64_t>(_rng.index(1ULL << 31)) ^
+                                (static_cast<uint64_t>(_rng.index(1ULL << 31)) << 31) ^
+                                (static_cast<uint64_t>(t + 1) * 0x9e3779b97f4a7c15ULL);
+                trngs.emplace_back(seed);
+            }
+            std::vector<MergeScratch> scratches(static_cast<size_t>(nw));
+            for (int t = 0; t < nw; ++t)
+                scratches[t].init(_s.directed(), _s.num_levels());
+            std::vector<std::vector<std::pair<int, int>>> cands(static_cast<size_t>(nw));
+
+            for (size_t base = 0; base < N; base += batch) {
+                size_t len = std::min(batch, N - base);
+                for (int t = 0; t < nw; ++t) cands[t].clear();
+                rgt_parallel::parallel_for(len, nw, [&](int tid, size_t lo, size_t hi) {
+                    auto& rng = trngs[tid];
+                    auto& sc = scratches[tid];
+                    auto& out = cands[tid];
+                    for (size_t idx = lo; idx < hi; ++idx) {
+                        int v = vs[base + idx];
+                        int r = _s.group(v);
+                        int s = _s.sample_group(v, 0, rng);
+                        if (s == r) continue;
+                        double dS = _s.virtual_move_const(v, s, sc);
+                        if (dS < 0.0) out.emplace_back(v, s);
+                    }
+                }, 64);
+
+                for (int t = 0; t < nw; ++t) {
+                    for (const auto& [v, s] : cands[t]) {
+                        int r = _s.group(v);
+                        if (s == r) continue;
+                        int dB = (_s.size(s) == 0 ? 1 : 0) - (_s.size(r) == 1 ? 1 : 0);
+                        size_t Bc = _s.B();
+                        if ((dB < 0 && Bc + dB < B_min) || (dB > 0 && Bc + dB > B_max))
+                            continue;
+                        double dS = _s.virtual_move(v, s);
+                        if (dS < 0.0) {
+                            _s.move(v, s);
+                            S += dS;
+                        }
+                    }
+                }
+            }
+            return S;
+        }
+
         for (int v : vs) {
             int r = _s.group(v);
             int s = _s.sample_group(v, 0, _rng);
@@ -2144,45 +2767,119 @@ public:
         std::vector<double> dSs;
         pairs.reserve(B_occ);
         dSs.reserve(B_occ);
-        gt_hash_set<int> past;
-        past.reserve(_p.merge_sweeps * 2);
-        for (int r : rlist) {
-            int best = r;
-            double best_dS = inf;
-            past.clear();
-            auto try_target = [&](int s) {
-                if (s != r && past.find(s) == past.end()) {
-                    double dS = _s.virtual_merge(r, s);
-                    if (dS < best_dS) {
-                        best = s;
-                        best_dS = dS;
+
+        int nw = rgt_parallel::resolve_threads(_p.nthreads);
+        if (nw > 1 && B_occ >= 32) {
+            // Lock-free parallel candidate merge evaluation across all cores.
+            std::vector<int> best_tgt(B_occ, -1);
+            std::vector<double> best_val(B_occ, inf);
+            std::vector<rgt_parallel::ThreadRng> trngs;
+            trngs.reserve(static_cast<size_t>(nw));
+            for (int t = 0; t < nw; ++t) {
+                uint64_t seed = static_cast<uint64_t>(_rng.index(1ULL << 31)) ^
+                                (static_cast<uint64_t>(_rng.index(1ULL << 31)) << 31) ^
+                                (static_cast<uint64_t>(t + 1) * 0xbf58476d1ce4e5b9ULL);
+                trngs.emplace_back(seed);
+            }
+            std::vector<MergeScratch> scratches(static_cast<size_t>(nw));
+            std::vector<gt_hash_set<int>> pasts(static_cast<size_t>(nw));
+            for (int t = 0; t < nw; ++t) {
+                scratches[t].init(_s.directed(), _s.num_levels());
+                pasts[t].reserve(_p.merge_sweeps * 2);
+            }
+
+            rgt_parallel::parallel_for(B_occ, nw, [&](int tid, size_t lo, size_t hi) {
+                auto& rng = trngs[tid];
+                auto& sc = scratches[tid];
+                auto& past = pasts[tid];
+                for (size_t idx = lo; idx < hi; ++idx) {
+                    int r = rlist[idx];
+                    int best = r;
+                    double best_dS = inf;
+                    past.clear();
+                    auto try_target = [&](int s) {
+                        if (s != r && past.find(s) == past.end()) {
+                            double dS = _s.virtual_merge_const(r, s, sc);
+                            if (dS < best_dS) {
+                                best = s;
+                                best_dS = dS;
+                            }
+                            past.insert(s);
+                        }
+                    };
+                    auto find_candidates = [&](double c_val) {
+                        const auto& vs = _s.members(r);
+                        for (size_t i = 0; i < _p.merge_sweeps; ++i) {
+                            int v = vs[rng.index(vs.size())];
+                            try_target(_s.sample_group(v, c_val, rng));
+                        }
+                    };
+                    find_candidates(0);
+                    if (best == r)
+                        find_candidates(_p.c);
+                    if (best == r) {
+                        size_t tries = std::min(_p.merge_sweeps, B_occ - 1);
+                        for (size_t i = 0; i < tries; ++i) {
+                            int s = occ[rng.index(B_occ - 1)];
+                            if (s == r)
+                                s = occ[B_occ - 1];
+                            try_target(s);
+                        }
                     }
-                    past.insert(s);
+                    if (best != r) {
+                        best_tgt[idx] = best;
+                        best_val[idx] = best_dS;
+                    }
                 }
-            };
-            auto find_candidates = [&](double c_val) {
-                const auto& vs = _s.members(r);
-                for (size_t i = 0; i < _p.merge_sweeps; ++i) {
-                    int v = vs[_rng.index(vs.size())];
-                    try_target(_s.sample_group(v, c_val, _rng));
-                }
-            };
-            find_candidates(0);
-            if (best == r)
-                find_candidates(_p.c);
-            if (best == r) {
-                // Guaranteed fallback to uniform random other occupied group (c = inf).
-                size_t tries = std::min(_p.merge_sweeps, B_occ - 1);
-                for (size_t i = 0; i < tries; ++i) {
-                    int s = occ[_rng.index(B_occ - 1)];
-                    if (s == r)
-                        s = occ[B_occ - 1];
-                    try_target(s);
+            }, 8);
+
+            for (size_t idx = 0; idx < B_occ; ++idx) {
+                if (best_tgt[idx] >= 0) {
+                    pairs.emplace_back(rlist[idx], best_tgt[idx]);
+                    dSs.push_back(best_val[idx]);
                 }
             }
-            if (best != r) {
-                pairs.emplace_back(r, best);
-                dSs.push_back(best_dS);
+        } else {
+            gt_hash_set<int> past;
+            past.reserve(_p.merge_sweeps * 2);
+            for (int r : rlist) {
+                int best = r;
+                double best_dS = inf;
+                past.clear();
+                auto try_target = [&](int s) {
+                    if (s != r && past.find(s) == past.end()) {
+                        double dS = _s.virtual_merge(r, s);
+                        if (dS < best_dS) {
+                            best = s;
+                            best_dS = dS;
+                        }
+                        past.insert(s);
+                    }
+                };
+                auto find_candidates = [&](double c_val) {
+                    const auto& vs = _s.members(r);
+                    for (size_t i = 0; i < _p.merge_sweeps; ++i) {
+                        int v = vs[_rng.index(vs.size())];
+                        try_target(_s.sample_group(v, c_val, _rng));
+                    }
+                };
+                find_candidates(0);
+                if (best == r)
+                    find_candidates(_p.c);
+                if (best == r) {
+                    // Guaranteed fallback to uniform random other occupied group (c = inf).
+                    size_t tries = std::min(_p.merge_sweeps, B_occ - 1);
+                    for (size_t i = 0; i < tries; ++i) {
+                        int s = occ[_rng.index(B_occ - 1)];
+                        if (s == r)
+                            s = occ[B_occ - 1];
+                        try_target(s);
+                    }
+                }
+                if (best != r) {
+                    pairs.emplace_back(r, best);
+                    dSs.push_back(best_dS);
+                }
             }
         }
 
@@ -2352,8 +3049,76 @@ public:
         }
     }
 
+    // Strictly agglomerative geometric coarsening without bisection backtracking.
+    // Retains only a single best snapshot in memory (O(N) peak snapshot memory)
+    // and shrinks B -> round(B * r) -> ... -> B_min in O(log(N) / log(1/r)) steps.
+    double stage_agglomerative(size_t B_min, size_t B_max, bool strict_target = false) {
+        size_t N = _s.N();
+        double S_init = _s.entropy();
+        if (N <= 1)
+            return S_init;
+        B_max = std::min(N, B_max);
+        B_min = std::min(std::max<size_t>(1, B_min), B_max);
+        _cache.clear();
+
+        double best_S = inf;
+        typename State::Snapshot best_snap;
+        auto consider = [&](double S_cur) {
+            size_t Bc = static_cast<size_t>(_s.B());
+            _trace_B.push_back(static_cast<double>(Bc));
+            _trace_S.push_back(S_cur);
+            if (Bc >= B_min && Bc <= B_max && S_cur < best_S) {
+                best_S = S_cur;
+                best_snap = _s.save();
+            }
+        };
+
+        if (B_min == 1 && !strict_target) {
+            auto initial = _s.save();
+            _s.collapse(_s.group(_s.nodes()[_rng.index(N)]));
+            consider(_s.entropy());
+            _s.restore(initial);
+        }
+
+        _s.spread();
+        if (!strict_target)
+            consider(_s.entropy());
+        single_move_init(B_min, B_max);
+        double S_cur = _s.entropy();
+        if (!strict_target)
+            consider(S_cur);
+        if (_p.verbose)
+            Rprintf("init (agglom): B = %d, S = %.4f\n", _s.B(), S_cur);
+
+        while (static_cast<size_t>(_s.B()) > B_min) {
+            size_t before = _s.B();
+            merge_and_sweep(false, B_min, B_max);
+            if (static_cast<size_t>(_s.B()) == before)
+                break;
+            S_cur = _s.entropy();
+            if (!strict_target)
+                consider(S_cur);
+            else {
+                _trace_B.push_back(static_cast<double>(_s.B()));
+                _trace_S.push_back(S_cur);
+            }
+            if (_p.verbose)
+                Rprintf("    %d -> %d: %.4f\n", int(before), _s.B(), S_cur);
+        }
+
+        if (strict_target)
+            return _s.entropy();
+        if (std::isfinite(best_S)) {
+            _s.restore(best_snap);
+            return best_S;
+        }
+        return _s.entropy();
+    }
+
     // stage_multilevel() over all vertices at beta = infinity
     double stage_multilevel() {
+        if (!_p.bisection)
+            return stage_agglomerative(_p.B_min, _p.B_max, false);
         size_t N = _s.N();
         double S_init = _s.entropy();
         if (N <= 1)
@@ -2431,6 +3196,9 @@ Params read_params(const Rcpp::List& control) {
     p.B_min = num("B_min", 1);
     double bmax = num("B_max", inf);
     p.B_max = std::isinf(bmax) ? std::numeric_limits<size_t>::max() : size_t(bmax);
+    p.bisection = !control.containsElementNamed("bisection") || Rcpp::as<bool>(control["bisection"]);
+    int nthr = control.containsElementNamed("nthreads") ? Rcpp::as<int>(control["nthreads"]) : 0;
+    p.nthreads = rgt_parallel::resolve_threads(nthr);
     p.verbose = control.containsElementNamed("verbose") && Rcpp::as<bool>(control["verbose"]);
     return p;
 }
@@ -2519,17 +3287,51 @@ Rcpp::NumericVector cpp_sbm_check_moves(SEXP pointer, Rcpp::IntegerVector blocks
 }
 
 // [[Rcpp::export]]
+int cpp_max_threads() {
+    return rgt_parallel::hardware_threads();
+}
+
+// [[Rcpp::export]]
+int cpp_get_num_threads() {
+    return rgt_parallel::get_num_threads();
+}
+
+// [[Rcpp::export]]
+int cpp_set_num_threads(int nthreads) {
+    return rgt_parallel::set_num_threads(nthreads);
+}
+
+// [[Rcpp::export]]
 Rcpp::List cpp_sbm_minimize(SEXP pointer, bool degree_corrected, bool distributed,
-                            Rcpp::List control, bool refine, double q_max) {
+                            Rcpp::List control, bool refine, double q_max,
+                            Rcpp::Nullable<Rcpp::IntegerVector> init_blocks = R_NilValue) {
     Graph& graph = get_graph(pointer);
     Params p = read_params(control);
     SBM state(graph, degree_corrected, distributed, q_cache_max(q_max));
     FlatView view(state);
     Multilevel<FlatView> ml(view, p);
-    std::vector<int> b(state.N(), 0);
-    state.set_partition(b);
-    double S = ml.stage_multilevel();
-    double S_stage = S;
+    double S = 0.0;
+    double S_stage = 0.0;
+    if (init_blocks.isNotNull()) {
+        Rcpp::IntegerVector b0(init_blocks);
+        state.set_partition(zero_based(graph, b0));
+        if (static_cast<size_t>(state.B()) > p.B_max) {
+            while (static_cast<size_t>(state.B()) > p.B_max) {
+                size_t before = state.B();
+                ml.merge_and_sweep(false, p.B_max, p.B_max);
+                if (static_cast<size_t>(state.B()) == before) break;
+            }
+        }
+        S = state.entropy();
+        S_stage = S;
+        ml._trace_B.push_back(static_cast<double>(state.B()));
+        ml._trace_S.push_back(S);
+    } else {
+        std::vector<int> b(state.N(), 0);
+        state.set_partition(b);
+        S = ml.stage_multilevel();
+        S_stage = S;
+    }
     if (refine && state.N() > 1)
         S = ml.refine(S);
     return Rcpp::List::create(Rcpp::Named("blocks") = one_based(state.blocks()),
@@ -2572,13 +3374,13 @@ namespace {
 
 Nested::Hierarchy internal_hierarchy(int N, const Rcpp::List& bs) {
     Nested::Hierarchy out;
-    int cap = std::max(N, 1);
+    out.reserve(bs.size());
     for (R_xlen_t l = 0; l < bs.size(); ++l) {
         Rcpp::IntegerVector x = bs[l];
-        std::vector<int> b(l == 0 ? N : cap, 0);
+        std::vector<int> b(l == 0 ? N : std::max<int>(static_cast<int>(x.size()), 1), 0);
         for (R_xlen_t i = 0; i < x.size(); ++i)
             b[i] = x[i] - 1;
-        out.push_back(b);
+        out.push_back(std::move(b));
     }
     return out;
 }
@@ -2610,6 +3412,105 @@ Rcpp::List external_hierarchy(const Nested::Hierarchy& bs) {
         lower = order;
     }
     return out;
+}
+
+void nested_refine_loop(Nested& n, const Params& p, double c, std::vector<double>& trace) {
+    int L = n.levels();
+    auto params = [&](int l) {
+        Params q = p;
+        q.c = c * std::pow(2.0, l);
+        if (l > 0) {
+            q.B_min = 1;
+            q.B_max = std::numeric_limits<size_t>::max();
+        }
+        return q;
+    };
+    for (size_t iter = 0; iter < p.max_refine; ++iter) {
+        double dS = 0;
+        for (int k = 0; k < L; ++k) {
+            LevelView view(n, k);
+            if (view.N() <= 1)
+                continue;
+            Params q = params(k);
+            Multilevel<LevelView> ml(view, q);
+            dS += ml.merge_and_sweep(true, q.B_min, q.B_max);
+        }
+        double S = n.entropy();
+        trace.push_back(S);
+        if (p.verbose)
+            Rprintf("refine: dS = %.6f, S = %.4f\n", dS, S);
+        if (S == 0 || std::abs(dS / S) <= p.epsilon)
+            break;
+        Rcpp::checkUserInterrupt();
+    }
+}
+
+void nested_minimize_simple_init(Nested& n, Params p, double c, bool refine,
+                                 bool simple_init_reverse, double base_factor,
+                                 int B_min_base, double top_factor, bool strict,
+                                 std::vector<double>& trace) {
+    int L = n.levels();
+    auto params = [&](int l) {
+        Params q = p;
+        q.c = c * std::pow(2.0, l);
+        q.bisection = false;
+        if (l > 0) {
+            q.B_min = 1;
+            q.B_max = std::numeric_limits<size_t>::max();
+        }
+        return q;
+    };
+
+    std::vector<int> level_order(L);
+    std::iota(level_order.begin(), level_order.end(), 0);
+    if (simple_init_reverse) {
+        // Seed initial geometric hierarchy top-down before reverse sweep
+        int N0 = n.base().N();
+        Nested::Hierarchy bs(L);
+        size_t cur_n = static_cast<size_t>(N0);
+        for (int l = 0; l < L; ++l) {
+            size_t B_tgt;
+            if (l == 0) {
+                double raw = std::max(cur_n / base_factor, static_cast<double>(B_min_base));
+                B_tgt = static_cast<size_t>(std::max(1.0, std::floor(raw)));
+                B_tgt = std::max(p.B_min, std::min(std::min(p.B_max, cur_n), B_tgt));
+            } else {
+                B_tgt = std::max<size_t>(1, static_cast<size_t>(std::floor(cur_n / top_factor)));
+            }
+            bs[l].resize(std::max<size_t>(cur_n, 1), 0);
+            for (size_t i = 0; i < cur_n; ++i)
+                bs[l][i] = static_cast<int>(i % B_tgt);
+            cur_n = B_tgt;
+        }
+        n.build(bs);
+        std::reverse(level_order.begin(), level_order.end());
+    }
+
+    for (int l : level_order) {
+        LevelView view(n, l);
+        if (view.N() <= 1)
+            continue;
+        size_t B_tgt;
+        if (l == 0) {
+            double raw = std::max(view.N() / base_factor, static_cast<double>(B_min_base));
+            B_tgt = static_cast<size_t>(std::max(1.0, std::floor(raw)));
+            B_tgt = std::max(p.B_min, std::min(std::min(p.B_max, view.N()), B_tgt));
+        } else {
+            B_tgt = std::max<size_t>(1, static_cast<size_t>(std::floor(view.N() / top_factor)));
+        }
+        Params q = params(l);
+        Multilevel<LevelView> ml(view, q);
+        ml.stage_agglomerative(B_tgt, strict ? B_tgt : view.N(), strict);
+        double S = n.entropy();
+        trace.push_back(S);
+        if (p.verbose)
+            Rprintf("simple_init level %d: B = %d (target %d), S = %.4f\n",
+                    l, view.B(), int(B_tgt), S);
+        Rcpp::checkUserInterrupt();
+    }
+
+    if (refine)
+        nested_refine_loop(n, p, c, trace);
 }
 
 void nested_minimize(Nested& n, Params p, double c, bool refine, std::vector<double>& trace) {
@@ -2656,25 +3557,8 @@ void nested_minimize(Nested& n, Params p, double c, bool refine, std::vector<dou
             l = std::min(l + 1, L - 1);
         Rcpp::checkUserInterrupt();
     }
-    if (!refine)
-        return;
-    for (size_t iter = 0; iter < p.max_refine; ++iter) {
-        double dS = 0;
-        for (int k = 0; k < L; ++k) {
-            LevelView view(n, k);
-            if (view.N() <= 1)
-                continue;
-            Params q = params(k);
-            Multilevel<LevelView> ml(view, q);
-            dS += ml.merge_and_sweep(true, q.B_min, q.B_max);
-        }
-        double S = n.entropy();
-        trace.push_back(S);
-        if (p.verbose)
-            Rprintf("refine: dS = %.6f, S = %.4f\n", dS, S);
-        if (S == 0 || std::abs(dS / S) <= p.epsilon)
-            break;
-    }
+    if (refine)
+        nested_refine_loop(n, p, c, trace);
 }
 
 }  // namespace
@@ -2739,19 +3623,59 @@ Rcpp::NumericVector cpp_nested_check_moves(SEXP pointer, Rcpp::List bs, bool deg
 
 // [[Rcpp::export]]
 Rcpp::List cpp_nested_minimize(SEXP pointer, bool degree_corrected, bool distributed,
-                               Rcpp::List control, bool refine, double q_max) {
+                               Rcpp::List control, bool refine, double q_max,
+                               bool simple_init = false, bool simple_init_reverse = false,
+                               double base_factor = 10.0, int B_min_base = 1000,
+                               double top_factor = 2.0, bool strict = false,
+                               Rcpp::Nullable<Rcpp::List> init_levels = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = boost::num_vertices(graph.adjacency);
-    int L = N > 1 ? static_cast<int>(std::ceil(std::log2(double(N)))) + 1 : 1;
     Params p = read_params(control);
     double c = control.containsElementNamed("c") ? Rcpp::as<double>(control["c"]) : 1.0;
+
+    int L;
+    if (init_levels.isNotNull()) {
+        Rcpp::List il(init_levels);
+        L = std::max(static_cast<int>(il.size()), 1);
+    } else if (simple_init && N > 1) {
+        // Depth matching the requested geometric hierarchy shape
+        L = 1;
+        size_t cur_b = static_cast<size_t>(std::max(1.0, std::floor(
+            std::max(N / base_factor, static_cast<double>(std::min(B_min_base, N))))));
+        cur_b = std::max(p.B_min, std::min(std::min(p.B_max, static_cast<size_t>(N)), cur_b));
+        while (cur_b > 1) {
+            ++L;
+            cur_b = static_cast<size_t>(std::max(1.0, std::floor(cur_b / top_factor)));
+        }
+        L = std::max(L, 2);
+    } else {
+        L = N > 1 ? static_cast<int>(std::ceil(std::log2(double(N)))) + 1 : 1;
+    }
+
     Nested n(graph, degree_corrected, distributed, q_cache_max(q_max), L);
-    Nested::Hierarchy bs(L, std::vector<int>(std::max(N, 1), 0));
-    bs[0].resize(N);
-    n.build(bs);
     std::vector<double> trace;
-    if (N > 1)
-        nested_minimize(n, p, c, refine, trace);
+    if (init_levels.isNotNull()) {
+        Rcpp::List il(init_levels);
+        n.build(internal_hierarchy(N, il));
+        trace.push_back(n.entropy());
+        if (N > 1 && refine)
+            nested_refine_loop(n, p, c, trace);
+    } else {
+        Nested::Hierarchy bs(L);
+        bs[0].assign(N, 0);
+        for (int l = 1; l < L; ++l)
+            bs[l].assign(1, 0);
+        n.build(bs);
+        if (N > 1) {
+            if (simple_init) {
+                nested_minimize_simple_init(n, p, c, refine, simple_init_reverse,
+                                            base_factor, B_min_base, top_factor,
+                                            strict, trace);
+            } else {
+                nested_minimize(n, p, c, refine, trace);
+            }
+        }
+    }
     std::vector<double> S = n.level_entropies();
     return Rcpp::List::create(Rcpp::Named("bs") = external_hierarchy(n.hierarchy()),
                               Rcpp::Named("level_entropy") = S,

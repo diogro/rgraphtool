@@ -151,7 +151,12 @@ print.rgraphtool_nested_block_state <- function(x, ...) {
 minimize_nested_blockmodel_dl <- function(graph, degree_corrected = TRUE,
                                           degree_prior = c("distributed", "uniform"),
                                           B_min = 1, B_max = Inf, refine = TRUE,
-                                          epsilon = 1e-3, control = list()) {
+                                          epsilon = 1e-3, simple_init = FALSE,
+                                          simple_init_reverse = FALSE,
+                                          base_factor = 10, B_min_base = 1000L,
+                                          top_factor = 2, strict = FALSE,
+                                          init_levels = NULL, nthreads = NULL,
+                                          control = list()) {
   pointer <- graph_pointer(graph)
   degree_prior <- match.arg(degree_prior)
   if (!is.logical(degree_corrected) || length(degree_corrected) != 1L ||
@@ -161,14 +166,48 @@ minimize_nested_blockmodel_dl <- function(graph, degree_corrected = TRUE,
   if (!is.logical(refine) || length(refine) != 1L || is.na(refine)) {
     stop("refine must be TRUE or FALSE", call. = FALSE)
   }
-  if (cpp_num_vertices(pointer) == 0) {
+  if (!is.logical(simple_init) || length(simple_init) != 1L || is.na(simple_init)) {
+    stop("simple_init must be TRUE or FALSE", call. = FALSE)
+  }
+  if (!is.logical(simple_init_reverse) || length(simple_init_reverse) != 1L ||
+      is.na(simple_init_reverse)) {
+    stop("simple_init_reverse must be TRUE or FALSE", call. = FALSE)
+  }
+  if (!is.logical(strict) || length(strict) != 1L || is.na(strict)) {
+    stop("strict must be TRUE or FALSE", call. = FALSE)
+  }
+  if (!is.numeric(base_factor) || length(base_factor) != 1L || is.na(base_factor) ||
+      !is.finite(base_factor) || base_factor <= 0) {
+    stop("base_factor must be a positive finite number", call. = FALSE)
+  }
+  if (!is.numeric(B_min_base) || length(B_min_base) != 1L || is.na(B_min_base) ||
+      !is.finite(B_min_base) || B_min_base < 1 || B_min_base != floor(B_min_base)) {
+    stop("B_min_base must be a positive integer", call. = FALSE)
+  }
+  if (!is.numeric(top_factor) || length(top_factor) != 1L || is.na(top_factor) ||
+      !is.finite(top_factor) || top_factor <= 1) {
+    stop("top_factor must be a finite number greater than 1", call. = FALSE)
+  }
+  n <- cpp_num_vertices(pointer)
+  if (n == 0) {
     stop("nested states need at least one vertex", call. = FALSE)
+  }
+  if (!is.null(init_levels)) {
+    if (inherits(init_levels, "rgraphtool_nested_block_state")) {
+      validate_nested_state(init_levels)
+      init_levels <- init_levels$levels
+    }
+    init_levels <- validate_hierarchy(init_levels, n)
   }
   if (is.null(control$c)) control$c <- 1
   control$epsilon <- epsilon
-  control <- multilevel_control(control, B_min, B_max)
+  control <- multilevel_control(control, B_min, B_max, nthreads = nthreads)
   result <- cpp_nested_minimize(pointer, degree_corrected, degree_prior == "distributed",
-                                control, refine, q_cache_max())
+                                control, refine, q_cache_max(),
+                                isTRUE(simple_init), isTRUE(simple_init_reverse),
+                                as.numeric(base_factor), as.integer(B_min_base),
+                                as.numeric(top_factor), isTRUE(strict),
+                                init_levels)
   new_nested_state(graph, result$bs, degree_corrected, degree_prior,
                    fit = list(description_length = sum(result$level_entropy),
                               trace = result$trace))

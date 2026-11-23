@@ -9,8 +9,20 @@ cpp_sbm_check_moves <- function(pointer, blocks, degree_corrected, distributed, 
     .Call(`_rgraphtool_cpp_sbm_check_moves`, pointer, blocks, degree_corrected, distributed, nmoves, q_max)
 }
 
-cpp_sbm_minimize <- function(pointer, degree_corrected, distributed, control, refine, q_max) {
-    .Call(`_rgraphtool_cpp_sbm_minimize`, pointer, degree_corrected, distributed, control, refine, q_max)
+cpp_max_threads <- function() {
+    .Call(`_rgraphtool_cpp_max_threads`)
+}
+
+cpp_get_num_threads <- function() {
+    .Call(`_rgraphtool_cpp_get_num_threads`)
+}
+
+cpp_set_num_threads <- function(nthreads) {
+    .Call(`_rgraphtool_cpp_set_num_threads`, nthreads)
+}
+
+cpp_sbm_minimize <- function(pointer, degree_corrected, distributed, control, refine, q_max, init_blocks = NULL) {
+    .Call(`_rgraphtool_cpp_sbm_minimize`, pointer, degree_corrected, distributed, control, refine, q_max, init_blocks)
 }
 
 cpp_sbm_refine <- function(pointer, blocks, degree_corrected, distributed, control, q_max) {
@@ -29,8 +41,8 @@ cpp_nested_check_moves <- function(pointer, bs, degree_corrected, distributed, n
     .Call(`_rgraphtool_cpp_nested_check_moves`, pointer, bs, degree_corrected, distributed, nmoves, q_max)
 }
 
-cpp_nested_minimize <- function(pointer, degree_corrected, distributed, control, refine, q_max) {
-    .Call(`_rgraphtool_cpp_nested_minimize`, pointer, degree_corrected, distributed, control, refine, q_max)
+cpp_nested_minimize <- function(pointer, degree_corrected, distributed, control, refine, q_max, simple_init = FALSE, simple_init_reverse = FALSE, base_factor = 10.0, B_min_base = 1000L, top_factor = 2.0, strict = FALSE, init_levels = NULL) {
+    .Call(`_rgraphtool_cpp_nested_minimize`, pointer, degree_corrected, distributed, control, refine, q_max, simple_init, simple_init_reverse, base_factor, B_min_base, top_factor, strict, init_levels)
 }
 
 cpp_sbm_mcmc <- function(pointer, blocks, degree_corrected, distributed, mcmc_opts, eq_opts, q_max) {
@@ -155,6 +167,10 @@ cpp_overlap_mcmc <- function(pointer, half_edges, degree_corrected, distributed,
 
 cpp_nested_overlap_mcmc <- function(pointer, half_edges, upper_bs, degree_corrected, distributed, gen_overlap, beta, c, d, niter, thin, collect, B_min, B_max, q_max) {
     .Call(`_rgraphtool_cpp_nested_overlap_mcmc`, pointer, half_edges, upper_bs, degree_corrected, distributed, gen_overlap, beta, c, d, niter, thin, collect, B_min, B_max, q_max)
+}
+
+cpp_nested_overlap_check_moves <- function(pointer, half_edges, upper_bs, degree_corrected, distributed, gen_overlap, nmoves, q_max) {
+    .Call(`_rgraphtool_cpp_nested_overlap_check_moves`, pointer, half_edges, upper_bs, degree_corrected, distributed, gen_overlap, nmoves, q_max)
 }
 
 cpp_align_partition_labels <- function(x, y) {

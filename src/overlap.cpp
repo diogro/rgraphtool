@@ -1261,7 +1261,48 @@ private:
 };
 
 // ---------------------------------------------------------------------------
-// Upper hierarchical levels for NestedOverlap (identical math to BlockLevel)
+// Upper hierarchical levels for NestedOverlap (identical math to BlockLevel,
+// with exact O(deg) incremental updates for large-network scaling).
+
+class ODeltaAcc {
+public:
+    void reset(bool directed) {
+        _directed = directed;
+        clear();
+        _idx.reserve(64);
+    }
+    void clear() {
+        _v.clear();
+        _idx.clear();
+    }
+    void add(int x, int y, long d) {
+        if (!_directed && x > y)
+            std::swap(x, y);
+        uint64_t key = pair_key(static_cast<uint64_t>(x), static_cast<uint64_t>(y));
+        auto it = _idx.find(key);
+        if (it == _idx.end()) {
+            _idx.emplace(key, _v.size());
+            _v.push_back({x, y, d});
+        } else {
+            _v[it->second].d += d;
+        }
+    }
+    const std::vector<ODelta>& items() const { return _v; }
+private:
+    bool _directed = false;
+    std::vector<ODelta> _v;
+    gt_hash_map<uint64_t, size_t> _idx;
+};
+
+struct OChangeSet {
+    std::vector<ODelta> edges;
+    std::vector<std::pair<int, int>> weights;
+    void clear() {
+        edges.clear();
+        weights.clear();
+    }
+    bool empty() const { return edges.empty() && weights.empty(); }
+};
 
 class OUpperLevel {
 public:
@@ -1270,6 +1311,8 @@ public:
           _b(cap, 0), _wr(cap, 0), _ep(cap, 0), _em(cap, 0),
           _m_out(cap), _m_in(directed ? cap : 0), _occ_pos(cap, -1),
           _empty_pos(cap, -1), _members(cap), _pos(cap, 0) {
+        _acc.reset(directed);
+        _pairs.reset(directed);
         _empty.reserve(cap);
         for (int r = _cap - 1; r >= 0; --r)
             push_empty(r);
@@ -1322,16 +1365,28 @@ public:
         }
     }
 
+    double partition_term(long Nv, long Bv) const {
+        if (Nv == 0)
+            return 0;
+        return lbinom_i(Nv - 1, Bv - 1) + lgam_i(Nv + 1) + log_i(Nv);
+    }
+
+    double edges_term(long Bv) const {
+        if (!_top || _E <= 0)
+            return 0;
+        int64_t pairs = _directed ? int64_t(Bv) * Bv : int64_t(Bv) * (Bv + 1) / 2;
+        return lbinom_i(pairs + _E - 1, _E);
+    }
+
+    long get_m(int x, int y) const {
+        auto it = _m_out[x].find(y);
+        return it == _m_out[x].end() ? 0 : it->second;
+    }
+
     double entropy() const {
         if (_N == 0)
             return 0;
-        long B_act = B();
-        double S = lbinom_i(_N - 1, B_act - 1) + lgam_i(_N + 1) + log_i(_N);
-        if (_top && _E > 0) {
-            int64_t pairs = _directed ? int64_t(B_act) * B_act
-                                      : int64_t(B_act) * (B_act + 1) / 2;
-            S += lbinom_i(pairs + _E - 1, _E);
-        }
+        double S = partition_term(_N, B()) + edges_term(B());
         for (int r : _occupied) {
             S -= lgam_i(_wr[r] + 1);
             for (const auto& [t, m] : _m_out[r])
@@ -1339,6 +1394,123 @@ public:
                     S += dense_term(r, t, m, _wr[r], _wr[t]);
         }
         return S;
+    }
+
+    // Incremental update from lower-level edge/weight deltas; returns exact dS at this level.
+    double lower_changes(const OChangeSet& in, OChangeSet& out) {
+        _acc.clear();
+        for (const ODelta& e : in.edges) {
+            int gx = _b[e.x], gy = _b[e.y];
+            if (_directed)
+                _acc.add(gx, gy, e.d);
+            else if (e.x == e.y)
+                _acc.add(gx, gx, e.d);
+            else if (gx == gy)
+                _acc.add(gx, gx, 2 * e.d);
+            else
+                _acc.add(gx, gy, e.d);
+        }
+        _wd.clear();
+        int dN = 0;
+        for (const auto& [x, dw] : in.weights) {
+            add_weight(_b[x], dw);
+            dN += dw;
+        }
+        out.clear();
+        for (const ODelta& e : _acc.items())
+            if (e.d != 0)
+                out.edges.push_back(e);
+        double dS = eval_and_apply(dN, out);
+        for (const auto& [x, dw] : in.weights) {
+            if (dw > 0)
+                push_node(x, _b[x]);
+            else
+                pop_node(x, _b[x]);
+        }
+        return dS;
+    }
+
+    // Incremental single-node move x: g -> h at this level; returns exact dS at this level.
+    double node_move(int x, int h,
+                     const std::vector<gt_hash_map<int, long>>& lm_out,
+                     const std::vector<gt_hash_map<int, long>>& lm_in,
+                     OChangeSet& out) {
+        int g = _b[x];
+        out.clear();
+        if (g == h)
+            return 0.0;
+        if (_directed) {
+            gt_hash_map<int, long> co, ci;
+            long lp = 0;
+            for (const auto& [y, val] : lm_out[x]) {
+                if (y == x) lp = val;
+                else co[_b[y]] += val;
+            }
+            for (const auto& [y, val] : lm_in[x]) {
+                if (y == x) continue;
+                ci[_b[y]] += val;
+            }
+            auto get_c = [](const gt_hash_map<int, long>& mp, int k) -> long {
+                auto it = mp.find(k);
+                return it == mp.end() ? 0L : it->second;
+            };
+            long co_g = get_c(co, g), co_h = get_c(co, h);
+            long ci_g = get_c(ci, g), ci_h = get_c(ci, h);
+            for (const auto& [t, c] : co) {
+                if (t == g || t == h) continue;
+                out.edges.push_back({g, t, -c});
+                out.edges.push_back({h, t, c});
+            }
+            for (const auto& [t, c] : ci) {
+                if (t == g || t == h) continue;
+                out.edges.push_back({t, g, -c});
+                out.edges.push_back({t, h, c});
+            }
+            long d_gg = -co_g - ci_g - lp;
+            long d_gh = -co_h + ci_g;
+            long d_hg = co_g - ci_h;
+            long d_hh = co_h + ci_h + lp;
+            if (d_gg != 0) out.edges.push_back({g, g, d_gg});
+            if (d_gh != 0) out.edges.push_back({g, h, d_gh});
+            if (d_hg != 0) out.edges.push_back({h, g, d_hg});
+            if (d_hh != 0) out.edges.push_back({h, h, d_hh});
+        } else {
+            gt_hash_map<int, long> co;
+            long lp = 0;
+            for (const auto& [y, val] : lm_out[x]) {
+                if (y == x) lp = val;
+                else co[_b[y]] += val;
+            }
+            auto get_c = [](const gt_hash_map<int, long>& mp, int k) -> long {
+                auto it = mp.find(k);
+                return it == mp.end() ? 0L : it->second;
+            };
+            long cg = get_c(co, g), ch = get_c(co, h);
+            for (const auto& [t, c] : co) {
+                if (t == g || t == h) continue;
+                int x1 = g < t ? g : t, y1 = g < t ? t : g;
+                int x2 = h < t ? h : t, y2 = h < t ? t : h;
+                out.edges.push_back({x1, y1, -c});
+                out.edges.push_back({x2, y2, c});
+            }
+            long d_gg = -2 * cg - lp;
+            long d_gh = cg - ch;
+            long d_hh = 2 * ch + lp;
+            if (d_gg != 0) out.edges.push_back({g, g, d_gg});
+            if (d_gh != 0) {
+                int a = g < h ? g : h, b = g < h ? h : g;
+                out.edges.push_back({a, b, d_gh});
+            }
+            if (d_hh != 0) out.edges.push_back({h, h, d_hh});
+        }
+        _wd.clear();
+        _wd.emplace_back(g, -1);
+        _wd.emplace_back(h, +1);
+        double dS = eval_and_apply(0, out);
+        pop_node(x, g);
+        _b[x] = h;
+        push_node(x, h);
+        return dS;
     }
 
     void set_label(int x, int g) { _b[x] = g; }
@@ -1354,6 +1526,95 @@ private:
     std::vector<int> _occ_pos, _occupied, _empty, _empty_pos;
     std::vector<std::vector<int>> _members;
     std::vector<int> _pos;
+    ODeltaAcc _acc, _pairs;
+    std::vector<std::pair<int, int>> _wd;
+
+    void add_weight(int g, int dw) {
+        for (auto& p : _wd) {
+            if (p.first == g) { p.second += dw; return; }
+        }
+        _wd.emplace_back(g, dw);
+    }
+
+    int new_weight(int g) const {
+        int w = _wr[g];
+        for (const auto& p : _wd)
+            if (p.first == g) w += p.second;
+        return w;
+    }
+
+    static void add_m(gt_hash_map<int, long>& row, int y, long d) {
+        auto it = row.find(y);
+        if (it == row.end()) {
+            row.emplace(y, d);
+        } else {
+            it->second += d;
+            if (it->second == 0) row.erase(it);
+        }
+    }
+
+    double eval_and_apply(int dN, OChangeSet& out) {
+        bool any_wd = false;
+        long B0 = B(), B1 = B0;
+        for (const auto& [g, dw] : _wd) {
+            if (dw == 0) continue;
+            any_wd = true;
+            int w0 = _wr[g], w1 = w0 + dw;
+            if (w0 == 0 && w1 > 0) {
+                ++B1;
+                out.weights.emplace_back(g, +1);
+            } else if (w0 > 0 && w1 == 0) {
+                --B1;
+                out.weights.emplace_back(g, -1);
+            }
+        }
+        if (dN == 0 && !any_wd && out.edges.empty())
+            return 0.0;
+
+        double dS = 0.0;
+        if (dN != 0 || B1 != B0) {
+            dS += partition_term(_N + dN, B1) - partition_term(_N, B0);
+            dS += edges_term(B1) - edges_term(B0);
+        }
+        for (const auto& [g, dw] : _wd) {
+            if (dw != 0)
+                dS += lgam_i(_wr[g] + 1) - lgam_i(_wr[g] + dw + 1);
+        }
+        _pairs.clear();
+        for (const ODelta& e : out.edges)
+            _pairs.add(e.x, e.y, e.d);
+        for (const auto& [g, dw] : _wd) {
+            if (dw == 0) continue;
+            for (const auto& [t, m] : _m_out[g])
+                _pairs.add(g, t, 0);
+            if (_directed)
+                for (const auto& [t, m] : _m_in[g])
+                    _pairs.add(t, g, 0);
+        }
+        for (const ODelta& p : _pairs.items()) {
+            long m0 = get_m(p.x, p.y);
+            dS += dense_term(p.x, p.y, m0 + p.d, new_weight(p.x), new_weight(p.y)) -
+                  dense_term(p.x, p.y, m0, _wr[p.x], _wr[p.y]);
+        }
+
+        // Apply edge updates and _N
+        for (const ODelta& e : out.edges) {
+            add_m(_m_out[e.x], e.y, e.d);
+            if (_directed) {
+                add_m(_m_in[e.y], e.x, e.d);
+                _ep[e.x] += e.d;
+                _em[e.y] += e.d;
+            } else {
+                if (e.x != e.y)
+                    add_m(_m_out[e.y], e.x, e.d);
+                _ep[e.x] += e.d;
+                if (e.x != e.y)
+                    _ep[e.y] += e.d;
+            }
+        }
+        _N += dN;
+        return dS;
+    }
 
     double dense_term(int x, int y, long m, long wx, long wy) const {
         if (m <= 0)
@@ -1384,6 +1645,15 @@ private:
         }
     }
 
+    void remove_occupied(int r) {
+        int i = _occ_pos[r];
+        int other = _occupied.back();
+        _occupied[i] = other;
+        _occ_pos[other] = i;
+        _occupied.pop_back();
+        _occ_pos[r] = -1;
+    }
+
     void add_member(int x, int r) {
         if (_wr[r] == 0) {
             _occ_pos[r] = static_cast<int>(_occupied.size());
@@ -1392,6 +1662,24 @@ private:
         _pos[x] = static_cast<int>(_members[r].size());
         _members[r].push_back(x);
         _wr[r]++;
+    }
+
+    void push_node(int x, int r) {
+        if (_wr[r] == 0)
+            take_empty(r);
+        add_member(x, r);
+    }
+
+    void pop_node(int x, int r) {
+        auto& vs = _members[r];
+        int last = vs.back();
+        vs[_pos[x]] = last;
+        _pos[last] = _pos[x];
+        vs.pop_back();
+        if (--_wr[r] == 0) {
+            remove_occupied(r);
+            push_empty(r);
+        }
     }
 };
 
@@ -1404,11 +1692,51 @@ public:
         _up.reserve(levels > 1 ? levels - 1 : 0);
         for (int l = 1; l < levels; ++l)
             _up.emplace_back(cap, _base.directed(), _base.E(), l == levels - 1);
+        _cs.resize(static_cast<size_t>(levels) + 1);
     }
 
     int levels() const { return static_cast<int>(_up.size()) + 1; }
     OverlapSBM& base() { return _base; }
     OUpperLevel& upper(int l) { return _up[l - 1]; }
+
+    // Exact O(1)/O(L) incremental level-0 half-edge move propagating upward.
+    double move_he(int h, int s) {
+        int r = _base.group(h);
+        if (r == s) return 0.0;
+        bool empties = (_base.he_members(r).size() == 1);
+        bool fills = (_base.he_members(s).size() == 0);
+        double dS = _base.move(h, s);
+        if (_up.empty()) return dS;
+        if (!empties && !fills && _up[0].group(r) == _up[0].group(s))
+            return dS;
+        _cs[0].clear();
+        _cs[0].edges = _base.last_deltas();
+        if (empties) _cs[0].weights.emplace_back(r, -1);
+        if (fills) _cs[0].weights.emplace_back(s, +1);
+        for (int k = 1; k < levels(); ++k) {
+            if (_cs[k - 1].empty()) break;
+            dS += _up[k - 1].lower_changes(_cs[k - 1], _cs[k]);
+        }
+        return dS;
+    }
+
+    // Exact O(deg + L) incremental upper-level node move propagating upward.
+    double move_upper(int l, int x, int t) {
+        int r = _up[l - 1].group(x);
+        if (r == t) return 0.0;
+        bool empties = (_up[l - 1].size(r) == 1);
+        bool fills = (_up[l - 1].size(t) == 0);
+        const auto& lm_out = (l == 1) ? _base.m_out() : _up[l - 2].m_out();
+        const auto& lm_in  = (l == 1) ? _base.m_in()  : _up[l - 2].m_in();
+        double dS = _up[l - 1].node_move(x, t, lm_out, lm_in, _cs[l]);
+        if (l + 1 < levels() && !empties && !fills && _up[l].group(r) == _up[l].group(t))
+            return dS;
+        for (int k = l + 1; k < levels(); ++k) {
+            if (_cs[k - 1].empty()) break;
+            dS += _up[k - 1].lower_changes(_cs[k - 1], _cs[k]);
+        }
+        return dS;
+    }
 
     void build_upper() {
         for (size_t l = 1; l <= _up.size(); ++l) {
@@ -1481,7 +1809,7 @@ public:
                     build_upper_from(l + 1);
                     double cur_S = upper_entropy();
 
-                    // Greedy single-node + merge refinement at level l
+                    // Greedy single-node refinement at level l using O(deg) incremental updates
                     std::vector<int> ord = nodes;
                     for (int sw = 0; sw < 15; ++sw) {
                         rng.shuffle(ord);
@@ -1493,34 +1821,20 @@ public:
                             if (emp >= 0 && _up[l - 1].size(r) > 1)
                                 cands.push_back(emp);
                             int best_t = r;
-                            double best_tS = cur_S;
+                            double best_dS = -1e-9;
                             for (int t : cands) {
                                 if (t == r) continue;
-                                std::vector<int> tmp = _up[l - 1].blocks();
-                                tmp[x] = t;
-                                _up[l - 1].build(tmp, nodes,
-                                                 (l == 1) ? _base.m_out() : _up[l - 2].m_out());
-                                build_upper_from(l + 1);
-                                double cand_S = upper_entropy();
-                                if (cand_S < best_tS - 1e-9) {
-                                    best_tS = cand_S;
+                                double dS = move_upper(l, x, t);
+                                if (dS < best_dS) {
+                                    best_dS = dS;
                                     best_t = t;
                                 }
+                                move_upper(l, x, r);
                             }
                             if (best_t != r) {
-                                std::vector<int> tmp = _up[l - 1].blocks();
-                                tmp[x] = best_t;
-                                _up[l - 1].build(tmp, nodes,
-                                                 (l == 1) ? _base.m_out() : _up[l - 2].m_out());
-                                build_upper_from(l + 1);
-                                cur_S = best_tS;
+                                cur_S += move_upper(l, x, best_t);
                                 ch = true;
-                            } else {
-                                _up[l - 1].build(bl, nodes,
-                                                 (l == 1) ? _base.m_out() : _up[l - 2].m_out());
-                                build_upper_from(l + 1);
                             }
-                            bl = _up[l - 1].blocks();
                         }
                         if (!ch) break;
                     }
@@ -1597,6 +1911,7 @@ public:
 private:
     OverlapSBM _base;
     std::vector<OUpperLevel> _up;
+    std::vector<OChangeSet> _cs;
 };
 
 // ---------------------------------------------------------------------------
@@ -2647,10 +2962,7 @@ Rcpp::List cpp_nested_overlap_mcmc(SEXP pointer, Rcpp::IntegerMatrix half_edges,
                 pfwd = (1.0 - p_new) * no.base().move_prob(h, s, c);
             }
             bool empties = (no.base().he_members(r).size() == 1);
-            no.base().move(h, s);
-            no.build_upper();
-            double S_new = no.entropy();
-            double dS = S_new - S;
+            double dS = no.move_he(h, s);
             bool accept = false;
             if (std::isinf(beta)) {
                 accept = (dS < 0);
@@ -2672,14 +2984,13 @@ Rcpp::List cpp_nested_overlap_mcmc(SEXP pointer, Rcpp::IntegerMatrix half_edges,
             }
             if (accept) {
                 total_dS += dS;
-                S = S_new;
+                S += dS;
                 ++nmoves;
             } else {
-                no.base().move(h, r);
-                no.build_upper();
+                no.move_he(h, r);
             }
         }
-        // Upper-level single-node MH sweep (symmetric uniform proposal over occupied + 1 empty)
+        // Upper-level single-node MH sweep (O(deg) incremental updates)
         for (int l = 1; l < no.levels(); ++l) {
             const auto& nodes = (l == 1) ? no.base().occupied() : no.upper(l - 1).occupied();
             if (nodes.size() <= 1) continue;
@@ -2696,10 +3007,7 @@ Rcpp::List cpp_nested_overlap_mcmc(SEXP pointer, Rcpp::IntegerMatrix half_edges,
                 if (t == r) continue;
                 ++nattempts;
                 double pfwd = 1.0 / static_cast<double>(cands.size());
-                no.upper(l).set_label(x, t);
-                no.build_upper_from(l);
-                double S_new = no.entropy();
-                double dS = S_new - S;
+                double dS = no.move_upper(l, x, t);
                 bool accept = false;
                 if (std::isinf(beta)) {
                     accept = (dS < 0);
@@ -2714,11 +3022,10 @@ Rcpp::List cpp_nested_overlap_mcmc(SEXP pointer, Rcpp::IntegerMatrix half_edges,
                 }
                 if (accept) {
                     total_dS += dS;
-                    S = S_new;
+                    S += dS;
                     ++nmoves;
                 } else {
-                    no.upper(l).set_label(x, r);
-                    no.build_upper_from(l);
+                    no.move_upper(l, x, r);
                 }
             }
         }
@@ -2748,4 +3055,56 @@ Rcpp::List cpp_nested_overlap_mcmc(SEXP pointer, Rcpp::IntegerMatrix half_edges,
         out["entropies"] = entropies;
     }
     return out;
+}
+
+// Verify exact agreement between incremental NestedOverlap move_he / move_upper
+// and full recomputation across random moves.
+// [[Rcpp::export]]
+Rcpp::NumericVector cpp_nested_overlap_check_moves(SEXP pointer, Rcpp::IntegerMatrix half_edges,
+                                                   Rcpp::List upper_bs, bool degree_corrected,
+                                                   bool distributed, bool gen_overlap,
+                                                   int nmoves, double q_max) {
+    Graph& graph = get_graph(pointer);
+    int L = static_cast<int>(upper_bs.size()) + 1;
+    NestedOverlap no(graph, degree_corrected, distributed, gen_overlap,
+                     o_q_cache_max(q_max), L);
+    std::vector<int> b0 = parse_half_edges(graph, half_edges);
+    int cap = no.base().cap();
+    std::vector<std::vector<int>> ubs;
+    ubs.reserve(upper_bs.size());
+    for (R_xlen_t l = 0; l < upper_bs.size(); ++l) {
+        Rcpp::IntegerVector x = upper_bs[l];
+        std::vector<int> bl(cap, 0);
+        for (R_xlen_t i = 0; i < x.size(); ++i)
+            bl[i] = x[i] - 1;
+        ubs.push_back(std::move(bl));
+    }
+    no.build(b0, ubs);
+    ORng rng;
+    Rcpp::NumericVector err(nmoves);
+    double S = no.entropy();
+    for (int i = 0; i < nmoves; ++i) {
+        double dS = 0.0;
+        if (rng.unif() < 0.65 || no.levels() <= 1) {
+            if (no.base().H() == 0) continue;
+            int h = static_cast<int>(rng.index(static_cast<size_t>(no.base().H())));
+            int emp = no.base().empty_group();
+            int s = (rng.unif() < 0.2 && emp >= 0) ? emp : no.base().random_occupied(rng);
+            dS = no.move_he(h, s);
+        } else {
+            int l = 1 + static_cast<int>(rng.index(static_cast<size_t>(no.levels() - 1)));
+            const auto& nodes = (l == 1) ? no.base().occupied() : no.upper(l - 1).occupied();
+            if (nodes.empty()) continue;
+            int x = nodes[rng.index(nodes.size())];
+            std::vector<int> cands = no.upper(l).occupied();
+            int emp = no.upper(l).empty_group();
+            if (emp >= 0) cands.push_back(emp);
+            int t = cands[rng.index(cands.size())];
+            dS = no.move_upper(l, x, t);
+        }
+        double S_new = no.entropy();
+        err[i] = std::abs(dS - (S_new - S));
+        S = S_new;
+    }
+    return err;
 }

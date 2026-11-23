@@ -196,21 +196,27 @@ q_cache_max <- function() {
 multilevel_defaults <- list(
   r = 0.9, merge_sweeps = 10, mh_sweeps = 10, init_r = 0.99,
   init_min_iter = 8, init_min_iter_beta = 4, init_beta = 1, c = 0.5,
-  epsilon = 1e-3, max_refine = 1000, verbose = FALSE
+  epsilon = 1e-3, max_refine = 1000, bisection = TRUE, nthreads = 0L,
+  verbose = FALSE
 )
 
-multilevel_control <- function(control, B_min = 1, B_max = Inf) {
+multilevel_control <- function(control, B_min = 1, B_max = Inf, nthreads = NULL) {
   if (!is.list(control) || (length(control) && is.null(names(control))) ||
       any(!names(control) %in% names(multilevel_defaults))) {
     stop("control must be a named list with entries among: ",
          paste(names(multilevel_defaults), collapse = ", "), call. = FALSE)
   }
+  has_ctrl_thr <- !is.null(control$nthreads)
   control <- utils::modifyList(multilevel_defaults, control)
-  for (name in setdiff(names(control), "verbose")) {
+  for (name in setdiff(names(control), c("verbose", "bisection", "nthreads"))) {
     value <- control[[name]]
     if (!is.numeric(value) || length(value) != 1L || is.na(value) || value < 0) {
       stop("control$", name, " must be a non-negative number", call. = FALSE)
     }
+  }
+  if (!is.logical(control$bisection) || length(control$bisection) != 1L ||
+      is.na(control$bisection)) {
+    stop("control$bisection must be TRUE or FALSE", call. = FALSE)
   }
   if (control$r <= 0 || control$r >= 1) {
     stop("control$r must be strictly between 0 and 1", call. = FALSE)
@@ -221,6 +227,13 @@ multilevel_control <- function(control, B_min = 1, B_max = Inf) {
   }
   control$B_min <- floor(B_min)
   control$B_max <- if (is.finite(B_max)) floor(B_max) else Inf
+  control$nthreads <- if (!is.null(nthreads)) {
+    resolve_nthreads(nthreads)
+  } else if (has_ctrl_thr) {
+    resolve_nthreads(control$nthreads)
+  } else {
+    resolve_nthreads(NULL)
+  }
   control$verbose <- isTRUE(control$verbose)
   control
 }
@@ -236,7 +249,8 @@ new_fitted_state <- function(graph, blocks, degree_corrected, degree_prior, entr
 minimize_blockmodel_dl <- function(graph, degree_corrected = TRUE,
                                    degree_prior = c("distributed", "uniform"),
                                    B_min = 1, B_max = Inf, refine = TRUE,
-                                   epsilon = 1e-3, control = list()) {
+                                   epsilon = 1e-3, init_blocks = NULL,
+                                   nthreads = NULL, control = list()) {
   pointer <- graph_pointer(graph)
   degree_prior <- match.arg(degree_prior)
   if (!is.logical(degree_corrected) || length(degree_corrected) != 1L ||
@@ -246,17 +260,28 @@ minimize_blockmodel_dl <- function(graph, degree_corrected = TRUE,
   if (!is.logical(refine) || length(refine) != 1L || is.na(refine)) {
     stop("refine must be TRUE or FALSE", call. = FALSE)
   }
+  n <- cpp_num_vertices(pointer)
+  if (!is.null(init_blocks)) {
+    if (inherits(init_blocks, "rgraphtool_block_state")) {
+      validate_block_state(init_blocks)
+      init_blocks <- init_blocks$blocks
+    }
+    init_blocks <- validate_label_vector(init_blocks, "init_blocks")
+    if (length(init_blocks) != n) {
+      stop("init_blocks must have length graph_num_vertices(graph)", call. = FALSE)
+    }
+  }
   control$epsilon <- epsilon
-  control <- multilevel_control(control, B_min, B_max)
+  control <- multilevel_control(control, B_min, B_max, nthreads = nthreads)
   result <- cpp_sbm_minimize(pointer, degree_corrected, degree_prior == "distributed",
-                             control, refine, q_cache_max())
+                             control, refine, q_cache_max(), init_blocks)
   new_fitted_state(graph, result$blocks, degree_corrected, degree_prior, result$entropy,
                    list(multilevel_description_length = result$entropy_multilevel,
                         trace = result$trace))
 }
 
 refine_blockmodel_dl <- function(graph, state, degree_prior = NULL, epsilon = 1e-3,
-                                 control = list()) {
+                                 nthreads = NULL, control = list()) {
   pointer <- graph_pointer(graph)
   validate_block_state(state)
   if (length(state$blocks) != cpp_num_vertices(pointer)) {
@@ -265,7 +290,7 @@ refine_blockmodel_dl <- function(graph, state, degree_prior = NULL, epsilon = 1e
   if (is.null(degree_prior)) degree_prior <- state$degree_prior
   degree_prior <- match.arg(degree_prior, c("distributed", "uniform"))
   control$epsilon <- epsilon
-  control <- multilevel_control(control)
+  control <- multilevel_control(control, nthreads = nthreads)
   result <- cpp_sbm_refine(pointer, match(state$blocks, state$labels),
                            state$degree_corrected, degree_prior == "distributed",
                            control, q_cache_max())
