@@ -25,8 +25,11 @@ compare_model_classes(graph,
   \code{graphtool_nested_overlap_block_state},
   \code{graphtool_weighted_block_state},
   \code{graphtool_nested_weighted_block_state},
-  \code{graphtool_layered_block_state}, or
-  \code{graphtool_nested_layered_block_state} object.}
+  \code{graphtool_layered_block_state},
+  \code{graphtool_nested_layered_block_state},
+  \code{graphtool_pp_block_state},
+  \code{graphtool_ranked_block_state}, or
+  \code{graphtool_nested_ranked_block_state} object.}
   \item{graph}{A graph created by \code{\link{graph_create}}.}
   \item{models}{Character vector naming a subset of the 8 SBM model classes:
   \code{"flat_ndc"}, \code{"flat_dc"}, \code{"nested_ndc"}, \code{"nested_dc"},

@@ -285,9 +285,50 @@ cookbook example runs end to end. **Complete.**
 
 ### 8. Assortative and ordered structures
 
-- [ ] Implement the planted-partition model and the assortative example.
-- [ ] Implement ordered block models, ranked hierarchy layouts, and the ordered
-  community example.
+- [x] Implement the microcanonical planted-partition model (Zhang & Peixoto
+  2020) in native C++ (`src/planted_partition.cpp`, `pp_block_state()`,
+  `pp_description_length()`, `pp_assortativity()`,
+  `minimize_pp_blockmodel_dl()`, `compare_assortative_models()`), supporting
+  both non-uniform (`uniform = FALSE`) and uniform (`uniform = TRUE`)
+  assortativity, DC and NDC, distributed and uniform degree priors, MCMC /
+  posterior sampling / `model_evidence()`, and the Les Misérables assortative
+  cookbook workflow (`demo("assortative_sbm")`).
+- [x] Implement flat and nested ordered (ranked) stochastic block models
+  (Peixoto 2022) in native C++ (`src/ranked.cpp`, `ranked_block_state()`,
+  `ranked_description_length()`, `minimize_ranked_blockmodel_dl()`,
+  `nested_ranked_block_state()`, `nested_ranked_level_entropy()`,
+  `nested_ranked_description_length()`, `minimize_nested_ranked_blockmodel_dl()`,
+  `ranked_vertex_order()`, `ranked_edge_directions()`, `ranked_edge_counts()`,
+  `compare_ordered_models()`), vertical rank-ordered layouts
+  (`plot_ranked_hierarchy()` plus `plot_hierarchy()` support), MCMC /
+  posterior sampling / `model_evidence()`, and the *C. elegans* ordered
+  community cookbook workflow (`demo("ordered_sbm")`).
+
+Exact planted-partition description lengths match graph-tool 3.9 (`PPBlockState`)
+to within `1.07e-14` across all 16 reference configurations (directed and
+undirected, `uniform = FALSE` and `TRUE`, DC and NDC, distributed and uniform
+degree priors, parallel edges, self-loops, isolated vertices) and to `1.14e-13`
+on Les Misérables; 800 incremental vertex move checks match full recomputation
+to `< 2.13e-14`. Exact flat and nested ranked description lengths match
+graph-tool 3.9 (`RankedBlockState` and
+`NestedBlockState(base_state=RankedBlockState)`) to within `3.55e-14` across all
+24 flat and 24 nested reference configurations (`distance = FALSE/TRUE`,
+`unique = FALSE/TRUE`, DC/NDC, tied and distinct ranks), with 1,200 incremental
+vertex-move and rank-relabel checks matching full recomputation to `< 2.62e-14`,
+and matching `celegansneural` flat and nested reference entropies to `0.0`–`1.82e-12`.
+On `lesmis`, planted-partition MCMC (500 sweeps) is `4.0x` faster than
+single-threaded graph-tool 3.9 (`0.004 s` vs `0.016 s`); on `celegansneural`,
+planted-partition minimization is `22x` faster with `174` nats lower DL
+(`0.019 s` vs `0.426 s`), flat ranked MCMC (500 sweeps) is `2.2x` faster
+(`0.083 s` vs `0.181 s`), and nested ranked minimization finds a `78` nats
+deeper minimum (`8583.9` vs `8662.2` nats) revealing an `8:1` feed-forward flow
+(`54.0%` upstream vs `6.9%` downstream). `demo("assortative_sbm")` completes in
+`~0.9 s` and `demo("ordered_sbm")` completes in `~6.6 s`.
+
+**Done when:** planted-partition and flat/nested ranked models agree with
+graph-tool 3.9 to machine precision, synthetic assortative/non-assortative and
+ordered/unordered model-selection tests pass, ranked layouts render cleanly, and
+both cookbook examples run end to end. **Complete.**
 
 ### 9. Large networks
 
