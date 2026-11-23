@@ -73,6 +73,34 @@ cpp_closure_infer <- function(N, L, obs_edges, gen_init, w0_init, loops_init, ex
     .Call(`_rgraphtool_cpp_closure_infer`, N, L, obs_edges, gen_init, w0_init, loops_init, ex_init, bs_list, dc, dist, nsamples, burnin, thin, beta, pedges, c_prop, d_prop, sample_loops, collect_partitions, q_max)
 }
 
+cpp_dynamics_entropy <- function(model, N, directed, self_loops, s_list, f_mat, has_zero, exposed, positive, pslack, xmin, xmax, tmin, tmax, init_edges, init_x, init_theta, bs_list, dc, dist, prior_opts, q_max) {
+    .Call(`_rgraphtool_cpp_dynamics_entropy`, model, N, directed, self_loops, s_list, f_mat, has_zero, exposed, positive, pslack, xmin, xmax, tmin, tmax, init_edges, init_x, init_theta, bs_list, dc, dist, prior_opts, q_max)
+}
+
+cpp_dynamics_check_moves <- function(model, N, directed, self_loops, s_list, f_mat, has_zero, exposed, positive, pslack, xmin, xmax, tmin, tmax, init_edges, init_x, init_theta, bs_list, dc, dist, prior_opts, nmoves, q_max) {
+    .Call(`_rgraphtool_cpp_dynamics_check_moves`, model, N, directed, self_loops, s_list, f_mat, has_zero, exposed, positive, pslack, xmin, xmax, tmin, tmax, init_edges, init_x, init_theta, bs_list, dc, dist, prior_opts, nmoves, q_max)
+}
+
+cpp_dynamics_reconstruct <- function(model, N, directed, self_loops, s_list, f_mat, has_zero, exposed, positive, pslack, xmin, xmax, tmin, tmax, init_edges, init_x, init_theta, bs_list, dc, dist, prior_opts, niter, nsamples, burnin, thin, beta, k_cand, w_step, t_step, tol, q_max) {
+    .Call(`_rgraphtool_cpp_dynamics_reconstruct`, model, N, directed, self_loops, s_list, f_mat, has_zero, exposed, positive, pslack, xmin, xmax, tmin, tmax, init_edges, init_x, init_theta, bs_list, dc, dist, prior_opts, niter, nsamples, burnin, thin, beta, k_cand, w_step, t_step, tol, q_max)
+}
+
+cpp_sim_ising <- function(pointer, weights, theta, n_samples, burnin, thin, async_eq, has_zero, init_state) {
+    .Call(`_rgraphtool_cpp_sim_ising`, pointer, weights, theta, n_samples, burnin, thin, async_eq, has_zero, init_state)
+}
+
+cpp_sim_epidemics <- function(pointer, log1m_t, spont, gamma_rec, mu_resusc, n_steps, exposed, expose_rate, init_state) {
+    .Call(`_rgraphtool_cpp_sim_epidemics`, pointer, log1m_t, spont, gamma_rec, mu_resusc, n_steps, exposed, expose_rate, init_state)
+}
+
+cpp_sim_normal_dyn <- function(pointer, weights, sigma, mu, n_samples, burnin, thin, mode) {
+    .Call(`_rgraphtool_cpp_sim_normal_dyn`, pointer, weights, sigma, mu, n_samples, burnin, thin, mode)
+}
+
+cpp_sim_potts <- function(pointer, weights, f_mat, theta, n_samples, burnin, thin, async_eq, init_state) {
+    .Call(`_rgraphtool_cpp_sim_potts`, pointer, weights, f_mat, theta, n_samples, burnin, thin, async_eq, init_state)
+}
+
 cpp_graph_create <- function(n, directed) {
     .Call(`_rgraphtool_cpp_graph_create`, n, directed)
 }
