@@ -3342,7 +3342,7 @@ SweepResult run_equilibrate(StepFn step_fn, EntropyFn entropy_fn, CollectFn coll
         }
 
         if (eq.collect && (niter % eq.thin == 0))
-            collect_fn();
+            collect_fn(S);
 
         if (eq.history) {
             hist.nattempts.push_back(static_cast<double>(r.nattempts));
@@ -3385,6 +3385,7 @@ Rcpp::List cpp_sbm_mcmc(SEXP pointer, Rcpp::IntegerVector blocks, bool degree_co
     SweepResult total;
     RunHistory hist;
     std::vector<Rcpp::IntegerVector> samples;
+    std::vector<double> sample_entropies;
     size_t niter_done = 0;
 
     auto do_step = [&](const MCMCParams& cur_p) {
@@ -3406,7 +3407,10 @@ Rcpp::List cpp_sbm_mcmc(SEXP pointer, Rcpp::IntegerVector blocks, bool degree_co
         total = run_equilibrate(
             [&]() { return do_step(mp); },
             [&]() { return view.entropy(); },
-            [&]() { samples.push_back(one_based(state.blocks())); },
+            [&](double cur_S) {
+                samples.push_back(one_based(state.blocks()));
+                sample_entropies.push_back(cur_S);
+            },
             eq, mp.beta, hist, niter_done);
     } else if (eq.mode == "anneal") {
         double beta = eq.beta_start;
@@ -3418,7 +3422,10 @@ Rcpp::List cpp_sbm_mcmc(SEXP pointer, Rcpp::IntegerVector blocks, bool degree_co
             SweepResult r = run_equilibrate(
                 [&]() { return do_step(cur_p); },
                 [&]() { return view.entropy(); },
-                [&]() { samples.push_back(one_based(state.blocks())); },
+                [&](double cur_S) {
+                    samples.push_back(one_based(state.blocks()));
+                    sample_entropies.push_back(cur_S);
+                },
                 eq, cur_p.beta, hist, niter_done);
             total.dS += r.dS;
             total.nattempts += r.nattempts;
@@ -3449,6 +3456,7 @@ Rcpp::List cpp_sbm_mcmc(SEXP pointer, Rcpp::IntegerVector blocks, bool degree_co
         for (size_t i = 0; i < samples.size(); ++i)
             slist[i] = samples[i];
         out["samples"] = slist;
+        out["sample_entropies"] = sample_entropies;
     }
     return out;
 }
@@ -3510,6 +3518,7 @@ Rcpp::List cpp_nested_mcmc(SEXP pointer, Rcpp::List bs, bool degree_corrected,
     SweepResult total;
     RunHistory hist;
     std::vector<Rcpp::List> samples;
+    std::vector<double> sample_entropies;
     size_t niter_done = 0;
 
     if (eq.mode == "sweep") {
@@ -3519,7 +3528,10 @@ Rcpp::List cpp_nested_mcmc(SEXP pointer, Rcpp::List bs, bool degree_corrected,
         total = run_equilibrate(
             [&]() { return do_step(mp); },
             [&]() { return n.entropy(); },
-            [&]() { samples.push_back(external_hierarchy(n.hierarchy())); },
+            [&](double cur_S) {
+                samples.push_back(external_hierarchy(n.hierarchy()));
+                sample_entropies.push_back(cur_S);
+            },
             eq, mp.beta, hist, niter_done);
     } else if (eq.mode == "anneal") {
         double beta = eq.beta_start;
@@ -3531,7 +3543,10 @@ Rcpp::List cpp_nested_mcmc(SEXP pointer, Rcpp::List bs, bool degree_corrected,
             SweepResult r = run_equilibrate(
                 [&]() { return do_step(cur_p); },
                 [&]() { return n.entropy(); },
-                [&]() { samples.push_back(external_hierarchy(n.hierarchy())); },
+                [&](double cur_S) {
+                    samples.push_back(external_hierarchy(n.hierarchy()));
+                    sample_entropies.push_back(cur_S);
+                },
                 eq, cur_p.beta, hist, niter_done);
             total.dS += r.dS;
             total.nattempts += r.nattempts;
@@ -3564,6 +3579,7 @@ Rcpp::List cpp_nested_mcmc(SEXP pointer, Rcpp::List bs, bool degree_corrected,
         for (size_t i = 0; i < samples.size(); ++i)
             slist[i] = samples[i];
         out["samples"] = slist;
+        out["sample_entropies"] = sample_entropies;
     }
     return out;
 }

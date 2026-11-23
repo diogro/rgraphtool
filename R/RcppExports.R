@@ -85,6 +85,34 @@ cpp_log_partition_table <- function(max_degree, max_vertices) {
     .Call(`_graphtool_cpp_log_partition_table`, max_degree, max_vertices)
 }
 
+cpp_overlap_entropy <- function(pointer, half_edges, degree_corrected, distributed, gen_overlap, q_max) {
+    .Call(`_graphtool_cpp_overlap_entropy`, pointer, half_edges, degree_corrected, distributed, gen_overlap, q_max)
+}
+
+cpp_overlap_check_moves <- function(pointer, half_edges, degree_corrected, distributed, gen_overlap, nmoves, q_max) {
+    .Call(`_graphtool_cpp_overlap_check_moves`, pointer, half_edges, degree_corrected, distributed, gen_overlap, nmoves, q_max)
+}
+
+cpp_overlap_groups <- function(pointer, half_edges) {
+    .Call(`_graphtool_cpp_overlap_groups`, pointer, half_edges)
+}
+
+cpp_overlap_minimize <- function(pointer, init_vblocks, degree_corrected, distributed, gen_overlap, B_min, B_max, refine, epsilon, q_max) {
+    .Call(`_graphtool_cpp_overlap_minimize`, pointer, init_vblocks, degree_corrected, distributed, gen_overlap, B_min, B_max, refine, epsilon, q_max)
+}
+
+cpp_nested_overlap_entropy <- function(pointer, half_edges, upper_bs, degree_corrected, distributed, gen_overlap, q_max) {
+    .Call(`_graphtool_cpp_nested_overlap_entropy`, pointer, half_edges, upper_bs, degree_corrected, distributed, gen_overlap, q_max)
+}
+
+cpp_nested_overlap_minimize <- function(pointer, init_vblocks, degree_corrected, distributed, gen_overlap, B_min, B_max, refine, epsilon, q_max) {
+    .Call(`_graphtool_cpp_nested_overlap_minimize`, pointer, init_vblocks, degree_corrected, distributed, gen_overlap, B_min, B_max, refine, epsilon, q_max)
+}
+
+cpp_overlap_mcmc <- function(pointer, half_edges, degree_corrected, distributed, gen_overlap, beta, c, d, niter, thin, collect, B_min, B_max, q_max) {
+    .Call(`_graphtool_cpp_overlap_mcmc`, pointer, half_edges, degree_corrected, distributed, gen_overlap, beta, c, d, niter, thin, collect, B_min, B_max, q_max)
+}
+
 cpp_align_partition_labels <- function(x, y) {
     .Call(`_graphtool_cpp_align_partition_labels`, x, y)
 }

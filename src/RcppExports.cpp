@@ -299,6 +299,132 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_overlap_entropy
+double cpp_overlap_entropy(SEXP pointer, Rcpp::IntegerMatrix half_edges, bool degree_corrected, bool distributed, bool gen_overlap, double q_max);
+RcppExport SEXP _graphtool_cpp_overlap_entropy(SEXP pointerSEXP, SEXP half_edgesSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP gen_overlapSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type half_edges(half_edgesSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< bool >::type gen_overlap(gen_overlapSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_overlap_entropy(pointer, half_edges, degree_corrected, distributed, gen_overlap, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_overlap_check_moves
+Rcpp::NumericVector cpp_overlap_check_moves(SEXP pointer, Rcpp::IntegerMatrix half_edges, bool degree_corrected, bool distributed, bool gen_overlap, int nmoves, double q_max);
+RcppExport SEXP _graphtool_cpp_overlap_check_moves(SEXP pointerSEXP, SEXP half_edgesSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP gen_overlapSEXP, SEXP nmovesSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type half_edges(half_edgesSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< bool >::type gen_overlap(gen_overlapSEXP);
+    Rcpp::traits::input_parameter< int >::type nmoves(nmovesSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_overlap_check_moves(pointer, half_edges, degree_corrected, distributed, gen_overlap, nmoves, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_overlap_groups
+Rcpp::List cpp_overlap_groups(SEXP pointer, Rcpp::IntegerMatrix half_edges);
+RcppExport SEXP _graphtool_cpp_overlap_groups(SEXP pointerSEXP, SEXP half_edgesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type half_edges(half_edgesSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_overlap_groups(pointer, half_edges));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_overlap_minimize
+Rcpp::List cpp_overlap_minimize(SEXP pointer, Rcpp::IntegerVector init_vblocks, bool degree_corrected, bool distributed, bool gen_overlap, int B_min, double B_max, bool refine, double epsilon, double q_max);
+RcppExport SEXP _graphtool_cpp_overlap_minimize(SEXP pointerSEXP, SEXP init_vblocksSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP gen_overlapSEXP, SEXP B_minSEXP, SEXP B_maxSEXP, SEXP refineSEXP, SEXP epsilonSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type init_vblocks(init_vblocksSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< bool >::type gen_overlap(gen_overlapSEXP);
+    Rcpp::traits::input_parameter< int >::type B_min(B_minSEXP);
+    Rcpp::traits::input_parameter< double >::type B_max(B_maxSEXP);
+    Rcpp::traits::input_parameter< bool >::type refine(refineSEXP);
+    Rcpp::traits::input_parameter< double >::type epsilon(epsilonSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_overlap_minimize(pointer, init_vblocks, degree_corrected, distributed, gen_overlap, B_min, B_max, refine, epsilon, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_nested_overlap_entropy
+Rcpp::NumericVector cpp_nested_overlap_entropy(SEXP pointer, Rcpp::IntegerMatrix half_edges, Rcpp::List upper_bs, bool degree_corrected, bool distributed, bool gen_overlap, double q_max);
+RcppExport SEXP _graphtool_cpp_nested_overlap_entropy(SEXP pointerSEXP, SEXP half_edgesSEXP, SEXP upper_bsSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP gen_overlapSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type half_edges(half_edgesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type upper_bs(upper_bsSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< bool >::type gen_overlap(gen_overlapSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_nested_overlap_entropy(pointer, half_edges, upper_bs, degree_corrected, distributed, gen_overlap, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_nested_overlap_minimize
+Rcpp::List cpp_nested_overlap_minimize(SEXP pointer, Rcpp::IntegerVector init_vblocks, bool degree_corrected, bool distributed, bool gen_overlap, int B_min, double B_max, bool refine, double epsilon, double q_max);
+RcppExport SEXP _graphtool_cpp_nested_overlap_minimize(SEXP pointerSEXP, SEXP init_vblocksSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP gen_overlapSEXP, SEXP B_minSEXP, SEXP B_maxSEXP, SEXP refineSEXP, SEXP epsilonSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type init_vblocks(init_vblocksSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< bool >::type gen_overlap(gen_overlapSEXP);
+    Rcpp::traits::input_parameter< int >::type B_min(B_minSEXP);
+    Rcpp::traits::input_parameter< double >::type B_max(B_maxSEXP);
+    Rcpp::traits::input_parameter< bool >::type refine(refineSEXP);
+    Rcpp::traits::input_parameter< double >::type epsilon(epsilonSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_nested_overlap_minimize(pointer, init_vblocks, degree_corrected, distributed, gen_overlap, B_min, B_max, refine, epsilon, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_overlap_mcmc
+Rcpp::List cpp_overlap_mcmc(SEXP pointer, Rcpp::IntegerMatrix half_edges, bool degree_corrected, bool distributed, bool gen_overlap, double beta, double c, double d, int niter, int thin, bool collect, int B_min, double B_max, double q_max);
+RcppExport SEXP _graphtool_cpp_overlap_mcmc(SEXP pointerSEXP, SEXP half_edgesSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP gen_overlapSEXP, SEXP betaSEXP, SEXP cSEXP, SEXP dSEXP, SEXP niterSEXP, SEXP thinSEXP, SEXP collectSEXP, SEXP B_minSEXP, SEXP B_maxSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type half_edges(half_edgesSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< bool >::type gen_overlap(gen_overlapSEXP);
+    Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< double >::type c(cSEXP);
+    Rcpp::traits::input_parameter< double >::type d(dSEXP);
+    Rcpp::traits::input_parameter< int >::type niter(niterSEXP);
+    Rcpp::traits::input_parameter< int >::type thin(thinSEXP);
+    Rcpp::traits::input_parameter< bool >::type collect(collectSEXP);
+    Rcpp::traits::input_parameter< int >::type B_min(B_minSEXP);
+    Rcpp::traits::input_parameter< double >::type B_max(B_maxSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_overlap_mcmc(pointer, half_edges, degree_corrected, distributed, gen_overlap, beta, c, d, niter, thin, collect, B_min, B_max, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_align_partition_labels
 Rcpp::IntegerVector cpp_align_partition_labels(Rcpp::IntegerVector x, Rcpp::IntegerVector y);
 RcppExport SEXP _graphtool_cpp_align_partition_labels(SEXP xSEXP, SEXP ySEXP) {
@@ -402,6 +528,13 @@ static const R_CallMethodDef CallEntries[] = {
     {"_graphtool_cpp_degree", (DL_FUNC) &_graphtool_cpp_degree, 2},
     {"_graphtool_cpp_block_statistics", (DL_FUNC) &_graphtool_cpp_block_statistics, 3},
     {"_graphtool_cpp_log_partition_table", (DL_FUNC) &_graphtool_cpp_log_partition_table, 2},
+    {"_graphtool_cpp_overlap_entropy", (DL_FUNC) &_graphtool_cpp_overlap_entropy, 6},
+    {"_graphtool_cpp_overlap_check_moves", (DL_FUNC) &_graphtool_cpp_overlap_check_moves, 7},
+    {"_graphtool_cpp_overlap_groups", (DL_FUNC) &_graphtool_cpp_overlap_groups, 2},
+    {"_graphtool_cpp_overlap_minimize", (DL_FUNC) &_graphtool_cpp_overlap_minimize, 10},
+    {"_graphtool_cpp_nested_overlap_entropy", (DL_FUNC) &_graphtool_cpp_nested_overlap_entropy, 7},
+    {"_graphtool_cpp_nested_overlap_minimize", (DL_FUNC) &_graphtool_cpp_nested_overlap_minimize, 10},
+    {"_graphtool_cpp_overlap_mcmc", (DL_FUNC) &_graphtool_cpp_overlap_mcmc, 14},
     {"_graphtool_cpp_align_partition_labels", (DL_FUNC) &_graphtool_cpp_align_partition_labels, 2},
     {"_graphtool_cpp_partition_overlap", (DL_FUNC) &_graphtool_cpp_partition_overlap, 3},
     {"_graphtool_cpp_align_nested_partition_labels", (DL_FUNC) &_graphtool_cpp_align_nested_partition_labels, 2},

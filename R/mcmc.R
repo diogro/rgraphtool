@@ -92,6 +92,7 @@ run_native_mcmc <- function(state, mcmc_opts, eq_opts) {
   )
   if (!is.null(res$history)) out$history <- res$history
   if (!is.null(res$samples)) out$samples <- res$samples
+  if (!is.null(res$sample_entropies)) out$sample_entropies <- res$sample_entropies
   out
 }
 
@@ -298,8 +299,9 @@ sample_posterior <- function(state, nsamples = 1000L, thin = 10L, burnin = NULL,
   list(
     state = samp_res$state,
     samples = samp_res$samples,
+    entropies = samp_res$sample_entropies,
     nested = is_nested_state(state),
     equilibration = eq_res,
-    sampling = samp_res[setdiff(names(samp_res), c("state", "samples"))]
+    sampling = samp_res[setdiff(names(samp_res), c("state", "samples", "sample_entropies"))]
   )
 }
