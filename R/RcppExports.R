@@ -85,3 +85,27 @@ cpp_log_partition_table <- function(max_degree, max_vertices) {
     .Call(`_graphtool_cpp_log_partition_table`, max_degree, max_vertices)
 }
 
+cpp_align_partition_labels <- function(x, y) {
+    .Call(`_graphtool_cpp_align_partition_labels`, x, y)
+}
+
+cpp_partition_overlap <- function(x, y, norm) {
+    .Call(`_graphtool_cpp_partition_overlap`, x, y, norm)
+}
+
+cpp_align_nested_partition_labels <- function(x, y) {
+    .Call(`_graphtool_cpp_align_nested_partition_labels`, x, y)
+}
+
+cpp_nested_partition_overlap <- function(x, y, norm) {
+    .Call(`_graphtool_cpp_nested_partition_overlap`, x, y, norm)
+}
+
+cpp_partition_mode <- function(partitions, relabel, nested, converge) {
+    .Call(`_graphtool_cpp_partition_mode`, partitions, relabel, nested, converge)
+}
+
+cpp_mode_cluster <- function(partitions, nested, relabel, initial_b, niter, converge) {
+    .Call(`_graphtool_cpp_mode_cluster`, partitions, nested, relabel, initial_b, niter, converge)
+}
+

@@ -299,6 +299,86 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_align_partition_labels
+Rcpp::IntegerVector cpp_align_partition_labels(Rcpp::IntegerVector x, Rcpp::IntegerVector y);
+RcppExport SEXP _graphtool_cpp_align_partition_labels(SEXP xSEXP, SEXP ySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type x(xSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type y(ySEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_align_partition_labels(x, y));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_partition_overlap
+double cpp_partition_overlap(Rcpp::IntegerVector x, Rcpp::IntegerVector y, bool norm);
+RcppExport SEXP _graphtool_cpp_partition_overlap(SEXP xSEXP, SEXP ySEXP, SEXP normSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type x(xSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type y(ySEXP);
+    Rcpp::traits::input_parameter< bool >::type norm(normSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_partition_overlap(x, y, norm));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_align_nested_partition_labels
+Rcpp::List cpp_align_nested_partition_labels(Rcpp::List x, Rcpp::List y);
+RcppExport SEXP _graphtool_cpp_align_nested_partition_labels(SEXP xSEXP, SEXP ySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type x(xSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type y(ySEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_align_nested_partition_labels(x, y));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_nested_partition_overlap
+double cpp_nested_partition_overlap(Rcpp::List x, Rcpp::List y, bool norm);
+RcppExport SEXP _graphtool_cpp_nested_partition_overlap(SEXP xSEXP, SEXP ySEXP, SEXP normSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type x(xSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type y(ySEXP);
+    Rcpp::traits::input_parameter< bool >::type norm(normSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_nested_partition_overlap(x, y, norm));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_partition_mode
+Rcpp::List cpp_partition_mode(Rcpp::List partitions, bool relabel, bool nested, bool converge);
+RcppExport SEXP _graphtool_cpp_partition_mode(SEXP partitionsSEXP, SEXP relabelSEXP, SEXP nestedSEXP, SEXP convergeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type partitions(partitionsSEXP);
+    Rcpp::traits::input_parameter< bool >::type relabel(relabelSEXP);
+    Rcpp::traits::input_parameter< bool >::type nested(nestedSEXP);
+    Rcpp::traits::input_parameter< bool >::type converge(convergeSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_partition_mode(partitions, relabel, nested, converge));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_mode_cluster
+Rcpp::List cpp_mode_cluster(Rcpp::List partitions, bool nested, bool relabel, Rcpp::Nullable<Rcpp::IntegerVector> initial_b, int niter, bool converge);
+RcppExport SEXP _graphtool_cpp_mode_cluster(SEXP partitionsSEXP, SEXP nestedSEXP, SEXP relabelSEXP, SEXP initial_bSEXP, SEXP niterSEXP, SEXP convergeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type partitions(partitionsSEXP);
+    Rcpp::traits::input_parameter< bool >::type nested(nestedSEXP);
+    Rcpp::traits::input_parameter< bool >::type relabel(relabelSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::IntegerVector> >::type initial_b(initial_bSEXP);
+    Rcpp::traits::input_parameter< int >::type niter(niterSEXP);
+    Rcpp::traits::input_parameter< bool >::type converge(convergeSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_mode_cluster(partitions, nested, relabel, initial_b, niter, converge));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_graphtool_cpp_sbm_entropy", (DL_FUNC) &_graphtool_cpp_sbm_entropy, 5},
@@ -322,6 +402,12 @@ static const R_CallMethodDef CallEntries[] = {
     {"_graphtool_cpp_degree", (DL_FUNC) &_graphtool_cpp_degree, 2},
     {"_graphtool_cpp_block_statistics", (DL_FUNC) &_graphtool_cpp_block_statistics, 3},
     {"_graphtool_cpp_log_partition_table", (DL_FUNC) &_graphtool_cpp_log_partition_table, 2},
+    {"_graphtool_cpp_align_partition_labels", (DL_FUNC) &_graphtool_cpp_align_partition_labels, 2},
+    {"_graphtool_cpp_partition_overlap", (DL_FUNC) &_graphtool_cpp_partition_overlap, 3},
+    {"_graphtool_cpp_align_nested_partition_labels", (DL_FUNC) &_graphtool_cpp_align_nested_partition_labels, 2},
+    {"_graphtool_cpp_nested_partition_overlap", (DL_FUNC) &_graphtool_cpp_nested_partition_overlap, 3},
+    {"_graphtool_cpp_partition_mode", (DL_FUNC) &_graphtool_cpp_partition_mode, 4},
+    {"_graphtool_cpp_mode_cluster", (DL_FUNC) &_graphtool_cpp_mode_cluster, 6},
     {NULL, NULL, 0}
 };
 
