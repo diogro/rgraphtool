@@ -4,7 +4,9 @@
 \alias{mode_consensus}
 \alias{mode_uncertainty}
 \alias{mode_entropy}
+\alias{mode_lprob}
 \alias{mode_cluster_state}
+\alias{cluster_lprob}
 \alias{mode_summary}
 \alias{align_partition_labels}
 \alias{partition_overlap}
@@ -24,8 +26,10 @@ mode_marginals(mode, probability = FALSE, level = 0L)
 mode_consensus(mode)
 mode_uncertainty(mode, mle = TRUE)
 mode_entropy(mode, mle = TRUE)
+mode_lprob(mode, partition, mle = TRUE, align = FALSE)
 mode_cluster_state(partitions, nested = NULL, b = NULL, relabel = TRUE,
   niter = 20L, converge = TRUE)
+cluster_lprob(cluster, partition, mode = NULL, mle = TRUE, align = FALSE)
 mode_summary(cluster)
 }
 \arguments{
@@ -42,7 +46,15 @@ mode_summary(cluster)
   \item{converge}{Whether to iterate label realignment until the random label
   model description length converges.}
   \item{mode}{A partition mode object returned by \code{partition_mode_state()}
-  or stored inside \code{mode_cluster_state()$modes}.}
+  or stored inside \code{mode_cluster_state()$modes}. For \code{mode_entropy()},
+  a \code{graphtool_mode_cluster} object is also accepted. For
+  \code{cluster_lprob()}, an optional 1-based mode index (or \code{NULL} for the
+  full mode-mixture log-probability).}
+  \item{partition}{A flat integer label vector or nested list of label vectors
+  whose log-probability is evaluated under the mode or mode cluster.}
+  \item{align}{If \code{TRUE}, align \code{partition} to the mode's consensus
+  labels before evaluating the log-probability. Defaults to \code{FALSE},
+  matching graph-tool's \code{posterior_lprob()}.}
   \item{probability}{If \code{TRUE}, return row-normalized marginal probabilities;
   otherwise return integer counts.}
   \item{level}{Hierarchy level (0-based) for nested modes.}

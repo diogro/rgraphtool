@@ -178,10 +178,41 @@ uncertainty and convergence limitations documented. **Complete.**
 
 ### 5. Model class selection
 
-- [ ] Implement the model classes and model-comparison operations required by
-  the cookbook's model-class selection examples, including overlapping
-  structure where used.
-- [ ] Run those examples and reproduce their reported comparison workflow.
+- [x] Implement the model classes and model-comparison operations required by
+  the cookbook's model-class selection examples, including flat and nested
+  overlapping SBMs (`overlap_block_state()`, `overlap_description_length()`,
+  `overlap_groups()`, `overlap_majority_groups()`,
+  `minimize_overlap_blockmodel_dl()`, `nested_overlap_block_state()`,
+  `nested_overlap_description_length()`, `minimize_nested_overlap_blockmodel_dl()`,
+  `overlap_mcmc_sweep()`).
+- [x] Add posterior partition log-probabilities (`mode_lprob()`,
+  `cluster_lprob()`), nested and cluster posterior entropy (`mode_entropy()`),
+  and callback-free marginal model evidence (`model_evidence()`) plus the
+  high-level 8-class comparison workflow (`compare_model_classes()`).
+- [x] Run the Les Misérables model-class selection cookbook workflow comparing
+  MAP description lengths and full posterior marginal evidences across all
+  model classes (`demo("model_class_selection")`).
+
+Exact flat and nested overlapping description lengths match graph-tool 3.9
+(`OverlapBlockState` and `NestedBlockState(base_state=OverlapBlockState)`) to
+within `4e-13` on complex directed and undirected graphs (with parallel edges,
+self-loops, isolated vertices, DC/NDC, distributed/uniform priors) as well as
+on Les Misérables; incremental half-edge moves match full recomputation to
+`< 1e-13`. `mode_lprob()`, `cluster_lprob()`, and nested/cluster `mode_entropy()`
+match graph-tool 3.9's `posterior_lprob()` and `posterior_entropy()` to `1e-12`.
+On Les Misérables (77 vertices, 254 edges), `demo("model_class_selection")`
+completes all 8 MAP model classes (3 restarts each) plus 6 posterior evidence
+integrations (200 thinned samples each) in ~5.6 s, illustrating how MAP favors
+flat/overlap (`685.1`–`688.7` nats) while full Bayesian marginal evidence
+decisively selects the nested model (`-log P(A) = 670.6` nats). Note that for
+overlapping states, posterior entropy in `model_evidence()` is estimated from
+vertex majority-group trajectories (a conservative lower bound on full
+half-edge posterior entropy).
+
+**Done when:** overlapping and non-overlapping model classes agree with the
+reference for identical states, synthetic recovery tests select the true
+generative class, and the cookbook comparison workflow runs end to end.
+**Complete.**
 
 ### 6. Edge weights and covariates
 
