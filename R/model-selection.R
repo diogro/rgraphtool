@@ -91,6 +91,8 @@ state_num_levels <- function(state) {
   NA_integer_
 }
 
+#' @noRd
+#' @export
 model_evidence <- function(state, nsamples = 200L, thin = 5L, burnin = NULL,
                            beta = 1, mle = TRUE,
                            method = c("variational", "importance"),
@@ -249,6 +251,8 @@ model_evidence <- function(state, nsamples = 200L, thin = 5L, burnin = NULL,
   ), class = "rgraphtool_model_evidence")
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_model_evidence <- function(x, ...) {
   cat(sprintf("<model evidence (%s, M = %d samples)>\n", x$method, x$nsamples))
   cat(sprintf("  log P(A)          : %.4f nats  (-log P(A) = %.4f)\n",
@@ -309,6 +313,8 @@ fit_single_model_class <- function(graph, spec, degree_prior, nruns,
   best_state
 }
 
+#' @noRd
+#' @export
 compare_model_classes <- function(graph,
                                   models = c("flat_ndc", "flat_dc",
                                              "nested_ndc", "nested_dc",
@@ -417,6 +423,8 @@ compare_model_classes <- function(graph,
   ), class = "rgraphtool_model_class_comparison")
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_model_class_comparison <- function(x, ...) {
   cat(sprintf("<SBM model class comparison (%s, %s degree prior)>\n",
               if (x$method == "posterior") paste0("posterior/", x$evidence_method) else "MAP description length",

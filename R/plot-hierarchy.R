@@ -51,6 +51,8 @@ bundle_path <- function(layout, u, v, beta) {
   beta * points + (1 - beta) * straight
 }
 
+#' @noRd
+#' @export
 plot_hierarchy <- function(state, beta = 0.8, vertex_col = NULL,
                            edge_col = grDevices::adjustcolor("grey30", 0.25),
                            vertex_cex = 0.6, show_tree = TRUE, main = NULL, ...) {
@@ -87,6 +89,8 @@ plot_hierarchy <- function(state, beta = 0.8, vertex_col = NULL,
   invisible(layout)
 }
 
+#' @noRd
+#' @export
 plot_ranked_hierarchy <- function(state,
                                   upstream_col = grDevices::adjustcolor("#4878CF", 0.35),
                                   downstream_col = grDevices::adjustcolor("#D65F5F", 0.55),

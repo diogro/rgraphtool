@@ -1,3 +1,5 @@
+#' @noRd
+#' @export
 plot_bipartite <- function(state, type = c("matrix", "meso", "network"),
                            level = 1L, weight = NULL,
                            main = NULL,

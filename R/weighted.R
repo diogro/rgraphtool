@@ -195,6 +195,8 @@ validate_weighted_state <- function(state) {
   }
 }
 
+#' @noRd
+#' @export
 weighted_block_state <- function(graph, weights, types,
                                  params = "microcanonical", blocks = NULL,
                                  degree_corrected = TRUE,
@@ -220,6 +222,8 @@ weighted_block_state <- function(graph, weights, types,
   new_weighted_state(graph, blocks, wmat, spec, degree_corrected, degree_prior)
 }
 
+#' @noRd
+#' @export
 weighted_description_length <- function(state, rec = TRUE, rec_dl = TRUE,
                                         degree_prior = NULL) {
   validate_weighted_state(state)
@@ -231,6 +235,8 @@ weighted_description_length <- function(state, rec = TRUE, rec_dl = TRUE,
                        isTRUE(rec_dl), q_cache_max())
 }
 
+#' @noRd
+#' @export
 minimize_weighted_blockmodel_dl <- function(graph, weights, types,
                                             params = "microcanonical",
                                             degree_corrected = TRUE,
@@ -258,6 +264,8 @@ minimize_weighted_blockmodel_dl <- function(graph, weights, types,
                      degree_prior, fit = list(description_length = res$entropy))
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_weighted_block_state <- function(x, ...) {
   dl <- weighted_description_length(x)
   cat(sprintf("<weighted block state: %s, %s, B = %d, description length %.4f nats>\n",
@@ -297,6 +305,8 @@ validate_nested_weighted_state <- function(state) {
   }
 }
 
+#' @noRd
+#' @export
 nested_weighted_block_state <- function(graph, weights, types,
                                         params = "microcanonical",
                                         levels = NULL,
@@ -333,6 +343,8 @@ nested_weighted_block_state <- function(graph, weights, types,
   new_nested_weighted_state(graph, levels, wmat, spec, degree_corrected, degree_prior)
 }
 
+#' @noRd
+#' @export
 nested_weighted_level_entropy <- function(state, degree_prior = NULL) {
   validate_nested_weighted_state(state)
   if (is.null(degree_prior)) degree_prior <- state$degree_prior
@@ -343,10 +355,14 @@ nested_weighted_level_entropy <- function(state, degree_prior = NULL) {
                               degree_prior == "distributed", q_cache_max())
 }
 
+#' @noRd
+#' @export
 nested_weighted_description_length <- function(state, degree_prior = NULL) {
   sum(nested_weighted_level_entropy(state, degree_prior = degree_prior))
 }
 
+#' @noRd
+#' @export
 minimize_nested_weighted_blockmodel_dl <- function(graph, weights, types,
                                                    params = "microcanonical",
                                                    degree_corrected = TRUE,
@@ -381,6 +397,8 @@ minimize_nested_weighted_blockmodel_dl <- function(graph, weights, types,
                                        level_entropy = res$level_entropy))
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_nested_weighted_block_state <- function(x, ...) {
   dl <- nested_weighted_description_length(x)
   cat(sprintf("<nested weighted block state: %s, %s, %d levels, B = %s, description length %.4f nats>\n",
@@ -415,6 +433,8 @@ default_weight_candidates <- function(w) {
   }
 }
 
+#' @noRd
+#' @export
 compare_weight_models <- function(graph, weights, candidates = NULL,
                                   nested = TRUE, degree_corrected = TRUE,
                                   degree_prior = c("distributed", "uniform"),
@@ -572,6 +592,8 @@ compare_weight_models <- function(graph, weights, candidates = NULL,
   ), class = "rgraphtool_weight_model_comparison")
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_weight_model_comparison <- function(x, ...) {
   cat(sprintf("<weighted SBM model comparison (%s, %s, %s)>\n",
               if (x$nested) "nested" else "flat",

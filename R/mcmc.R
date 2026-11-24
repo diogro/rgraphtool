@@ -222,6 +222,8 @@ run_native_mcmc <- function(state, mcmc_opts, eq_opts) {
   out
 }
 
+#' @noRd
+#' @export
 mcmc_sweep <- function(state, beta = 1, niter = 1L, c = NULL, d = 0.01,
                        multiflip = TRUE, B_min = 1L, B_max = Inf,
                        psingle = NULL, psplit = 1, pmerge = 1,
@@ -237,6 +239,8 @@ mcmc_sweep <- function(state, beta = 1, niter = 1L, c = NULL, d = 0.01,
   run_native_mcmc(state, mcmc_opts, list(mode = "sweep"))
 }
 
+#' @noRd
+#' @export
 mcmc_equilibrate <- function(state, wait = 1000L, nbreaks = 2L, max_niter = Inf,
                              force_niter = NULL, epsilon = 0, multiflip = TRUE,
                              mcmc_args = list(), history = FALSE,
@@ -352,6 +356,8 @@ mcmc_equilibrate <- function(state, wait = 1000L, nbreaks = 2L, max_niter = Inf,
   out
 }
 
+#' @noRd
+#' @export
 mcmc_anneal <- function(state, beta_range = c(1, 10), niter = 100L,
                         history = FALSE, mcmc_equilibrate_args = list(),
                         verbose = FALSE) {
@@ -386,6 +392,8 @@ mcmc_anneal <- function(state, beta_range = c(1, 10), niter = 100L,
   run_native_mcmc(state, mcmc_opts, eq_opts)
 }
 
+#' @noRd
+#' @export
 sample_posterior <- function(state, nsamples = 1000L, thin = 10L, burnin = NULL,
                              multiflip = TRUE, mcmc_args = list(),
                              equilibrate_args = list(), history = FALSE,

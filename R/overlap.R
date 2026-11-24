@@ -46,6 +46,8 @@ validate_overlap_state <- function(state) {
   }
 }
 
+#' @noRd
+#' @export
 overlap_block_state <- function(graph, half_edges = NULL, degree_corrected = TRUE,
                                 degree_prior = c("distributed", "uniform"),
                                 gen_overlap = TRUE) {
@@ -62,6 +64,8 @@ overlap_block_state <- function(graph, half_edges = NULL, degree_corrected = TRU
   new_overlap_state(graph, half_edges, degree_corrected, degree_prior, gen_overlap)
 }
 
+#' @noRd
+#' @export
 overlap_description_length <- function(state, degree_prior = NULL) {
   validate_overlap_state(state)
   if (is.null(degree_prior)) degree_prior <- state$degree_prior
@@ -71,6 +75,8 @@ overlap_description_length <- function(state, degree_prior = NULL) {
                       state$gen_overlap, q_cache_max())
 }
 
+#' @noRd
+#' @export
 overlap_groups <- function(state) {
   if (inherits(state, "rgraphtool_nested_overlap_block_state")) {
     validate_nested_overlap_state(state)
@@ -80,10 +86,14 @@ overlap_groups <- function(state) {
   state$overlap
 }
 
+#' @noRd
+#' @export
 overlap_majority_groups <- function(state) {
   overlap_groups(state)$majority
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_overlap_block_state <- function(x, ...) {
   dl <- overlap_description_length(x)
   cat(sprintf("<overlap block state: %s, B = %d, description length %.4f nats>\n",
@@ -92,6 +102,8 @@ print.rgraphtool_overlap_block_state <- function(x, ...) {
   invisible(x)
 }
 
+#' @noRd
+#' @export
 minimize_overlap_blockmodel_dl <- function(graph, degree_corrected = TRUE,
                                            degree_prior = c("distributed", "uniform"),
                                            gen_overlap = TRUE, B_min = 1L,
@@ -163,6 +175,8 @@ validate_nested_overlap_state <- function(state) {
   }
 }
 
+#' @noRd
+#' @export
 nested_overlap_block_state <- function(graph, half_edges, upper_levels,
                                        degree_corrected = TRUE,
                                        degree_prior = c("distributed", "uniform"),
@@ -191,6 +205,8 @@ nested_overlap_block_state <- function(graph, half_edges, upper_levels,
                            degree_prior, gen_overlap, overlap_info = info)
 }
 
+#' @noRd
+#' @export
 nested_overlap_level_entropy <- function(state, degree_prior = NULL) {
   validate_nested_overlap_state(state)
   if (is.null(degree_prior)) degree_prior <- state$degree_prior
@@ -201,10 +217,14 @@ nested_overlap_level_entropy <- function(state, degree_prior = NULL) {
                              q_cache_max())
 }
 
+#' @noRd
+#' @export
 nested_overlap_description_length <- function(state, degree_prior = NULL) {
   sum(nested_overlap_level_entropy(state, degree_prior))
 }
 
+#' @noRd
+#' @export
 minimize_nested_overlap_blockmodel_dl <- function(graph, degree_corrected = TRUE,
                                                   degree_prior = c("distributed", "uniform"),
                                                   gen_overlap = TRUE, B_min = 1L,
@@ -235,6 +255,8 @@ minimize_nested_overlap_blockmodel_dl <- function(graph, degree_corrected = TRUE
                            fit = list(description_length = res$entropy))
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_nested_overlap_block_state <- function(x, ...) {
   dl <- nested_overlap_description_length(x)
   cat(sprintf("<nested overlap block state: %s, %d levels, B_0 = %d, description length %.4f nats>\n",
@@ -243,6 +265,8 @@ print.rgraphtool_nested_overlap_block_state <- function(x, ...) {
   invisible(x)
 }
 
+#' @noRd
+#' @export
 overlap_mcmc_sweep <- function(state, beta = 1, niter = 1L, c = 0.5, d = 0.01,
                                thin = 1L, collect = FALSE, B_min = 1L,
                                B_max = Inf) {

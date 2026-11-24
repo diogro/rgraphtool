@@ -79,6 +79,8 @@ draw_pie_vertex <- function(x, y, r, probs, cols, border = "grey20", nseg = 36L)
   }
 }
 
+#' @noRd
+#' @export
 plot_marginals <- function(graph, mode, positions = NULL, radius = 0.04,
                            palette = NULL,
                            edge_col = grDevices::adjustcolor("grey40", 0.35),

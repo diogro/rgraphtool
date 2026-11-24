@@ -1,6 +1,8 @@
 # Geographic map projections, great-circle geodesic edges, offline world
 # coastlines, and geographic network visualization (Basemap/Cartopy equivalent).
 
+#' @noRd
+#' @export
 project_coords <- function(lon, lat,
                            projection = c("robinson", "mercator", "equirectangular",
                                           "mollweide", "orthographic"),
@@ -63,6 +65,8 @@ project_coords <- function(lon, lat,
   data.frame(x = x, y = y, visible = visible)
 }
 
+#' @noRd
+#' @export
 great_circle_arc <- function(lon1, lat1, lon2, lat2, n = 24L) {
   n <- validate_nonneg_int(n, "n", 2L)
   rad <- pi / 180
@@ -97,6 +101,8 @@ great_circle_arc <- function(lon1, lat1, lon2, lat2, n = 24L) {
   data.frame(lon = lons, lat = lats, segment = as.integer(seg))
 }
 
+#' @noRd
+#' @export
 world_coastlines <- function() {
   polys <- list(
     north_america = rbind(
@@ -178,6 +184,8 @@ world_coastlines <- function() {
   do.call(rbind, out)
 }
 
+#' @noRd
+#' @export
 plot_graph_map <- function(graph, lon, lat,
                            projection = c("robinson", "mercator", "equirectangular",
                                           "mollweide", "orthographic"),

@@ -56,6 +56,8 @@ get_dim_labels <- function(graph, dim_labels = NULL) {
   c("row", "col")
 }
 
+#' @noRd
+#' @export
 bipartite_graph <- function(x, type = NULL, directed = FALSE,
                             dim_labels = NULL,
                             weight_mode = c("auto", "binary", "multigraph", "weight"),
@@ -210,6 +212,8 @@ check_bipartite_edges <- function(graph, t_int) {
   invisible(TRUE)
 }
 
+#' @noRd
+#' @export
 is_bipartite <- function(graph, type = NULL) {
   graph_pointer(graph)
   nv <- as.integer(graph_num_vertices(graph))
@@ -256,6 +260,8 @@ is_bipartite <- function(graph, type = NULL) {
   TRUE
 }
 
+#' @noRd
+#' @export
 as_incidence_matrix <- function(graph, type = NULL, weight = NULL) {
   t_int <- validate_bipartite_type(graph, type)
   check_bipartite_edges(graph, t_int)
@@ -298,6 +304,8 @@ as_incidence_matrix <- function(graph, type = NULL, weight = NULL) {
   mat
 }
 
+#' @noRd
+#' @export
 fungus_tree_network <- function() {
   path <- system.file("extdata", "fungus_tree_network.rds", package = "rgraphtool")
   if (!nzchar(path) || !file.exists(path)) {

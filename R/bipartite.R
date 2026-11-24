@@ -104,6 +104,8 @@ validate_bipartite_state <- function(state) {
   }
 }
 
+#' @noRd
+#' @export
 bipartite_block_state <- function(graph, type = NULL, blocks = NULL,
                                   degree_corrected = TRUE,
                                   degree_prior = c("distributed", "uniform"),
@@ -123,6 +125,8 @@ bipartite_block_state <- function(graph, type = NULL, blocks = NULL,
                       edge_prior, wspec, inp$dim_labels)
 }
 
+#' @noRd
+#' @export
 bipartite_description_length <- function(state) {
   if (inherits(state, "rgraphtool_nested_bipartite_block_state")) {
     return(nested_bipartite_description_length(state))
@@ -142,6 +146,8 @@ bipartite_description_length <- function(state) {
   )
 }
 
+#' @noRd
+#' @export
 minimize_bipartite_blockmodel_dl <- function(graph, type = NULL,
                                              degree_corrected = TRUE,
                                              degree_prior = c("distributed", "uniform"),
@@ -264,6 +270,8 @@ validate_nested_bipartite_state <- function(state) {
   }
 }
 
+#' @noRd
+#' @export
 nested_bipartite_block_state <- function(graph, type = NULL, levels = NULL,
                                          degree_corrected = TRUE,
                                          degree_prior = c("distributed", "uniform"),
@@ -300,6 +308,8 @@ nested_bipartite_block_state <- function(graph, type = NULL, levels = NULL,
                              wspec, inp$dim_labels)
 }
 
+#' @noRd
+#' @export
 nested_bipartite_description_length <- function(state) {
   validate_nested_bipartite_state(state)
   sum(cpp_nested_bipartite_entropy(
@@ -316,6 +326,8 @@ nested_bipartite_description_length <- function(state) {
   ))
 }
 
+#' @noRd
+#' @export
 minimize_nested_bipartite_blockmodel_dl <- function(graph, type = NULL,
                                                     degree_corrected = TRUE,
                                                     degree_prior = c("distributed", "uniform"),
@@ -374,6 +386,8 @@ minimize_nested_bipartite_blockmodel_dl <- function(graph, type = NULL,
 # ---------------------------------------------------------------------------
 # Inspection helpers: memberships, rectangular block edge counts & affinity
 
+#' @noRd
+#' @export
 bipartite_membership <- function(state, level = 1L) {
   if (inherits(state, "rgraphtool_nested_bipartite_block_state")) {
     validate_nested_bipartite_state(state)
@@ -404,6 +418,8 @@ bipartite_membership <- function(state, level = 1L) {
   stats::setNames(list(b_row, b_col), state$dim_labels)
 }
 
+#' @noRd
+#' @export
 bipartite_edge_counts <- function(state, level = 1L) {
   mem <- bipartite_membership(state, level = level)
   b_row <- mem[[1L]]
@@ -442,6 +458,8 @@ bipartite_edge_counts <- function(state, level = 1L) {
   mat
 }
 
+#' @noRd
+#' @export
 bipartite_block_matrix <- function(state, level = 1L,
                                    normalize = c("density", "counts", "mean_weight")) {
   normalize <- match.arg(normalize)
@@ -493,6 +511,8 @@ bipartite_block_matrix <- function(state, level = 1L,
   out
 }
 
+#' @noRd
+#' @export
 compare_bipartite_models <- function(graph, type = NULL,
                                      weights = NULL, types = NULL, params = NULL,
                                      microcanonical = FALSE,
@@ -556,6 +576,8 @@ compare_bipartite_models <- function(graph, type = NULL,
 # ---------------------------------------------------------------------------
 # Print methods
 
+#' @noRd
+#' @export
 print.rgraphtool_bipartite_block_state <- function(x, ...) {
   dl <- if (!is.null(x$fit$description_length)) {
     x$fit$description_length
@@ -574,6 +596,8 @@ print.rgraphtool_bipartite_block_state <- function(x, ...) {
   invisible(x)
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_nested_bipartite_block_state <- function(x, ...) {
   n0 <- sum(x$type == 0L)
   n1 <- sum(x$type == 1L)
@@ -587,6 +611,8 @@ print.rgraphtool_nested_bipartite_block_state <- function(x, ...) {
   invisible(x)
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_bipartite_model_comparison <- function(x, ...) {
   cat("<bipartite block model comparison>\n")
   print(x$comparison, row.names = FALSE)

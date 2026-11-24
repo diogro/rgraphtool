@@ -50,6 +50,8 @@ validate_ranked_state <- function(state) {
   }
 }
 
+#' @noRd
+#' @export
 ranked_block_state <- function(graph, blocks = NULL, u = NULL,
                                distance = FALSE, unique = FALSE, M = NULL,
                                degree_corrected = TRUE,
@@ -87,6 +89,8 @@ ranked_block_state <- function(graph, blocks = NULL, u = NULL,
                    degree_corrected, degree_prior)
 }
 
+#' @noRd
+#' @export
 ranked_description_length <- function(state, label_dl = TRUE, degree_prior = NULL) {
   validate_ranked_state(state)
   if (is.null(degree_prior)) degree_prior <- state$degree_prior
@@ -97,6 +101,8 @@ ranked_description_length <- function(state, label_dl = TRUE, degree_prior = NUL
                      isTRUE(label_dl), q_cache_max())
 }
 
+#' @noRd
+#' @export
 minimize_ranked_blockmodel_dl <- function(graph, distance = FALSE, unique = FALSE,
                                           M = NULL, degree_corrected = TRUE,
                                           degree_prior = c("distributed", "uniform"),
@@ -135,6 +141,8 @@ minimize_ranked_blockmodel_dl <- function(graph, distance = FALSE, unique = FALS
                    fit = list(description_length = res$entropy))
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_ranked_block_state <- function(x, ...) {
   dl <- ranked_description_length(x)
   ec <- ranked_edge_counts(x)
@@ -177,6 +185,8 @@ validate_nested_ranked_state <- function(state) {
   }
 }
 
+#' @noRd
+#' @export
 nested_ranked_block_state <- function(graph, levels = NULL, u = NULL,
                                       distance = FALSE, unique = FALSE, M = NULL,
                                       degree_corrected = TRUE,
@@ -224,6 +234,8 @@ nested_ranked_block_state <- function(graph, levels = NULL, u = NULL,
                           degree_corrected, degree_prior)
 }
 
+#' @noRd
+#' @export
 nested_ranked_level_entropy <- function(state, degree_prior = NULL) {
   validate_nested_ranked_state(state)
   if (is.null(degree_prior)) degree_prior <- state$degree_prior
@@ -234,10 +246,14 @@ nested_ranked_level_entropy <- function(state, degree_prior = NULL) {
                             q_cache_max())
 }
 
+#' @noRd
+#' @export
 nested_ranked_description_length <- function(state, degree_prior = NULL) {
   sum(nested_ranked_level_entropy(state, degree_prior = degree_prior))
 }
 
+#' @noRd
+#' @export
 minimize_nested_ranked_blockmodel_dl <- function(graph, distance = FALSE,
                                                  unique = FALSE, M = NULL,
                                                  degree_corrected = TRUE,
@@ -283,6 +299,8 @@ minimize_nested_ranked_blockmodel_dl <- function(graph, distance = FALSE,
                                      level_entropy = res$level_entropy))
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_nested_ranked_block_state <- function(x, ...) {
   dl <- nested_ranked_description_length(x)
   ec <- ranked_edge_counts(x)
@@ -305,6 +323,8 @@ ranked_base_blocks <- function(state) {
   state$blocks
 }
 
+#' @noRd
+#' @export
 ranked_vertex_order <- function(state, normalize = FALSE) {
   b <- ranked_base_blocks(state)
   u_v <- state$u[b]
@@ -318,6 +338,8 @@ ranked_vertex_order <- function(state, normalize = FALSE) {
   u_v
 }
 
+#' @noRd
+#' @export
 ranked_edge_directions <- function(state) {
   b <- ranked_base_blocks(state)
   ed <- graph_edges(state$graph)
@@ -327,6 +349,8 @@ ranked_edge_directions <- function(state) {
   ifelse(us < ut, 1L, ifelse(us > ut, -1L, 0L))
 }
 
+#' @noRd
+#' @export
 ranked_edge_counts <- function(state) {
   b <- ranked_base_blocks(state)
   ed <- graph_edges(state$graph)
@@ -346,6 +370,8 @@ ranked_edge_counts <- function(state) {
 }
 
 # Declarative comparison of ordered (ranked) vs unordered SBMs
+#' @noRd
+#' @export
 compare_ordered_models <- function(graph,
                                    models = c("unordered_flat", "unordered_nested",
                                               "ranked_flat", "ranked_nested"),
@@ -486,6 +512,8 @@ compare_ordered_models <- function(graph,
   ), class = "rgraphtool_ordered_model_comparison")
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_ordered_model_comparison <- function(x, ...) {
   cat(sprintf("<ordered (ranked) vs. unordered SBM comparison (%s, %s)>\n",
               if (x$degree_corrected) "DC" else "NDC",

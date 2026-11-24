@@ -30,6 +30,8 @@ new_graph_attrs <- function() {
   env
 }
 
+#' @noRd
+#' @export
 graph_create <- function(n = 0L, directed = TRUE) {
   n <- validate_count(n)
   if (!is.logical(directed) || length(directed) != 1L || is.na(directed)) {
@@ -41,6 +43,8 @@ graph_create <- function(n = 0L, directed = TRUE) {
             class = "rgraphtool_graph")
 }
 
+#' @noRd
+#' @export
 graph_add_vertices <- function(graph, n = 1L) {
   pointer <- graph_pointer(graph)
   n <- validate_count(n)
@@ -67,6 +71,8 @@ graph_add_vertices <- function(graph, n = 1L) {
   invisible(graph)
 }
 
+#' @noRd
+#' @export
 graph_add_edges <- function(graph, edges, properties = NULL) {
   pointer <- graph_pointer(graph)
   count <- cpp_num_vertices(pointer)
@@ -165,6 +171,8 @@ graph_add_edges <- function(graph, edges, properties = NULL) {
   invisible(graph)
 }
 
+#' @noRd
+#' @export
 graph_set_edge_property <- function(graph, name, values) {
   pointer <- graph_pointer(graph)
   if (!is.character(name) || length(name) != 1L || is.na(name) || !nzchar(name)) {
@@ -190,6 +198,8 @@ graph_set_edge_property <- function(graph, name, values) {
   invisible(graph)
 }
 
+#' @noRd
+#' @export
 graph_edge_property <- function(graph, name) {
   pointer <- graph_pointer(graph)
   if (!is.character(name) || length(name) != 1L || is.na(name) || !nzchar(name)) {
@@ -204,12 +214,16 @@ graph_edge_property <- function(graph, name) {
   stop(sprintf("Edge property '%s' does not exist on graph", name), call. = FALSE)
 }
 
+#' @noRd
+#' @export
 graph_edge_properties <- function(graph) {
   cpp_names <- cpp_edge_property_names(graph_pointer(graph))
   extra_names <- if (is.environment(graph$attrs)) names(graph$attrs$edge_props) else character(0)
   unique(c(cpp_names, extra_names))
 }
 
+#' @noRd
+#' @export
 graph_set_vertex_property <- function(graph, name, values) {
   env <- graph_attrs_env(graph)
   if (!is.character(name) || length(name) != 1L || is.na(name) || !nzchar(name)) {
@@ -229,6 +243,8 @@ graph_set_vertex_property <- function(graph, name, values) {
   invisible(graph)
 }
 
+#' @noRd
+#' @export
 graph_vertex_property <- function(graph, name) {
   env <- graph_attrs_env(graph)
   if (!is.character(name) || length(name) != 1L || is.na(name) || !nzchar(name)) {
@@ -240,12 +256,16 @@ graph_vertex_property <- function(graph, name) {
   env$vertex_props[[name]]
 }
 
+#' @noRd
+#' @export
 graph_vertex_properties <- function(graph) {
   env <- graph_attrs_env(graph)
   nms <- names(env$vertex_props)
   if (is.null(nms)) character(0) else nms
 }
 
+#' @noRd
+#' @export
 graph_set_graph_property <- function(graph, name, value) {
   env <- graph_attrs_env(graph)
   if (!is.character(name) || length(name) != 1L || is.na(name) || !nzchar(name)) {
@@ -255,6 +275,8 @@ graph_set_graph_property <- function(graph, name, value) {
   invisible(graph)
 }
 
+#' @noRd
+#' @export
 graph_graph_property <- function(graph, name) {
   env <- graph_attrs_env(graph)
   if (!is.character(name) || length(name) != 1L || is.na(name) || !nzchar(name)) {
@@ -266,12 +288,16 @@ graph_graph_property <- function(graph, name) {
   env$graph_props[[name]]
 }
 
+#' @noRd
+#' @export
 graph_graph_properties <- function(graph) {
   env <- graph_attrs_env(graph)
   nms <- names(env$graph_props)
   if (is.null(nms)) character(0) else nms
 }
 
+#' @noRd
+#' @export
 transform_weights <- function(x, transform = c("identity", "log", "log1p",
                                                "sqrt", "sign", "abs",
                                                "rank", "zscore"),
@@ -329,18 +355,26 @@ transform_weights <- function(x, transform = c("identity", "log", "log1p",
   out
 }
 
+#' @noRd
+#' @export
 graph_num_vertices <- function(graph) {
   cpp_num_vertices(graph_pointer(graph))
 }
 
+#' @noRd
+#' @export
 graph_num_edges <- function(graph) {
   cpp_num_edges(graph_pointer(graph))
 }
 
+#' @noRd
+#' @export
 graph_edges <- function(graph) {
   cpp_edges(graph_pointer(graph))
 }
 
+#' @noRd
+#' @export
 graph_degree <- function(graph, mode = c("total", "in", "out")) {
   mode <- match.arg(mode)
   cpp_degree(graph_pointer(graph), mode)
@@ -374,6 +408,8 @@ format_prop_summary <- function(props) {
   paste(tags, collapse = ", ")
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_graph <- function(x, max_edges = 20L, max_ascii = 12L,
                                    ascii = NULL, ...) {
   valid <- tryCatch({

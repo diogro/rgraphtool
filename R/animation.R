@@ -72,6 +72,8 @@ json_edge_matrix <- function(edges) {
   paste0("[", paste(pairs, collapse = ","), "]")
 }
 
+#' @noRd
+#' @export
 sfdp_layout <- function(graph, pos = NULL, C = 0.2, K = 1.0, p = 2.0,
                         theta = 0.6, gamma = 1.0, mu = 0.0, mu_p = 1.0,
                         init_step = NULL, cooling_step = 0.95,
@@ -136,6 +138,8 @@ sfdp_layout <- function(graph, pos = NULL, C = 0.2, K = 1.0, p = 2.0,
   )
 }
 
+#' @noRd
+#' @export
 graph_bfs <- function(graph, source, max_dist = Inf, directed = NULL) {
   graph_pointer(graph)
   n <- graph_num_vertices(graph)
@@ -158,6 +162,8 @@ graph_bfs <- function(graph, source, max_dist = Inf, directed = NULL) {
   structure(res, class = "rgraphtool_bfs")
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_bfs <- function(x, ...) {
   n <- length(x$distance)
   reached <- sum(is.finite(x$distance))
@@ -193,6 +199,8 @@ compute_plot_limits <- function(pos, pad = 0.08, xlim = NULL, ylim = NULL) {
   )
 }
 
+#' @noRd
+#' @export
 plot_graph <- function(graph, pos = NULL,
                        vertex_color = "#4C72B0",
                        vertex_border = "#1F2937",
@@ -531,6 +539,8 @@ build_sirs_html <- function(pos, edges, states, newly_infected, fear, counts,
   ), collapse = "\n")
 }
 
+#' @noRd
+#' @export
 animate_sirs <- function(graph, pos = NULL, n_steps = 120L,
                          x = 0.001, r = 0.1, s = 0.01,
                          init_state = NULL, directed = FALSE,
@@ -665,6 +675,8 @@ animate_sirs <- function(graph, pos = NULL, n_steps = 120L,
   )
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_sirs_animation <- function(x, ...) {
   n <- nrow(x$states)
   nf <- ncol(x$states)
@@ -810,6 +822,8 @@ build_dynamic_layout_html <- function(positions, edges_list, mean_edge_length,
   ), collapse = "\n")
 }
 
+#' @noRd
+#' @export
 animate_dynamic_layout <- function(graph, pos = NULL, n_steps = 80L,
                                    K = 0.5, C = 0.2, p = 2.0,
                                    step = 0.005, n_rewire = 10L,
@@ -925,6 +939,8 @@ animate_dynamic_layout <- function(graph, pos = NULL, n_steps = 80L,
   )
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_dynamic_layout <- function(x, ...) {
   nf <- length(x$positions)
   n <- if (nf > 0L) nrow(x$positions[[1L]]) else 0L
@@ -1081,6 +1097,8 @@ build_interactive_bfs_html <- function(pos, edges, source, max_dist, directed,
   ), collapse = "\n")
 }
 
+#' @noRd
+#' @export
 interactive_bfs <- function(graph, pos = NULL, source = 1L, max_dist = 3L,
                             directed = NULL,
                             mode = c("html", "locator", "snapshot"),
@@ -1208,6 +1226,8 @@ interactive_bfs <- function(graph, pos = NULL, source = 1L, max_dist = 3L,
   )
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_interactive_bfs <- function(x, ...) {
   cat("rgraphtool interactive BFS visualization\n")
   cat(sprintf("  mode: %s%s\n", x$mode,

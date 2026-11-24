@@ -1,3 +1,5 @@
+#' @noRd
+#' @export
 football_network <- function(file = NULL) {
   if (is.null(file)) {
     file <- tempfile(fileext = ".zip")

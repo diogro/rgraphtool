@@ -1,3 +1,5 @@
+#' @noRd
+#' @export
 block_state <- function(graph, blocks = NULL, degree_corrected = TRUE) {
   pointer <- graph_pointer(graph)
   n <- cpp_num_vertices(pointer)
@@ -32,6 +34,8 @@ validate_block_state <- function(state) {
   }
 }
 
+#' @noRd
+#' @export
 block_membership <- function(state) {
   if (inherits(state, "rgraphtool_weighted_block_state")) {
     validate_weighted_state(state)
@@ -57,6 +61,8 @@ block_membership <- function(state) {
   state$blocks
 }
 
+#' @noRd
+#' @export
 block_sizes <- function(state) {
   if (inherits(state, "rgraphtool_weighted_block_state")) {
     validate_weighted_state(state)
@@ -82,11 +88,15 @@ block_sizes <- function(state) {
   state$statistics$sizes
 }
 
+#' @noRd
+#' @export
 block_edge_counts <- function(state) {
   validate_block_state(state)
   state$statistics$counts
 }
 
+#' @noRd
+#' @export
 block_log_likelihood <- function(state) {
   validate_block_state(state)
   stats <- state$statistics
@@ -178,6 +188,8 @@ block_description_length_impl <- function(state, degree_prior, partition_table =
   score
 }
 
+#' @noRd
+#' @export
 block_description_length <- function(state, degree_prior = NULL) {
   validate_block_state(state)
   if (is.null(degree_prior)) degree_prior <- state$degree_prior
@@ -254,6 +266,8 @@ new_fitted_state <- function(graph, blocks, degree_corrected, degree_prior, entr
   state
 }
 
+#' @noRd
+#' @export
 minimize_blockmodel_dl <- function(graph, degree_corrected = TRUE,
                                    degree_prior = c("distributed", "uniform"),
                                    B_min = 1, B_max = Inf, refine = TRUE,
@@ -288,6 +302,8 @@ minimize_blockmodel_dl <- function(graph, degree_corrected = TRUE,
                         trace = result$trace))
 }
 
+#' @noRd
+#' @export
 refine_blockmodel_dl <- function(graph, state, degree_prior = NULL, epsilon = 1e-3,
                                  nthreads = NULL, control = list()) {
   pointer <- graph_pointer(graph)
@@ -306,6 +322,8 @@ refine_blockmodel_dl <- function(graph, state, degree_prior = NULL, epsilon = 1e
                    result$entropy)
 }
 
+#' @noRd
+#' @export
 compare_blockmodels <- function(graph, degree_prior = c("distributed", "uniform"),
                                 nested = FALSE, nruns = 1L, ...) {
   degree_prior <- match.arg(degree_prior)
@@ -342,6 +360,8 @@ compare_blockmodels <- function(graph, degree_prior = c("distributed", "uniform"
             class = "rgraphtool_blockmodel_comparison")
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_blockmodel_comparison <- function(x, ...) {
   cat(sprintf("<%s block model comparison>\n", if (isTRUE(x$nested)) "nested" else "flat"))
   for (i in seq_len(nrow(x$comparison))) {

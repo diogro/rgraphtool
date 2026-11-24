@@ -202,6 +202,8 @@
 
 # ---- Constructors ----
 
+#' @noRd
+#' @export
 pseudo_ising_block_state <- function(s, graph = NULL, has_zero = FALSE,
                                      x = 1, x_range = c(-Inf, Inf),
                                      theta = 0, theta_range = c(-Inf, Inf),
@@ -224,6 +226,8 @@ pseudo_ising_block_state <- function(s, graph = NULL, has_zero = FALSE,
   )
 }
 
+#' @noRd
+#' @export
 ising_glauber_block_state <- function(s, graph = NULL, directed = TRUE, has_zero = FALSE,
                                       x = 1, x_range = c(-Inf, Inf),
                                       theta = 0, theta_range = c(-Inf, Inf),
@@ -246,6 +250,8 @@ ising_glauber_block_state <- function(s, graph = NULL, directed = TRUE, has_zero
   )
 }
 
+#' @noRd
+#' @export
 pseudo_cising_block_state <- function(s, graph = NULL,
                                       x = 1, x_range = c(-Inf, Inf),
                                       theta = 0, theta_range = c(-Inf, Inf),
@@ -268,6 +274,8 @@ pseudo_cising_block_state <- function(s, graph = NULL,
   )
 }
 
+#' @noRd
+#' @export
 cising_glauber_block_state <- function(s, graph = NULL, directed = TRUE,
                                        x = 1, x_range = c(-Inf, Inf),
                                        theta = 0, theta_range = c(-Inf, Inf),
@@ -290,6 +298,8 @@ cising_glauber_block_state <- function(s, graph = NULL, directed = TRUE,
   )
 }
 
+#' @noRd
+#' @export
 epidemics_block_state <- function(s, graph = NULL, directed = TRUE, exposed = FALSE,
                                   x = -0.5, x_range = c(-Inf, -1e-8),
                                   theta = -3, theta_range = c(-Inf, -1e-8),
@@ -312,6 +322,8 @@ epidemics_block_state <- function(s, graph = NULL, directed = TRUE, exposed = FA
   )
 }
 
+#' @noRd
+#' @export
 pseudo_normal_block_state <- function(s, graph = NULL, fix_mean = FALSE,
                                       positive = TRUE, pslack = 1e-6,
                                       x = 0.1, x_range = c(-Inf, Inf),
@@ -336,6 +348,8 @@ pseudo_normal_block_state <- function(s, graph = NULL, fix_mean = FALSE,
   )
 }
 
+#' @noRd
+#' @export
 normal_glauber_block_state <- function(s, graph = NULL, directed = TRUE, fix_mean = FALSE,
                                        x = 0.1, x_range = c(-Inf, Inf),
                                        theta = c(0, 0),
@@ -359,6 +373,8 @@ normal_glauber_block_state <- function(s, graph = NULL, directed = TRUE, fix_mea
   )
 }
 
+#' @noRd
+#' @export
 linear_normal_block_state <- function(s, graph = NULL, directed = TRUE, self_loops = TRUE,
                                       x = 0.1, x_range = c(-Inf, Inf),
                                       theta = 0, theta_range = c(-200, 200),
@@ -405,6 +421,8 @@ linear_normal_block_state <- function(s, graph = NULL, directed = TRUE, self_loo
   f_mat
 }
 
+#' @noRd
+#' @export
 pseudo_potts_block_state <- function(s, f = NULL, q = NULL, graph = NULL,
                                      x = 1, x_range = c(-Inf, Inf),
                                      theta = NULL, theta_range = c(-Inf, Inf),
@@ -430,6 +448,8 @@ pseudo_potts_block_state <- function(s, f = NULL, q = NULL, graph = NULL,
   )
 }
 
+#' @noRd
+#' @export
 potts_glauber_block_state <- function(s, f = NULL, q = NULL, graph = NULL, directed = TRUE,
                                       x = 1, x_range = c(-Inf, Inf),
                                       theta = NULL, theta_range = c(-Inf, Inf),
@@ -491,6 +511,8 @@ potts_glauber_block_state <- function(s, f = NULL, q = NULL, graph = NULL, direc
   p
 }
 
+#' @noRd
+#' @export
 dynamics_description_length <- function(state, sbm = NULL, latent_edges = TRUE,
                                         density = FALSE, aE = 1,
                                         xdist = NULL, tdist = NULL,
@@ -516,6 +538,8 @@ dynamics_description_length <- function(state, sbm = NULL, latent_edges = TRUE,
   as.numeric(res$total)
 }
 
+#' @noRd
+#' @export
 reconstruct_dynamics <- function(state, niter = 25L, nsamples = 0L, burnin = 50L,
                                  thin = 2L, beta = Inf, k_cand = 20L,
                                  w_step = 0.25, t_step = 0.25, tol = 1e-4,
@@ -600,6 +624,8 @@ reconstruct_dynamics <- function(state, niter = 25L, nsamples = 0L, burnin = 50L
   )
 }
 
+#' @noRd
+#' @export
 reconstruct_l1_path <- function(state, xl1_values = c(0.25, 0.5, 1, 2, 5, 10),
                                 tl1 = 0.1, sbm = FALSE, niter = 20L,
                                 truth = NULL, k_cand = 20L, tol = 1e-4) {
@@ -704,6 +730,8 @@ reconstruct_l1_path <- function(state, xl1_values = c(0.25, 0.5, 1, 2, 5, 10),
   )
 }
 
+#' @noRd
+#' @export
 dynamics_precision_matrix <- function(state) {
   if (inherits(state, "rgraphtool_dynamics_reconstruction")) state <- state$state
   .check_dynamics_state(state)
@@ -732,6 +760,8 @@ dynamics_precision_matrix <- function(state) {
   list(precision = W, partial_correlation = pcor, sigma = exp(th0), mu = state$theta[, 2L])
 }
 
+#' @noRd
+#' @export
 dynamics_transmission_probs <- function(state) {
   if (inherits(state, "rgraphtool_dynamics_reconstruction")) state <- state$state
   .check_dynamics_state(state)
@@ -772,6 +802,8 @@ dynamics_transmission_probs <- function(state) {
   stop(sprintf("%s must be NULL, scalar, or numeric vector of length %d", name, N), call. = FALSE)
 }
 
+#' @noRd
+#' @export
 simulate_ising <- function(graph, weights = 0.5, theta = 0, n_samples = 200L,
                            burnin = 100L, thin = 1L,
                            mode = c("equilibrium", "glauber"),
@@ -792,6 +824,8 @@ simulate_ising <- function(graph, weights = 0.5, theta = 0, n_samples = 200L,
                 isTRUE(has_zero), s0)
 }
 
+#' @noRd
+#' @export
 simulate_epidemics <- function(graph, transmission = 0.3, spontaneous = 0.005,
                                recovery = 0.2, resusceptible = 0.0,
                                model = c("SI", "SIS", "SIR", "SIRS"),
@@ -834,6 +868,8 @@ simulate_epidemics <- function(graph, transmission = 0.3, spontaneous = 0.005,
   replicate(n_cascades, run_one(), simplify = FALSE)
 }
 
+#' @noRd
+#' @export
 simulate_normal_dynamics <- function(graph, weights = 0.1, sigma = 1, mu = 0,
                                      n_samples = 200L, burnin = 100L, thin = 1L,
                                      mode = c("equilibrium", "glauber", "linear")) {
@@ -849,6 +885,8 @@ simulate_normal_dynamics <- function(graph, weights = 0.1, sigma = 1, mu = 0,
                      as.integer(burnin), as.integer(thin), as.integer(mode_code))
 }
 
+#' @noRd
+#' @export
 simulate_potts <- function(graph, weights = 0.5, f = diag(3), theta = NULL,
                            n_samples = 200L, burnin = 100L, thin = 1L,
                            mode = c("equilibrium", "glauber"), init_state = NULL) {
@@ -867,6 +905,8 @@ simulate_potts <- function(graph, weights = 0.5, f = diag(3), theta = NULL,
 
 # ---- Print methods ----
 
+#' @noRd
+#' @export
 print.rgraphtool_dynamics_block_state <- function(x, ...) {
   cat(sprintf("<rgraphtool_dynamics_block_state (%s, %s, %s)>\n",
               x$model,
@@ -880,6 +920,8 @@ print.rgraphtool_dynamics_block_state <- function(x, ...) {
   invisible(x)
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_dynamics_reconstruction <- function(x, ...) {
   cat(sprintf("<rgraphtool_dynamics_reconstruction (%s)>\n", x$model))
   cat(sprintf("  Inferred edges: %d | Final DL: %.4f (NLL: %.4f)\n",
@@ -889,6 +931,8 @@ print.rgraphtool_dynamics_reconstruction <- function(x, ...) {
   invisible(x)
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_l1_path <- function(x, ...) {
   cat(sprintf("<rgraphtool_l1_path (%d lambda values, best BIC at xl1 = %.4g)>\n",
               nrow(x$summary), x$best_xl1))

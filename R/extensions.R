@@ -1,6 +1,8 @@
 # R interface for C++ extension algorithms, header discovery, and user
 # Rcpp::sourceCpp() compilation helpers.
 
+#' @noRd
+#' @export
 kcore_decomposition <- function(graph, deg = c("total", "out", "in"), checked = FALSE) {
   graph_pointer(graph)
   deg <- match.arg(deg)
@@ -13,6 +15,8 @@ kcore_decomposition <- function(graph, deg = c("total", "out", "in"), checked = 
   cpp_kcore_decomposition(graph, deg_mode = deg, checked = checked)
 }
 
+#' @noRd
+#' @export
 vertex_strength <- function(graph, property, mode = c("total", "out", "in"), checked = FALSE) {
   graph_pointer(graph)
   mode <- match.arg(mode)
@@ -28,6 +32,8 @@ vertex_strength <- function(graph, property, mode = c("total", "out", "in"), che
   cpp_vertex_strength(graph, prop_name = property, mode = mode, checked = checked)
 }
 
+#' @noRd
+#' @export
 rgraphtool_include_dir <- function() {
   inc <- system.file("include", package = "rgraphtool")
   if (nzchar(inc) && file.exists(file.path(inc, "rgraphtool.h"))) {
@@ -37,6 +43,8 @@ rgraphtool_include_dir <- function() {
        call. = FALSE)
 }
 
+#' @noRd
+#' @export
 rgraphtool_extension_example <- function(name = c("kcore", "weighted_degree")) {
   name <- match.arg(name)
   fname <- switch(name,
@@ -51,6 +59,8 @@ rgraphtool_extension_example <- function(name = c("kcore", "weighted_degree")) {
        call. = FALSE)
 }
 
+#' @noRd
+#' @export
 compile_cpp_extension <- function(file = NULL, code = NULL,
                                   env = parent.frame(),
                                   rebuild = FALSE,

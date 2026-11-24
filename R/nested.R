@@ -40,6 +40,8 @@ validate_nested_state <- function(state) {
   }
 }
 
+#' @noRd
+#' @export
 nested_block_state <- function(graph, levels, degree_corrected = TRUE,
                                degree_prior = c("distributed", "uniform")) {
   pointer <- graph_pointer(graph)
@@ -55,6 +57,8 @@ nested_block_state <- function(graph, levels, degree_corrected = TRUE,
   new_nested_state(graph, validate_hierarchy(levels, n), degree_corrected, degree_prior)
 }
 
+#' @noRd
+#' @export
 nested_level_entropy <- function(state, degree_prior = NULL) {
   validate_nested_state(state)
   if (is.null(degree_prior)) degree_prior <- state$degree_prior
@@ -63,10 +67,14 @@ nested_level_entropy <- function(state, degree_prior = NULL) {
                      degree_prior == "distributed", q_cache_max())
 }
 
+#' @noRd
+#' @export
 nested_description_length <- function(state, degree_prior = NULL) {
   sum(nested_level_entropy(state, degree_prior))
 }
 
+#' @noRd
+#' @export
 nested_levels <- function(state) {
   if (inherits(state, "rgraphtool_nested_weighted_block_state")) {
     validate_nested_weighted_state(state)
@@ -84,6 +92,8 @@ nested_levels <- function(state) {
   state$levels
 }
 
+#' @noRd
+#' @export
 nested_project <- function(state, level = 0L) {
   if (inherits(state, "rgraphtool_nested_weighted_block_state")) {
     validate_nested_weighted_state(state)
@@ -106,6 +116,8 @@ nested_project <- function(state, level = 0L) {
   b
 }
 
+#' @noRd
+#' @export
 nested_level_state <- function(state, level = 0L) {
   b <- nested_project(state, level)
   out <- block_state(state$graph, b, state$degree_corrected)
@@ -113,6 +125,8 @@ nested_level_state <- function(state, level = 0L) {
   out
 }
 
+#' @noRd
+#' @export
 nested_summary <- function(state) {
   if (inherits(state, "rgraphtool_nested_weighted_block_state")) {
     validate_nested_weighted_state(state)
@@ -137,6 +151,8 @@ nested_summary <- function(state) {
   out
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_nested_block_state <- function(x, ...) {
   summary <- nested_summary(x)
   cat(sprintf("<nested block state: %s, %d levels, description length %.4f nats>\n",
@@ -148,6 +164,8 @@ print.rgraphtool_nested_block_state <- function(x, ...) {
   invisible(x)
 }
 
+#' @noRd
+#' @export
 minimize_nested_blockmodel_dl <- function(graph, degree_corrected = TRUE,
                                           degree_prior = c("distributed", "uniform"),
                                           B_min = 1, B_max = Inf, refine = TRUE,

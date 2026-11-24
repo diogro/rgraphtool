@@ -4,6 +4,8 @@
 # Copyright (C) 2026 Diogo Melo (R port)
 # LGPL-3+
 
+#' @noRd
+#' @export
 latent_closure_block_state <- function(graph, L = 1L, nested = TRUE,
                                        blocks = NULL, gen = NULL,
                                        w0 = NULL, loops = NULL, ex = NULL,
@@ -95,6 +97,8 @@ latent_closure_block_state <- function(graph, L = 1L, nested = TRUE,
   }
 }
 
+#' @noRd
+#' @export
 closure_description_length <- function(state, breakdown = FALSE) {
   .check_closure_state(state)
   res <- cpp_closure_entropy(
@@ -132,6 +136,8 @@ closure_description_length <- function(state, breakdown = FALSE) {
   }
 }
 
+#' @noRd
+#' @export
 infer_triadic_closure <- function(state, nsamples = 200L, burnin = 100L, thin = 1L,
                                   beta = 1, pedges = 0.5, c = 1, d = 0.01,
                                   sample_loops = TRUE, init_sbm = TRUE,
@@ -193,6 +199,8 @@ infer_triadic_closure <- function(state, nsamples = 200L, burnin = 100L, thin = 
   structure(out, class = "rgraphtool_closure_inference")
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_latent_closure_block_state <- function(x, ...) {
   n_sub <- sum(x$gen == 0L)
   n_cl <- sum(x$gen > 0L)
@@ -205,6 +213,8 @@ print.rgraphtool_latent_closure_block_state <- function(x, ...) {
   invisible(x)
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_closure_inference <- function(x, ...) {
   cat(sprintf("<rgraphtool_closure_inference (L=%d)>\n", x$L))
   cat(sprintf("  Edges: %d | Mean substrate prob: %.3f | Mean closure prob: %.3f\n",

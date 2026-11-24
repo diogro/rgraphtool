@@ -1,7 +1,11 @@
+#' @noRd
+#' @export
 rgraphtool_max_threads <- function() {
   as.integer(cpp_max_threads())
 }
 
+#' @noRd
+#' @export
 rgraphtool_num_threads <- function() {
   opt <- getOption("rgraphtool.nthreads", NULL)
   if (!is.null(opt)) {
@@ -18,6 +22,8 @@ rgraphtool_num_threads <- function() {
   as.integer(cpp_get_num_threads())
 }
 
+#' @noRd
+#' @export
 rgraphtool_set_num_threads <- function(nthreads) {
   if (is.character(nthreads) && length(nthreads) == 1L &&
       identical(tolower(nthreads), "auto")) {

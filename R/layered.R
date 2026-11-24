@@ -63,6 +63,8 @@ validate_layered_state <- function(state) {
   }
 }
 
+#' @noRd
+#' @export
 layered_block_state <- function(graph, layers, independent = TRUE,
                                 blocks = NULL, degree_corrected = TRUE,
                                 degree_prior = c("distributed", "uniform")) {
@@ -89,6 +91,8 @@ layered_block_state <- function(graph, layers, independent = TRUE,
   new_layered_state(graph, blocks, linfo, independent, degree_corrected, degree_prior)
 }
 
+#' @noRd
+#' @export
 layered_description_length <- function(state, lmemb = TRUE, degree_prior = NULL) {
   validate_layered_state(state)
   if (is.null(degree_prior)) degree_prior <- state$degree_prior
@@ -98,6 +102,8 @@ layered_description_length <- function(state, lmemb = TRUE, degree_prior = NULL)
                       degree_prior == "distributed", isTRUE(lmemb), q_cache_max())
 }
 
+#' @noRd
+#' @export
 minimize_layered_blockmodel_dl <- function(graph, layers, independent = TRUE,
                                            degree_corrected = TRUE,
                                            degree_prior = c("distributed", "uniform"),
@@ -126,6 +132,8 @@ minimize_layered_blockmodel_dl <- function(graph, layers, independent = TRUE,
                     degree_prior, fit = list(description_length = res$entropy))
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_layered_block_state <- function(x, ...) {
   dl <- layered_description_length(x)
   cat(sprintf("<layered block state: %s, %d %s layer%s, B = %d, description length %.4f nats>\n",
@@ -168,6 +176,8 @@ validate_nested_layered_state <- function(state) {
   }
 }
 
+#' @noRd
+#' @export
 nested_layered_block_state <- function(graph, layers, independent = TRUE,
                                        levels = NULL, degree_corrected = TRUE,
                                        degree_prior = c("distributed", "uniform")) {
@@ -205,6 +215,8 @@ nested_layered_block_state <- function(graph, layers, independent = TRUE,
                            degree_prior)
 }
 
+#' @noRd
+#' @export
 nested_layered_level_entropy <- function(state, degree_prior = NULL) {
   validate_nested_layered_state(state)
   if (is.null(degree_prior)) degree_prior <- state$degree_prior
@@ -215,10 +227,14 @@ nested_layered_level_entropy <- function(state, degree_prior = NULL) {
                              degree_prior == "distributed", q_cache_max())
 }
 
+#' @noRd
+#' @export
 nested_layered_description_length <- function(state, degree_prior = NULL) {
   sum(nested_layered_level_entropy(state, degree_prior = degree_prior))
 }
 
+#' @noRd
+#' @export
 minimize_nested_layered_blockmodel_dl <- function(graph, layers, independent = TRUE,
                                                   degree_corrected = TRUE,
                                                   degree_prior = c("distributed", "uniform"),
@@ -254,6 +270,8 @@ minimize_nested_layered_blockmodel_dl <- function(graph, layers, independent = T
                                       level_entropy = res$level_entropy))
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_nested_layered_block_state <- function(x, ...) {
   dl <- nested_layered_description_length(x)
   cat(sprintf("<nested layered block state: %s, %d %s layer%s, %d levels, B = %s, description length %.4f nats>\n",
@@ -267,6 +285,8 @@ print.rgraphtool_nested_layered_block_state <- function(x, ...) {
 
 # Declarative layered model comparison (edge-covariate vs independent-layers,
 # optionally across DC/NDC and MAP vs full Bayesian posterior marginal evidence)
+#' @noRd
+#' @export
 compare_layered_models <- function(graph, layers,
                                    models = c("edge_covariates", "independent_layers"),
                                    nested = TRUE, degree_corrected = TRUE,
@@ -414,6 +434,8 @@ compare_layered_models <- function(graph, layers,
   ), class = "rgraphtool_layered_model_comparison")
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_layered_model_comparison <- function(x, ...) {
   cat(sprintf("<layered SBM model comparison (%s, %d layers, %s)>\n",
               if (x$nested) "nested" else "flat",

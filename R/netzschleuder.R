@@ -23,6 +23,8 @@ parse_positions <- function(x) {
   positions
 }
 
+#' @noRd
+#' @export
 netzschleuder_network <- function(name, network = name, file = NULL, directed = NULL) {
   valid_name <- function(x) {
     is.character(x) && length(x) == 1L && !is.na(x) && grepl("^[A-Za-z0-9_.-]+$", x)

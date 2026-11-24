@@ -43,12 +43,16 @@ normalize_partition_list <- function(partitions, nested) {
   }
 }
 
+#' @noRd
+#' @export
 align_partition_labels <- function(x, y) {
   x <- validate_label_vector(x, "x")
   y <- validate_label_vector(y, "y")
   cpp_align_partition_labels(x, y)
 }
 
+#' @noRd
+#' @export
 partition_overlap <- function(x, y, norm = TRUE) {
   x <- validate_label_vector(x, "x")
   y <- validate_label_vector(y, "y")
@@ -58,12 +62,16 @@ partition_overlap <- function(x, y, norm = TRUE) {
   cpp_partition_overlap(x, y, norm)
 }
 
+#' @noRd
+#' @export
 align_nested_partition_labels <- function(x, y) {
   x <- validate_nested_label_list(x, "x")
   y <- validate_nested_label_list(y, "y")
   cpp_align_nested_partition_labels(x, y)
 }
 
+#' @noRd
+#' @export
 nested_partition_overlap <- function(x, y, norm = TRUE) {
   x <- validate_nested_label_list(x, "x")
   y <- validate_nested_label_list(y, "y")
@@ -77,6 +85,8 @@ wrap_partition_mode <- function(raw) {
   structure(raw, class = "rgraphtool_partition_mode")
 }
 
+#' @noRd
+#' @export
 partition_mode_state <- function(partitions, relabel = TRUE, nested = NULL,
                                  converge = TRUE) {
   if (is.list(partitions) && !is.null(partitions$samples) &&
@@ -96,6 +106,8 @@ validate_partition_mode <- function(mode) {
   }
 }
 
+#' @noRd
+#' @export
 mode_marginals <- function(mode, probability = FALSE, level = 0L) {
   validate_partition_mode(mode)
   if (mode$nested) {
@@ -116,16 +128,22 @@ mode_marginals <- function(mode, probability = FALSE, level = 0L) {
   mat
 }
 
+#' @noRd
+#' @export
 mode_consensus <- function(mode) {
   validate_partition_mode(mode)
   mode$consensus
 }
 
+#' @noRd
+#' @export
 mode_uncertainty <- function(mode, mle = TRUE) {
   validate_partition_mode(mode)
   if (isTRUE(mle)) mode$posterior_cdev else mode$posterior_cdev_mean
 }
 
+#' @noRd
+#' @export
 mode_entropy <- function(mode, mle = TRUE) {
   if (!is.logical(mle) || length(mle) != 1L || is.na(mle)) {
     stop("mle must be TRUE or FALSE", call. = FALSE)
@@ -137,6 +155,8 @@ mode_entropy <- function(mode, mle = TRUE) {
   if (isTRUE(mle)) mode$posterior_entropy else mode$posterior_entropy_mean
 }
 
+#' @noRd
+#' @export
 mode_lprob <- function(mode, partition, mle = TRUE, align = FALSE) {
   validate_partition_mode(mode)
   if (!is.logical(mle) || length(mle) != 1L || is.na(mle)) {
@@ -159,6 +179,8 @@ mode_lprob <- function(mode, partition, mle = TRUE, align = FALSE) {
   cpp_mode_lprob(mode$marginals, partition, isTRUE(mode$nested), isTRUE(mle))
 }
 
+#' @noRd
+#' @export
 cluster_lprob <- function(cluster, partition, mode = NULL, mle = TRUE,
                           align = FALSE) {
   if (!inherits(cluster, "rgraphtool_mode_cluster")) {
@@ -191,6 +213,8 @@ cluster_lprob <- function(cluster, partition, mode = NULL, mle = TRUE,
   m + log(sum(exp(lps - m)))
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_partition_mode <- function(x, ...) {
   if (isTRUE(x$nested)) {
     cat(sprintf("<nested partition mode: M = %d, B = %s, uncertainty = %.4f, DL = %.4f nats>\n",
@@ -202,6 +226,8 @@ print.rgraphtool_partition_mode <- function(x, ...) {
   invisible(x)
 }
 
+#' @noRd
+#' @export
 mode_cluster_state <- function(partitions, nested = NULL, b = NULL, relabel = TRUE,
                                niter = 20L, converge = TRUE) {
   if (is.list(partitions) && !is.null(partitions$samples) &&
@@ -228,6 +254,8 @@ mode_cluster_state <- function(partitions, nested = NULL, b = NULL, relabel = TR
   structure(res, class = "rgraphtool_mode_cluster")
 }
 
+#' @noRd
+#' @export
 mode_summary <- function(cluster) {
   if (!inherits(cluster, "rgraphtool_mode_cluster")) {
     stop("cluster must be created by mode_cluster_state()", call. = FALSE)
@@ -245,6 +273,8 @@ mode_summary <- function(cluster) {
   )
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_mode_cluster <- function(x, ...) {
   cat(sprintf("<%s mode cluster state: K = %d modes (Be = %.2f), M = %d partitions, DL = %.4f nats>\n",
               if (isTRUE(x$nested)) "nested" else "flat",

@@ -141,6 +141,8 @@
   )
 }
 
+#' @noRd
+#' @export
 measured_block_state <- function(graph, n = NULL, x = NULL,
                                  n_default = 1L, x_default = 0L,
                                  fn_params = list(alpha = 1, beta = 1),
@@ -184,6 +186,8 @@ measured_block_state <- function(graph, n = NULL, x = NULL,
   )
 }
 
+#' @noRd
+#' @export
 mixed_measured_block_state <- function(graph, n = NULL, x = NULL,
                                        n_default = 1L, x_default = 0L,
                                        fn_params = list(alpha = 1, beta = 1),
@@ -219,6 +223,8 @@ mixed_measured_block_state <- function(graph, n = NULL, x = NULL,
   )
 }
 
+#' @noRd
+#' @export
 uncertain_block_state <- function(graph, q = NULL, q_default = 0,
                                   nested = TRUE, blocks = NULL,
                                   latent_edges = NULL, latent_weights = NULL,
@@ -243,6 +249,8 @@ uncertain_block_state <- function(graph, q = NULL, q_default = 0,
   )
 }
 
+#' @noRd
+#' @export
 latent_multigraph_block_state <- function(graph, nested = TRUE, blocks = NULL,
                                           latent_weights = NULL,
                                           degree_corrected = TRUE,
@@ -266,6 +274,8 @@ latent_multigraph_block_state <- function(graph, nested = TRUE, blocks = NULL,
   }
 }
 
+#' @noRd
+#' @export
 uncertain_description_length <- function(state, sbm = TRUE, density = FALSE,
                                          aE = 1, breakdown = FALSE) {
   .check_uncertain_state(state)
@@ -281,6 +291,8 @@ uncertain_description_length <- function(state, sbm = TRUE, density = FALSE,
   as.numeric(res$total)
 }
 
+#' @noRd
+#' @export
 measured_error_posterior <- function(state) {
   .check_uncertain_state(state)
   if (!identical(state$model, "measured")) {
@@ -306,6 +318,8 @@ measured_error_posterior <- function(state) {
   )
 }
 
+#' @noRd
+#' @export
 edge_probabilities <- function(state, edges, log = TRUE, epsilon = 1e-8) {
   .check_uncertain_state(state)
   qmat <- .uncertain_validate_edges_mat(edges, state$n_vertices, "edges")
@@ -347,6 +361,8 @@ edge_probabilities <- function(state, edges, log = TRUE, epsilon = 1e-8) {
   }
 }
 
+#' @noRd
+#' @export
 reconstruct_network <- function(state, nsamples = 200L, burnin = 100L, thin = 1L,
                                 beta = 1, pedges = 0.5, ph = 0.1, hstep = 1,
                                 c = 1, d = 0.01, init_sbm = TRUE,
@@ -422,6 +438,8 @@ reconstruct_network <- function(state, nsamples = 200L, burnin = 100L, thin = 1L
   structure(out, class = "rgraphtool_reconstruction")
 }
 
+#' @noRd
+#' @export
 latent_multigraph <- function(graph, epsilon = 1e-8, max_niter = 0L) {
   ptr <- graph_pointer(graph)
   if (!is.numeric(epsilon) || length(epsilon) != 1L || is.na(epsilon) || epsilon <= 0) {
@@ -450,6 +468,8 @@ latent_multigraph <- function(graph, epsilon = 1e-8, max_niter = 0L) {
   )
 }
 
+#' @noRd
+#' @export
 predict_edges <- function(x, candidates, nsamples = 100L, burnin = 50L, thin = 1L,
                           nested = TRUE, degree_corrected = TRUE,
                           degree_prior = c("distributed", "uniform"),
@@ -590,6 +610,8 @@ predict_edges <- function(x, candidates, nsamples = 100L, burnin = 50L, thin = 1
   )
 }
 
+#' @noRd
+#' @export
 evaluate_edge_prediction <- function(scores, labels, threshold = 0.5) {
   if (inherits(scores, "rgraphtool_edge_prediction")) {
     scores <- scores$predictions$prob
@@ -669,6 +691,8 @@ evaluate_edge_prediction <- function(scores, labels, threshold = 0.5) {
   )
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_uncertain_block_state <- function(x, ...) {
   cat(sprintf("<rgraphtool_uncertain_block_state (%s, %s, %s)>\n",
               x$model,
@@ -682,6 +706,8 @@ print.rgraphtool_uncertain_block_state <- function(x, ...) {
   invisible(x)
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_reconstruction <- function(x, ...) {
   cat(sprintf("<rgraphtool_reconstruction (%s)>\n", x$model))
   cat(sprintf("  Marginal edges observed: %d | Consensus edges (p >= %.2f): %d\n",
@@ -695,6 +721,8 @@ print.rgraphtool_reconstruction <- function(x, ...) {
   invisible(x)
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_latent_multigraph <- function(x, ...) {
   n_non <- sum(!x$edges$is_self_loop)
   n_sl <- sum(x$edges$is_self_loop & x$edges$weight > 0)
@@ -706,6 +734,8 @@ print.rgraphtool_latent_multigraph <- function(x, ...) {
   invisible(x)
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_edge_prediction <- function(x, ...) {
   cat(sprintf("<rgraphtool_edge_prediction (%s, %d posterior samples)>\n",
               x$model, x$nsamples))
@@ -714,6 +744,8 @@ print.rgraphtool_edge_prediction <- function(x, ...) {
   invisible(x)
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_edge_evaluation <- function(x, ...) {
   cat("<rgraphtool_edge_evaluation>\n")
   cat(sprintf("  ROC-AUC: %.4f | PR-AUC: %.4f | Brier: %.4f\n",

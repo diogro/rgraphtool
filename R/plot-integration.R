@@ -1,6 +1,8 @@
 # Plotting integration: property scaling, colorbars, vector/raster export,
 # grid grob embedding, tidy data frames, and ggplot2 integration.
 
+#' @noRd
+#' @export
 prop_to_size <- function(x, mi = 0.6, ma = 2.4, power = 0.5, log = FALSE) {
   if (!is.numeric(x) || anyNA(x) || any(!is.finite(x))) {
     stop("x must be a finite numeric vector", call. = FALSE)
@@ -30,6 +32,8 @@ prop_to_size <- function(x, mi = 0.6, ma = 2.4, power = 0.5, log = FALSE) {
   mi + u * (ma - mi)
 }
 
+#' @noRd
+#' @export
 map_colors <- function(x, palette = "Viridis", n = 256L, limits = NULL,
                        alpha = 1, rev = FALSE) {
   if (!is.numeric(x) || anyNA(x) || any(!is.finite(x))) {
@@ -73,6 +77,8 @@ map_colors <- function(x, palette = "Viridis", n = 256L, limits = NULL,
   out
 }
 
+#' @noRd
+#' @export
 plot_colorbar <- function(limits, palette = "Viridis", n = 100L, title = NULL,
                           alpha = 1, rev = FALSE, horizontal = FALSE,
                           n_ticks = 5L, digits = 2L, cex_axis = 0.85, ...) {
@@ -152,6 +158,8 @@ resolve_plot_format <- function(output, fmt = "auto") {
   fmt
 }
 
+#' @noRd
+#' @export
 save_graph_plot <- function(expr, output, width = 7, height = 5, dpi = 150,
                             fmt = c("auto", "pdf", "svg", "png", "ps", "eps", "jpeg", "tiff"),
                             bg = "white") {
@@ -227,6 +235,8 @@ quadratic_curve_points <- function(x0, y0, x1, y1, curvature = 0.15, n = 16L) {
   )
 }
 
+#' @noRd
+#' @export
 graph_to_data_frames <- function(graph, pos = NULL, vertex_data = NULL, edge_data = NULL) {
   graph_pointer(graph)
   n <- graph_num_vertices(graph)
@@ -275,6 +285,8 @@ graph_to_data_frames <- function(graph, pos = NULL, vertex_data = NULL, edge_dat
   list(vertices = vdf, edges = edf)
 }
 
+#' @noRd
+#' @export
 graph_grob <- function(graph, pos = NULL,
                        vertex_color = "#4C72B0",
                        vertex_border = "#1F2937",
@@ -439,6 +451,8 @@ graph_grob <- function(graph, pos = NULL,
   grid::gTree(children = do.call(grid::gList, children), cl = "rgraphtool_grob")
 }
 
+#' @noRd
+#' @export
 ggplot_graph <- function(graph, pos = NULL,
                          vertex_color = "#4C72B0",
                          vertex_size = 2.6,

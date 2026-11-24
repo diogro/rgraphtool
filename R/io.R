@@ -45,6 +45,8 @@ infer_gt_compression_from_path <- function(file) {
   "none"
 }
 
+#' @noRd
+#' @export
 read_gt <- function(file) {
   if (!is.character(file) || length(file) != 1L || is.na(file) || !nzchar(file)) {
     stop("file must be a non-empty character path", call. = FALSE)
@@ -93,6 +95,8 @@ read_gt <- function(file) {
   )
 }
 
+#' @noRd
+#' @export
 write_gt <- function(graph, file, comment = NULL,
                      compression = c("auto", "none", "gzip", "bzip2", "xz", "zstd")) {
   pointer <- graph_pointer(graph)
@@ -158,6 +162,8 @@ require_igraph <- function(fn_name) {
   }
 }
 
+#' @noRd
+#' @export
 as_igraph <- function(graph, include_properties = TRUE) {
   require_igraph("as_igraph")
   graph_pointer(graph)
@@ -197,6 +203,8 @@ as_igraph <- function(graph, include_properties = TRUE) {
   ig
 }
 
+#' @noRd
+#' @export
 from_igraph <- function(graph, include_properties = TRUE) {
   require_igraph("from_igraph")
   if (!inherits(graph, "igraph")) {
@@ -253,6 +261,8 @@ infer_graph_format <- function(file) {
        call. = FALSE)
 }
 
+#' @noRd
+#' @export
 graph_load <- function(file, fmt = c("auto", "gt", "graphml", "gml", "edgelist"), ...) {
   fmt <- match.arg(fmt)
   if (fmt == "auto") {
@@ -266,6 +276,8 @@ graph_load <- function(file, fmt = c("auto", "gt", "graphml", "gml", "edgelist")
   from_igraph(ig)
 }
 
+#' @noRd
+#' @export
 graph_save <- function(graph, file, fmt = c("auto", "gt", "graphml", "gml", "edgelist"), ...) {
   graph_pointer(graph)
   fmt <- match.arg(fmt)

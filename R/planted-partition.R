@@ -25,6 +25,8 @@ validate_pp_state <- function(state) {
   }
 }
 
+#' @noRd
+#' @export
 pp_block_state <- function(graph, blocks = NULL, uniform = FALSE,
                            degree_corrected = TRUE,
                            degree_prior = c("distributed", "uniform")) {
@@ -50,6 +52,8 @@ pp_block_state <- function(graph, blocks = NULL, uniform = FALSE,
   new_pp_state(graph, blocks, uniform, degree_corrected, degree_prior)
 }
 
+#' @noRd
+#' @export
 pp_description_length <- function(state, degree_prior = NULL) {
   validate_pp_state(state)
   if (is.null(degree_prior)) degree_prior <- state$degree_prior
@@ -59,6 +63,8 @@ pp_description_length <- function(state, degree_prior = NULL) {
                  q_cache_max())
 }
 
+#' @noRd
+#' @export
 pp_assortativity <- function(state) {
   validate_pp_state(state)
   st <- cpp_pp_stats(graph_pointer(state$graph), state$blocks, state$uniform,
@@ -81,6 +87,8 @@ pp_assortativity <- function(state) {
   )
 }
 
+#' @noRd
+#' @export
 minimize_pp_blockmodel_dl <- function(graph, uniform = FALSE,
                                       degree_corrected = TRUE,
                                       degree_prior = c("distributed", "uniform"),
@@ -108,6 +116,8 @@ minimize_pp_blockmodel_dl <- function(graph, uniform = FALSE,
                fit = list(description_length = res$entropy))
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_pp_block_state <- function(x, ...) {
   dl <- pp_description_length(x)
   asrt <- pp_assortativity(x)
@@ -121,6 +131,8 @@ print.rgraphtool_pp_block_state <- function(x, ...) {
 }
 
 # Declarative comparison of assortative planted-partition vs general SBM
+#' @noRd
+#' @export
 compare_assortative_models <- function(graph,
                                        models = c("pp", "pp_uniform",
                                                   "sbm_flat", "sbm_nested"),
@@ -245,6 +257,8 @@ compare_assortative_models <- function(graph,
   ), class = "rgraphtool_assortative_model_comparison")
 }
 
+#' @noRd
+#' @export
 print.rgraphtool_assortative_model_comparison <- function(x, ...) {
   cat(sprintf("<assortative vs. general SBM comparison (%s, %s)>\n",
               if (x$degree_corrected) "DC" else "NDC",
