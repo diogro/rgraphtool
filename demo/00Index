@@ -16,3 +16,5 @@ empirical_dynamics   Empirical financial partial-correlation network reconstruct
 animation_sirs   SIRS epidemic animation and fear-state visualization
 animation_dynamic_layout   Dynamic force-directed layout with spatial-segregation rewiring
 interactive_bfs   Interactive BFS shortest-path tree visualization
+plotting_integration   Multi-panel plotting, grid/ggplot2 integration, and vector/raster export
+plotting_map   Geographic network plotting on projected world and regional maps

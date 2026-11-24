@@ -549,9 +549,39 @@ to end offline with documented platform and display requirements. **Complete.**
 
 ### 13. Plotting integration
 
-- [ ] Provide R plotting and map-integration equivalents for the matplotlib and
-  basemap examples, including supported vector and raster output.
-- [ ] Run the examples without requiring Python.
+- [x] Provide R plotting and map-integration equivalents for the matplotlib and
+  basemap examples (`R/plot-integration.R`, `R/plot-map.R`, enhanced
+  `plot_graph()`), supporting both vector (`pdf`, `svg`, `ps`, `eps`) and
+  raster (`png`, `jpeg`, `tiff`) output without requiring Python:
+  - Property-to-size scaling (`prop_to_size()`), HCL colour mapping and
+    standalone colorbars (`map_colors()`, `plot_colorbar()`), curved edges,
+    vertex/edge z-ordering, axes/coordinate grids, and unified multi-format
+    export (`save_graph_plot()`, using `svglite` when installed for SVG without
+    XQuartz/Cairo dependencies and falling back to `grDevices::svg()`).
+  - Embeddable base-R `grid` grobs (`graph_grob()`), tidy vertex/edge data
+    frames (`graph_to_data_frames()`), and optional `ggplot2` integration
+    (`ggplot_graph()`).
+  - Pure-R cartographic projections (`project_coords()`: Robinson, Mercator,
+    equirectangular, Mollweide, and orthographic hemisphere clipping),
+    spherical great-circle geodesic edges (`great_circle_arc()`, splitting
+    cleanly across the antimeridian), built-in offline world coastlines
+    (`world_coastlines()`, plus custom polygon support), and geographic network
+    plotting (`plot_graph_map()`).
+- [x] Run both cookbook demos end to end offline without Python
+  (`demo("plotting_integration")` in `0.91 s` exporting multi-panel PDF/PNG,
+  vector SVG, `grid`-composed PDF, and `ggplot2` PNG; `demo("plotting_map")` in
+  `0.31 s` exporting Robinson PDF/PNG, Orthographic globe PNG, and regional
+  Mercator PDF).
+
+All 75 plotting-integration and map tests pass (`0` failures, `0` warnings),
+verifying exact `prop_to_size()` scaling, Mollweide and orthographic projection
+geometry, trans-Pacific antimeridian great-circle splitting, `grid` grob and
+`ggplot2` rendering, and binary file headers across PDF, SVG, EPS, PNG, JPEG,
+and TIFF outputs.
+
+**Done when:** base-R multi-panel, `grid`, optional `ggplot2`, and geographic
+map-integration workflows run end to end offline across vector and raster
+formats without Python. **Complete.**
 
 ### 14. C++ extensions
 
