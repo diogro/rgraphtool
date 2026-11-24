@@ -143,7 +143,7 @@ kcore_decomposition(g)
 vertex_strength(g, "w")
 #> [1] 4 3 9 9 5 0
 rgraphtool_include_dir()
-#> [1] "/private/var/folders/ph/fmqmjzln2h15bm5bstsgpng80000gn/T/RtmpFi9MEk/temp_libpath15c131a22e1f5/rgraphtool/include"
+#> [1] "/private/var/folders/ph/fmqmjzln2h15bm5bstsgpng80000gn/T/Rtmpv0qKtT/temp_libpath170fa7373304a/rgraphtool/include"
 rgraphtool_extension_example("kcore")
-#> [1] "/private/var/folders/ph/fmqmjzln2h15bm5bstsgpng80000gn/T/RtmpFi9MEk/temp_libpath15c131a22e1f5/rgraphtool/examples/extensions/kcore_extension.cpp"
+#> [1] "/private/var/folders/ph/fmqmjzln2h15bm5bstsgpng80000gn/T/Rtmpv0qKtT/temp_libpath170fa7373304a/rgraphtool/examples/extensions/kcore_extension.cpp"
 ```

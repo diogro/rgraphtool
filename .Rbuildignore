@@ -1,5 +1,6 @@
 ^tools$
 ^\.pixi$
+^\.github$
 ^ROADMAP\.md$
 ^_pkgdown\.yml$
 ^pkgdown$

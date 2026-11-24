@@ -1,0 +1,21 @@
+citHeader("To cite rgraphtool in publications, please cite both rgraphtool and the upstream graph-tool library:")
+
+bibentry(
+  bibtype = "Manual",
+  title   = "rgraphtool: Native R/C++ Port of the Python 'graph-tool' Library",
+  author  = person("Diogo", "Melo", email = "diogro@gmail.com",
+                   comment = c(ORCID = "0000-0002-7603-0092")),
+  year    = "2026",
+  note    = sprintf("R package version %s", meta$Version),
+  url     = "https://github.com/diogro/rgraphtool"
+)
+
+bibentry(
+  bibtype = "Article",
+  title   = "The graph-tool python library",
+  author  = person("Tiago P.", "Peixoto"),
+  journal = "figshare",
+  year    = "2014",
+  doi     = "10.6084/m9.figshare.1164194",
+  url     = "https://figshare.com/articles/dataset/graph_tool/1164194"
+)

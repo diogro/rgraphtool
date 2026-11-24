@@ -17,8 +17,8 @@
 <script src="deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="rgraphtool: graph-tool's stochastic block models, natively in R">
-<meta name="description" content="A standalone native R/C++ port of the Python graph-tool network analysis library (&lt;https://graph-tool.skewed.de/&gt;), derived from graph-tool release 3.9 without any Python runtime dependency. Incorporates graph-tools C++ adjacency structure and provides multi-threaded native C++ implementations of Bayesian stochastic block model (SBM) inference (flat, nested, overlapping, weighted, layered, planted-partition, and ordered/ranked SBMs), merge-split MCMC posterior sampling, partition mode clustering, Bayesian model selection, uncertain network and triadic-closure reconstruction, network reconstruction from Ising, epidemic, Gaussian, and Potts dynamics, SFDP force-directed layouts, interactive HTML5 animations, vector/raster plotting and offline geographic map projections, and a public C++ extension header interface.">
-<meta property="og:description" content="A standalone native R/C++ port of the Python graph-tool network analysis library (&lt;https://graph-tool.skewed.de/&gt;), derived from graph-tool release 3.9 without any Python runtime dependency. Incorporates graph-tools C++ adjacency structure and provides multi-threaded native C++ implementations of Bayesian stochastic block model (SBM) inference (flat, nested, overlapping, weighted, layered, planted-partition, and ordered/ranked SBMs), merge-split MCMC posterior sampling, partition mode clustering, Bayesian model selection, uncertain network and triadic-closure reconstruction, network reconstruction from Ising, epidemic, Gaussian, and Potts dynamics, SFDP force-directed layouts, interactive HTML5 animations, vector/raster plotting and offline geographic map projections, and a public C++ extension header interface.">
+<meta name="description" content="A standalone native R/C++ port of the Python graph-tool network analysis library (&lt;https://graph-tool.skewed.de/&gt;), derived from graph-tool release 3.9 without any Python runtime dependency. Incorporates graph-tools C++ adjacency structure and provides multi-threaded native C++ implementations of Bayesian stochastic block model (SBM) inference (flat, nested, overlapping, weighted, layered, planted-partition, ordered/ranked, and bipartite SBMs), merge-split MCMC posterior sampling, partition mode clustering, Bayesian model selection, uncertain network and triadic-closure reconstruction, network reconstruction from Ising, epidemic, Gaussian, and Potts dynamics, centrality, shortest-path, connectivity, clustering, and random-graph algorithms, native .gt binary I/O and igraph conversion, SFDP force-directed layouts, interactive HTML5 animations, vector/raster plotting and offline geographic map projections, and a public C++ extension header interface.">
+<meta property="og:description" content="A standalone native R/C++ port of the Python graph-tool network analysis library (&lt;https://graph-tool.skewed.de/&gt;), derived from graph-tool release 3.9 without any Python runtime dependency. Incorporates graph-tools C++ adjacency structure and provides multi-threaded native C++ implementations of Bayesian stochastic block model (SBM) inference (flat, nested, overlapping, weighted, layered, planted-partition, ordered/ranked, and bipartite SBMs), merge-split MCMC posterior sampling, partition mode clustering, Bayesian model selection, uncertain network and triadic-closure reconstruction, network reconstruction from Ising, epidemic, Gaussian, and Potts dynamics, centrality, shortest-path, connectivity, clustering, and random-graph algorithms, native .gt binary I/O and igraph conversion, SFDP force-directed layouts, interactive HTML5 animations, vector/raster plotting and offline geographic map projections, and a public C++ extension header interface.">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -58,6 +58,7 @@
     <li><a class="dropdown-item" href="articles/scaling-and-cpp-extensions.html">Large-Network Parallelism &amp; Native C++ Extensions</a></li>
   </ul>
 </li>
+<li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
       </ul>
 <ul class="navbar-nav">
 <li class="nav-item"><form class="form-inline" role="search">
@@ -303,7 +304,7 @@
 <div class="section level2">
 <h2 id="validation-against-graph-tool-39">Validation against graph-tool 3.9<a class="anchor" aria-label="anchor" href="#validation-against-graph-tool-39"></a>
 </h2>
-<p><code>tools/reference/</code> contains a pinned <code>pixi</code> environment with the conda-forge build of <code>graph-tool</code> 3.9 (<code>b24bc428e8426d0acb36b2d57bd61633335a3a26</code>) along with the scripts used to generate numerical reference fixtures for the test suite (1,272 tests). Python is <strong>never</strong> required to install, use, or test <code>rgraphtool</code>.</p>
+<p><code>tools/reference/</code> contains a pinned <code>pixi</code> environment with the conda-forge build of <code>graph-tool</code> 3.9 (<code>b24bc428e8426d0acb36b2d57bd61633335a3a26</code>) along with the scripts used to generate numerical reference fixtures for the test suite (1,500+ tests). Python is <strong>never</strong> required to install, use, or test <code>rgraphtool</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="attribution-and-license">Attribution and license<a class="anchor" aria-label="anchor" href="#attribution-and-license"></a>
@@ -337,7 +338,8 @@
 <div class="developers">
 <h2 data-toc-skip>Developers</h2>
 <ul class="list-unstyled">
-<li>Diogo Melo <br><small class="roles"> Author, maintainer </small>   </li>
+<li>Diogo Melo <br><small class="roles"> Author, maintainer </small> <a href="https://orcid.org/0000-0002-7603-0092" target="orcid.widget" aria-label="ORCID" class="external-link"><span class="fab fa-orcid orcid" aria-hidden="true"></span></a>  </li>
+<li><a href="authors.html">More about authors...</a></li>
 </ul>
 </div>
 

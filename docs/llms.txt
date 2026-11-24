@@ -209,7 +209,7 @@ examples and benchmarks.
 `tools/reference/` contains a pinned `pixi` environment with the
 conda-forge build of `graph-tool` 3.9
 (`b24bc428e8426d0acb36b2d57bd61633335a3a26`) along with the scripts used
-to generate numerical reference fixtures for the test suite (1,272
+to generate numerical reference fixtures for the test suite (1,500+
 tests). Python is **never** required to install, use, or test
 `rgraphtool`.
 
