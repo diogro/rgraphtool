@@ -9,8 +9,15 @@
 \alias{graph_set_edge_property}
 \alias{graph_edge_property}
 \alias{graph_edge_properties}
+\alias{graph_set_vertex_property}
+\alias{graph_vertex_property}
+\alias{graph_vertex_properties}
+\alias{graph_set_graph_property}
+\alias{graph_graph_property}
+\alias{graph_graph_properties}
+\alias{print.rgraphtool_graph}
 \alias{transform_weights}
-\title{Create, modify, and inspect a graph and its edge properties}
+\title{Create, modify, and inspect a graph and its property maps}
 \usage{
 graph_create(n = 0L, directed = TRUE)
 graph_add_vertices(graph, n = 1L)
@@ -22,6 +29,14 @@ graph_degree(graph, mode = c("total", "in", "out"))
 graph_set_edge_property(graph, name, values)
 graph_edge_property(graph, name)
 graph_edge_properties(graph)
+graph_set_vertex_property(graph, name, values)
+graph_vertex_property(graph, name)
+graph_vertex_properties(graph)
+graph_set_graph_property(graph, name, value)
+graph_graph_property(graph, name)
+graph_graph_properties(graph)
+\method{print}{rgraphtool_graph}(x, max_edges = 20L, max_ascii = 12L,
+  ascii = NULL, ...)
 transform_weights(x, transform = c("identity", "log", "log1p", "sqrt",
   "sign", "abs", "rank", "zscore"), shift = 0)
 }
@@ -30,14 +45,23 @@ transform_weights(x, transform = c("identity", "log", "log1p", "sqrt",
   \item{directed}{Whether the graph is directed.}
   \item{graph}{A graph created by \code{graph_create()}.}
   \item{edges}{Two-column numeric matrix of 1-based source and target vertex IDs.}
-  \item{properties}{Optional named list or data frame of numeric edge vectors
+  \item{properties}{Optional named list or data frame of edge vectors
   (each of length \code{nrow(edges)}) to attach as edge property maps aligned
   with the newly added edges.}
   \item{mode}{Degree type. Undirected graphs support only total degree.}
-  \item{name}{Non-empty character string naming an edge property map.}
-  \item{values}{Numeric vector of length \code{graph_num_edges(graph)} aligned
-  with \code{graph_edges(graph)}.}
-  \item{x}{Finite numeric vector of edge weights to transform.}
+  \item{name}{Non-empty character string naming a graph, vertex, or edge property map.}
+  \item{values}{Vector, matrix, or list of property values aligned with
+  \code{graph_edges(graph)} (for edge properties) or \code{1:graph_num_vertices(graph)}
+  (for vertex properties).}
+  \item{value}{Single value (scalar, vector, or raw object) for a graph-level property.}
+  \item{x}{For \code{print()}, an \code{rgraphtool_graph} object; for
+  \code{transform_weights()}, a finite numeric vector of edge weights to transform.}
+  \item{max_edges}{Maximum number of edges to display in the edge preview.}
+  \item{max_ascii}{Maximum vertex count for automatically displaying the ASCII
+  adjacency matrix.}
+  \item{ascii}{Optional logical overriding whether to display the ASCII
+  adjacency matrix.}
+  \item{...}{Unused; included for S3 \code{print} compatibility.}
   \item{transform}{Weight transformation to apply. Invertible continuous
   transformations (\code{"identity"}, \code{"log"}, \code{"log1p"},
   \code{"sqrt"}, \code{"zscore"}) attach the exact log-Jacobian

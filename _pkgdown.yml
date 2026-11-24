@@ -41,6 +41,7 @@ reference:
 - title: Graphs and data
   contents:
   - graph_create
+  - read_gt
   - football_network
   - netzschleuder_network
 - title: Block models

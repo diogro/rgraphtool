@@ -31,3 +31,31 @@ test_that("invalid inputs do not mutate a graph", {
   expect_equal(graph_num_edges(g), 0)
   expect_error(graph_num_vertices(unserialize(serialize(g, NULL))), "cannot be restored")
 })
+
+test_that("print.rgraphtool_graph formats small, large, and deserialized graphs", {
+  g <- graph_create(4L, directed = TRUE)
+  graph_add_edges(g, rbind(c(1, 2), c(2, 3), c(2, 3), c(3, 3), c(3, 1)),
+                  properties = list(weight = c(1, 2, 3, 4, 5)))
+  graph_set_vertex_property(g, "name", c("a", "b", "c", "d"))
+  graph_set_graph_property(g, "title", "demo")
+
+  out <- capture.output(print(g))
+  expect_true(any(grepl("rgraphtool graph \\(directed, 4 vertices, 5 edges\\)", out)))
+  expect_true(any(grepl("graph props: title \\(chr\\)", out)))
+  expect_true(any(grepl("vertex props: name \\(chr\\)", out)))
+  expect_true(any(grepl("edge props: weight \\(dbl\\)", out)))
+  expect_true(any(grepl("adjacency:", out)))
+  expect_true(any(grepl("a->b", out)))
+
+  # Large graph skips ASCII adjacency by default and truncates edges
+  gl <- graph_create(20L, directed = FALSE)
+  graph_add_edges(gl, cbind(1:19, 2:20))
+  out_l <- capture.output(print(gl, max_edges = 5L))
+  expect_false(any(grepl("adjacency:", out_l)))
+  expect_true(any(grepl("\\+14 more", out_l)))
+
+  # Deserialized pointer prints gracefully instead of erroring
+  dead <- unserialize(serialize(g, NULL))
+  out_dead <- capture.output(print(dead))
+  expect_true(any(grepl("invalid or deserialized", out_dead)))
+})

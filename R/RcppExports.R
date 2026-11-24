@@ -145,6 +145,10 @@ cpp_num_edges <- function(pointer) {
     .Call(`_rgraphtool_cpp_num_edges`, pointer)
 }
 
+cpp_edge_order <- function(pointer) {
+    .Call(`_rgraphtool_cpp_edge_order`, pointer)
+}
+
 cpp_edges <- function(pointer) {
     .Call(`_rgraphtool_cpp_edges`, pointer)
 }
@@ -159,6 +163,22 @@ cpp_block_statistics <- function(pointer, blocks, nblocks) {
 
 cpp_log_partition_table <- function(max_degree, max_vertices) {
     .Call(`_rgraphtool_cpp_log_partition_table`, max_degree, max_vertices)
+}
+
+cpp_read_gt_raw <- function(bytes) {
+    .Call(`_rgraphtool_cpp_read_gt_raw`, bytes)
+}
+
+cpp_read_gt_file <- function(path) {
+    .Call(`_rgraphtool_cpp_read_gt_file`, path)
+}
+
+cpp_write_gt_raw <- function(pointer, comment, graph_props, vertex_props, edge_props_extra) {
+    .Call(`_rgraphtool_cpp_write_gt_raw`, pointer, comment, graph_props, vertex_props, edge_props_extra)
+}
+
+cpp_write_gt_file <- function(pointer, path, comment, graph_props, vertex_props, edge_props_extra) {
+    invisible(.Call(`_rgraphtool_cpp_write_gt_file`, pointer, path, comment, graph_props, vertex_props, edge_props_extra))
 }
 
 cpp_layered_entropy <- function(pointer, blocks, layers, independent, degree_corrected, distributed, include_lmemb, q_max) {

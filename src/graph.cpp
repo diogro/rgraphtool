@@ -99,6 +99,21 @@ double cpp_num_edges(SEXP pointer) {
 }
 
 // [[Rcpp::export]]
+Rcpp::IntegerVector cpp_edge_order(SEXP pointer) {
+    Graph& graph = get_graph(pointer);
+    size_t count = boost::num_edges(graph.adjacency);
+    if (count > static_cast<size_t>(std::numeric_limits<int>::max()))
+        Rcpp::stop("Too many edges to return edge order");
+    Rcpp::IntegerVector out(static_cast<R_xlen_t>(count));
+    auto range = boost::edges(graph.adjacency);
+    R_xlen_t pos = 0;
+    for (auto it = range.first; it != range.second; ++it, ++pos) {
+        out[pos] = static_cast<int>(it->idx) + 1;
+    }
+    return out;
+}
+
+// [[Rcpp::export]]
 Rcpp::IntegerMatrix cpp_edges(SEXP pointer) {
     Graph& graph = get_graph(pointer);
     size_t count = boost::num_edges(graph.adjacency);

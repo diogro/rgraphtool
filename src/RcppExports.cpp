@@ -623,6 +623,17 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_edge_order
+Rcpp::IntegerVector cpp_edge_order(SEXP pointer);
+RcppExport SEXP _rgraphtool_cpp_edge_order(SEXP pointerSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_edge_order(pointer));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_edges
 Rcpp::IntegerMatrix cpp_edges(SEXP pointer);
 RcppExport SEXP _rgraphtool_cpp_edges(SEXP pointerSEXP) {
@@ -669,6 +680,58 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type max_vertices(max_verticesSEXP);
     rcpp_result_gen = Rcpp::wrap(cpp_log_partition_table(max_degree, max_vertices));
     return rcpp_result_gen;
+END_RCPP
+}
+// cpp_read_gt_raw
+Rcpp::List cpp_read_gt_raw(Rcpp::RawVector bytes);
+RcppExport SEXP _rgraphtool_cpp_read_gt_raw(SEXP bytesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::RawVector >::type bytes(bytesSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_read_gt_raw(bytes));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_read_gt_file
+Rcpp::List cpp_read_gt_file(const std::string& path);
+RcppExport SEXP _rgraphtool_cpp_read_gt_file(SEXP pathSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const std::string& >::type path(pathSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_read_gt_file(path));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_write_gt_raw
+Rcpp::RawVector cpp_write_gt_raw(SEXP pointer, const std::string& comment, Rcpp::List graph_props, Rcpp::List vertex_props, Rcpp::List edge_props_extra);
+RcppExport SEXP _rgraphtool_cpp_write_gt_raw(SEXP pointerSEXP, SEXP commentSEXP, SEXP graph_propsSEXP, SEXP vertex_propsSEXP, SEXP edge_props_extraSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< const std::string& >::type comment(commentSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type graph_props(graph_propsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type vertex_props(vertex_propsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type edge_props_extra(edge_props_extraSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_write_gt_raw(pointer, comment, graph_props, vertex_props, edge_props_extra));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_write_gt_file
+void cpp_write_gt_file(SEXP pointer, const std::string& path, const std::string& comment, Rcpp::List graph_props, Rcpp::List vertex_props, Rcpp::List edge_props_extra);
+RcppExport SEXP _rgraphtool_cpp_write_gt_file(SEXP pointerSEXP, SEXP pathSEXP, SEXP commentSEXP, SEXP graph_propsSEXP, SEXP vertex_propsSEXP, SEXP edge_props_extraSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< const std::string& >::type path(pathSEXP);
+    Rcpp::traits::input_parameter< const std::string& >::type comment(commentSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type graph_props(graph_propsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type vertex_props(vertex_propsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type edge_props_extra(edge_props_extraSEXP);
+    cpp_write_gt_file(pointer, path, comment, graph_props, vertex_props, edge_props_extra);
+    return R_NilValue;
 END_RCPP
 }
 // cpp_layered_entropy
@@ -1739,10 +1802,15 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rgraphtool_cpp_edge_property_names", (DL_FUNC) &_rgraphtool_cpp_edge_property_names, 1},
     {"_rgraphtool_cpp_num_vertices", (DL_FUNC) &_rgraphtool_cpp_num_vertices, 1},
     {"_rgraphtool_cpp_num_edges", (DL_FUNC) &_rgraphtool_cpp_num_edges, 1},
+    {"_rgraphtool_cpp_edge_order", (DL_FUNC) &_rgraphtool_cpp_edge_order, 1},
     {"_rgraphtool_cpp_edges", (DL_FUNC) &_rgraphtool_cpp_edges, 1},
     {"_rgraphtool_cpp_degree", (DL_FUNC) &_rgraphtool_cpp_degree, 2},
     {"_rgraphtool_cpp_block_statistics", (DL_FUNC) &_rgraphtool_cpp_block_statistics, 3},
     {"_rgraphtool_cpp_log_partition_table", (DL_FUNC) &_rgraphtool_cpp_log_partition_table, 2},
+    {"_rgraphtool_cpp_read_gt_raw", (DL_FUNC) &_rgraphtool_cpp_read_gt_raw, 1},
+    {"_rgraphtool_cpp_read_gt_file", (DL_FUNC) &_rgraphtool_cpp_read_gt_file, 1},
+    {"_rgraphtool_cpp_write_gt_raw", (DL_FUNC) &_rgraphtool_cpp_write_gt_raw, 5},
+    {"_rgraphtool_cpp_write_gt_file", (DL_FUNC) &_rgraphtool_cpp_write_gt_file, 6},
     {"_rgraphtool_cpp_layered_entropy", (DL_FUNC) &_rgraphtool_cpp_layered_entropy, 8},
     {"_rgraphtool_cpp_layered_check_moves", (DL_FUNC) &_rgraphtool_cpp_layered_check_moves, 8},
     {"_rgraphtool_cpp_layered_minimize", (DL_FUNC) &_rgraphtool_cpp_layered_minimize, 10},
