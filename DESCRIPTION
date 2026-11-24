@@ -13,8 +13,8 @@ Description: A standalone native R/C++ port of the Python 'graph-tool' network
     selection.
 License: LGPL (>= 3)
 Encoding: UTF-8
-Imports: Rcpp
+Imports: Rcpp, grid
 LinkingTo: Rcpp, BH
-Suggests: testthat (>= 3.0.0)
+Suggests: testthat (>= 3.0.0), ggplot2, svglite
 Config/testthat/edition: 3
 SystemRequirements: C++23

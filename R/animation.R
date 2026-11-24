@@ -206,15 +206,27 @@ plot_graph <- function(graph, pos = NULL,
                        vertex_label_cex = 0.7,
                        edge_color = grDevices::adjustcolor("#4B5563", 0.45),
                        edge_lwd = 1.0,
+                       edge_curve = 0,
                        edge_visible = TRUE,
+                       vorder = NULL,
+                       eorder = NULL,
                        arrows = NULL,
                        arrow_length = 0.08,
                        xlim = NULL,
                        ylim = NULL,
                        pad = 0.08,
                        bg = "white",
+                       axes = FALSE,
+                       frame.plot = axes,
+                       grid_lines = FALSE,
+                       xlab = "",
+                       ylab = "",
                        main = NULL,
                        add = FALSE,
+                       output = NULL,
+                       width = 7,
+                       height = 5,
+                       dpi = 150,
                        ...) {
   graph_pointer(graph)
   n <- graph_num_vertices(graph)
@@ -229,78 +241,132 @@ plot_graph <- function(graph, pos = NULL,
   edges <- graph_edges(graph)
   m <- nrow(edges)
 
-  v_vis <- rep_len(as.logical(vertex_visible), n)
-  v_vis[is.na(v_vis)] <- FALSE
-  v_col <- rep_len(vertex_color, n)
-  v_brd <- rep_len(vertex_border, n)
-  v_siz <- rep_len(vertex_size, n)
-  v_shp <- rep_len(vertex_shape, n)
-  v_hal <- rep_len(as.logical(vertex_halo), n)
-  v_hal[is.na(v_hal)] <- FALSE
-  v_hcol <- rep_len(vertex_halo_color, n)
-  v_hsiz <- rep_len(vertex_halo_size, n)
+  render_graph <- function() {
+    v_vis <- rep_len(as.logical(vertex_visible), n)
+    v_vis[is.na(v_vis)] <- FALSE
+    v_col <- rep_len(vertex_color, n)
+    v_brd <- rep_len(vertex_border, n)
+    v_siz <- rep_len(vertex_size, n)
+    v_shp <- rep_len(vertex_shape, n)
+    v_hal <- rep_len(as.logical(vertex_halo), n)
+    v_hal[is.na(v_hal)] <- FALSE
+    v_hcol <- rep_len(vertex_halo_color, n)
+    v_hsiz <- rep_len(vertex_halo_size, n)
 
-  if (!add) {
-    lims <- compute_plot_limits(pos, pad = pad, xlim = xlim, ylim = ylim)
-    op <- graphics::par(bg = bg, mar = c(1, 1, if (is.null(main)) 1 else 2.5, 1))
-    on.exit(graphics::par(op), add = TRUE)
-    graphics::plot.new()
-    graphics::plot.window(xlim = lims$xlim, ylim = lims$ylim, asp = 1)
-  }
-
-  if (m > 0L) {
-    e_vis <- rep_len(as.logical(edge_visible), m)
-    e_vis[is.na(e_vis)] <- FALSE
-    u <- edges[, 1L]
-    v <- edges[, 2L]
-    keep <- e_vis & v_vis[u] & v_vis[v] & (u != v)
-    if (any(keep)) {
-      e_col <- rep_len(edge_color, m)[keep]
-      e_lwd <- rep_len(edge_lwd, m)[keep]
-      x0 <- pos[u[keep], 1L]
-      y0 <- pos[u[keep], 2L]
-      x1 <- pos[v[keep], 1L]
-      y1 <- pos[v[keep], 2L]
-      if (isTRUE(arrows)) {
-        graphics::arrows(x0, y0, x1, y1, col = e_col, lwd = e_lwd,
-                         length = arrow_length, angle = 20)
+    if (!add) {
+      lims <- compute_plot_limits(pos, pad = pad, xlim = xlim, ylim = ylim)
+      mar_vec <- if (isTRUE(axes)) {
+        c(if (nzchar(xlab)) 4.0 else 3.0,
+          if (nzchar(ylab)) 4.0 else 3.0,
+          if (is.null(main)) 1.5 else 2.8,
+          1.2)
       } else {
-        graphics::segments(x0, y0, x1, y1, col = e_col, lwd = e_lwd)
+        c(1.0, 1.0, if (is.null(main)) 1.0 else 2.5, 1.0)
       }
+      op <- graphics::par(bg = bg, mar = mar_vec)
+      on.exit(graphics::par(op), add = TRUE)
+      graphics::plot.new()
+      graphics::plot.window(xlim = lims$xlim, ylim = lims$ylim, asp = 1)
+      if (isTRUE(grid_lines)) {
+        graphics::grid(col = grDevices::adjustcolor("#94A3B8", 0.45), lty = 3L)
+      }
+      if (isTRUE(axes)) {
+        graphics::axis(1L)
+        graphics::axis(2L)
+        if (nzchar(xlab) || nzchar(ylab)) {
+          graphics::title(xlab = xlab, ylab = ylab)
+        }
+      }
+      if (isTRUE(frame.plot)) {
+        graphics::box(col = "#64748B")
+      }
+    }
+
+    if (m > 0L) {
+      e_vis <- rep_len(as.logical(edge_visible), m)
+      e_vis[is.na(e_vis)] <- FALSE
+      u <- edges[, 1L]
+      v <- edges[, 2L]
+      keep <- which(e_vis & v_vis[u] & v_vis[v] & (u != v))
+      if (length(keep) > 0L) {
+        if (!is.null(eorder)) {
+          keep <- keep[order(eorder[keep])]
+        }
+        e_col <- rep_len(edge_color, m)[keep]
+        e_lwd <- rep_len(edge_lwd, m)[keep]
+        e_crv <- rep_len(as.numeric(edge_curve), m)[keep]
+        if (all(e_crv == 0)) {
+          x0 <- pos[u[keep], 1L]
+          y0 <- pos[u[keep], 2L]
+          x1 <- pos[v[keep], 1L]
+          y1 <- pos[v[keep], 2L]
+          if (isTRUE(arrows)) {
+            graphics::arrows(x0, y0, x1, y1, col = e_col, lwd = e_lwd,
+                             length = arrow_length, angle = 20)
+          } else {
+            graphics::segments(x0, y0, x1, y1, col = e_col, lwd = e_lwd)
+          }
+        } else {
+          for (idx in seq_along(keep)) {
+            k <- keep[idx]
+            pts <- quadratic_curve_points(pos[u[k], 1L], pos[u[k], 2L],
+                                          pos[v[k], 1L], pos[v[k], 2L],
+                                          curvature = e_crv[idx], n = 16L)
+            graphics::lines(pts[, 1L], pts[, 2L], col = e_col[idx], lwd = e_lwd[idx])
+            if (isTRUE(arrows) && nrow(pts) >= 2L) {
+              nr <- nrow(pts)
+              graphics::arrows(pts[nr - 1L, 1L], pts[nr - 1L, 2L],
+                               pts[nr, 1L], pts[nr, 2L],
+                               col = e_col[idx], lwd = e_lwd[idx],
+                               length = arrow_length, angle = 20)
+            }
+          }
+        }
+      }
+    }
+
+    if (n > 0L) {
+      vis_idx <- which(v_vis)
+      if (!is.null(vorder) && length(vis_idx) > 0L) {
+        vis_idx <- vis_idx[order(vorder[vis_idx])]
+      }
+      hal_idx <- vis_idx[v_hal[vis_idx]]
+      if (length(hal_idx) > 0L) {
+        graphics::points(pos[hal_idx, 1L], pos[hal_idx, 2L],
+                         pch = 19L, col = v_hcol[hal_idx], cex = v_hsiz[hal_idx])
+      }
+      if (length(vis_idx) > 0L) {
+        filled <- v_shp[vis_idx] %in% 21:25
+        if (any(filled)) {
+          fi <- vis_idx[filled]
+          graphics::points(pos[fi, 1L], pos[fi, 2L],
+                           pch = v_shp[fi], bg = v_col[fi], col = v_brd[fi],
+                           cex = v_siz[fi], ...)
+        }
+        if (any(!filled)) {
+          ui <- vis_idx[!filled]
+          graphics::points(pos[ui, 1L], pos[ui, 2L],
+                           pch = v_shp[ui], col = v_col[ui],
+                           cex = v_siz[ui], ...)
+        }
+        if (!is.null(vertex_label)) {
+          v_lab <- rep_len(as.character(vertex_label), n)
+          graphics::text(pos[vis_idx, 1L], pos[vis_idx, 2L],
+                         labels = v_lab[vis_idx], cex = vertex_label_cex)
+        }
+      }
+    }
+
+    if (!is.null(main) && !add) {
+      graphics::title(main = main)
     }
   }
 
-  if (n > 0L) {
-    hal_idx <- which(v_vis & v_hal)
-    if (length(hal_idx) > 0L) {
-      graphics::points(pos[hal_idx, 1L], pos[hal_idx, 2L],
-                       pch = 19L, col = v_hcol[hal_idx], cex = v_hsiz[hal_idx])
-    }
-    vis_idx <- which(v_vis)
-    if (length(vis_idx) > 0L) {
-      filled <- v_shp[vis_idx] %in% 21:25
-      if (any(filled)) {
-        fi <- vis_idx[filled]
-        graphics::points(pos[fi, 1L], pos[fi, 2L],
-                         pch = v_shp[fi], bg = v_col[fi], col = v_brd[fi],
-                         cex = v_siz[fi], ...)
-      }
-      if (any(!filled)) {
-        ui <- vis_idx[!filled]
-        graphics::points(pos[ui, 1L], pos[ui, 2L],
-                         pch = v_shp[ui], col = v_col[ui],
-                         cex = v_siz[ui], ...)
-      }
-      if (!is.null(vertex_label)) {
-        v_lab <- rep_len(as.character(vertex_label), n)
-        graphics::text(pos[vis_idx, 1L], pos[vis_idx, 2L],
-                       labels = v_lab[vis_idx], cex = vertex_label_cex)
-      }
-    }
-  }
-
-  if (!is.null(main) && !add) {
-    graphics::title(main = main)
+  if (!is.null(output)) {
+    save_graph_plot(render_graph(), output = output, width = width, height = height,
+                    dpi = dpi, bg = bg)
+  } else {
+    render_graph()
   }
   invisible(pos)
 }
