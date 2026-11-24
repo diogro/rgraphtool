@@ -84,6 +84,12 @@ reference:
   - plot_marginals
   - plotting_integration
   - sfdp_layout
+- title: Centrality, topology & generators
+  contents:
+  - pagerank
+  - shortest_distance
+  - random_graph_erdos_renyi
+  - modularity
 - title: Package
   contents:
   - rgraphtool_threads

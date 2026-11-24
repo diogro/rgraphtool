@@ -57,6 +57,9 @@ block_membership <- function(state) {
     validate_bipartite_state(state)
     return(state$blocks)
   }
+  if (inherits(state, "rgraphtool_modularity_state")) {
+    return(state$blocks)
+  }
   validate_block_state(state)
   state$blocks
 }
@@ -82,6 +85,9 @@ block_sizes <- function(state) {
   }
   if (inherits(state, "rgraphtool_bipartite_block_state")) {
     validate_bipartite_state(state)
+    return(as.numeric(tabulate(state$blocks, nbins = max(state$blocks, 0L))))
+  }
+  if (inherits(state, "rgraphtool_modularity_state")) {
     return(as.numeric(tabulate(state$blocks, nbins = max(state$blocks, 0L))))
   }
   validate_block_state(state)

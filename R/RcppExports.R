@@ -365,6 +365,86 @@ cpp_nested_ranked_mcmc <- function(pointer, bs, u, distance, unique, M_pos, degr
     .Call(`_rgraphtool_cpp_nested_ranked_mcmc`, pointer, bs, u, distance, unique, M_pos, degree_corrected, distributed, mcmc_opts, eq_opts, q_max)
 }
 
+cpp_pagerank <- function(pointer, damping, pers, weights, tol, max_iter) {
+    .Call(`_rgraphtool_cpp_pagerank`, pointer, damping, pers, weights, tol, max_iter)
+}
+
+cpp_betweenness <- function(pointer, weights, normalized) {
+    .Call(`_rgraphtool_cpp_betweenness`, pointer, weights, normalized)
+}
+
+cpp_closeness <- function(pointer, weights, normalized, harmonic) {
+    .Call(`_rgraphtool_cpp_closeness`, pointer, weights, normalized, harmonic)
+}
+
+cpp_eigenvector <- function(pointer, weights, tol, max_iter) {
+    .Call(`_rgraphtool_cpp_eigenvector`, pointer, weights, tol, max_iter)
+}
+
+cpp_katz <- function(pointer, alpha, beta, weights, normalized, tol, max_iter) {
+    .Call(`_rgraphtool_cpp_katz`, pointer, alpha, beta, weights, normalized, tol, max_iter)
+}
+
+cpp_hits <- function(pointer, weights, tol, max_iter) {
+    .Call(`_rgraphtool_cpp_hits`, pointer, weights, tol, max_iter)
+}
+
+cpp_shortest_distance <- function(pointer, sources, weights, max_dist) {
+    .Call(`_rgraphtool_cpp_shortest_distance`, pointer, sources, weights, max_dist)
+}
+
+cpp_shortest_path <- function(pointer, source, target, weights) {
+    .Call(`_rgraphtool_cpp_shortest_path`, pointer, source, target, weights)
+}
+
+cpp_pseudo_diameter <- function(pointer, source, weights) {
+    .Call(`_rgraphtool_cpp_pseudo_diameter`, pointer, source, weights)
+}
+
+cpp_label_components <- function(pointer) {
+    .Call(`_rgraphtool_cpp_label_components`, pointer)
+}
+
+cpp_biconnected_components <- function(pointer) {
+    .Call(`_rgraphtool_cpp_biconnected_components`, pointer)
+}
+
+cpp_topological_sort <- function(pointer) {
+    .Call(`_rgraphtool_cpp_topological_sort`, pointer)
+}
+
+cpp_clustering <- function(pointer) {
+    .Call(`_rgraphtool_cpp_clustering`, pointer)
+}
+
+cpp_assortativity <- function(pointer, x_src, x_tgt, categorical, weights) {
+    .Call(`_rgraphtool_cpp_assortativity`, pointer, x_src, x_tgt, categorical, weights)
+}
+
+cpp_modularity <- function(pointer, blocks, gamma, weights) {
+    .Call(`_rgraphtool_cpp_modularity`, pointer, blocks, gamma, weights)
+}
+
+cpp_maximize_modularity <- function(pointer, gamma, weights, nruns, max_levels) {
+    .Call(`_rgraphtool_cpp_maximize_modularity`, pointer, gamma, weights, nruns, max_levels)
+}
+
+cpp_erdos_renyi_gnp <- function(n, p, directed, self_loops) {
+    .Call(`_rgraphtool_cpp_erdos_renyi_gnp`, n, p, directed, self_loops)
+}
+
+cpp_erdos_renyi_gnm <- function(n, m, directed, self_loops) {
+    .Call(`_rgraphtool_cpp_erdos_renyi_gnm`, n, m, directed, self_loops)
+}
+
+cpp_barabasi_albert <- function(n, m, gamma_exp, directed) {
+    .Call(`_rgraphtool_cpp_barabasi_albert`, n, m, gamma_exp, directed)
+}
+
+cpp_watts_strogatz <- function(n, k, p, circular) {
+    .Call(`_rgraphtool_cpp_watts_strogatz`, n, k, p, circular)
+}
+
 cpp_uncertain_entropy <- function(model, N, directed, self_loops, obs_edges, obs_v1, obs_v2, def1, def2, hparams, lp, lq, latent_edges, latent_w, bs_list, dc, dist, sbm, density, aE, q_max) {
     .Call(`_rgraphtool_cpp_uncertain_entropy`, model, N, directed, self_loops, obs_edges, obs_v1, obs_v2, def1, def2, hparams, lp, lq, latent_edges, latent_w, bs_list, dc, dist, sbm, density, aE, q_max)
 }

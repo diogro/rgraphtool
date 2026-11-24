@@ -250,6 +250,39 @@
   [`graph_bfs()`](https://diogro.github.io/rgraphtool/reference/sfdp_layout.md)
   : Force-directed SFDP layout and breadth-first search traversal
 
+## Centrality, topology & generators
+
+- [`pagerank()`](https://diogro.github.io/rgraphtool/reference/centrality.md)
+  [`betweenness()`](https://diogro.github.io/rgraphtool/reference/centrality.md)
+  [`closeness()`](https://diogro.github.io/rgraphtool/reference/centrality.md)
+  [`eigenvector_centrality()`](https://diogro.github.io/rgraphtool/reference/centrality.md)
+  [`katz_centrality()`](https://diogro.github.io/rgraphtool/reference/centrality.md)
+  [`hits_centrality()`](https://diogro.github.io/rgraphtool/reference/centrality.md)
+  : Vertex and edge centrality measures
+- [`shortest_distance()`](https://diogro.github.io/rgraphtool/reference/topology.md)
+  [`shortest_path()`](https://diogro.github.io/rgraphtool/reference/topology.md)
+  [`pseudo_diameter()`](https://diogro.github.io/rgraphtool/reference/topology.md)
+  [`graph_diameter()`](https://diogro.github.io/rgraphtool/reference/topology.md)
+  [`label_components()`](https://diogro.github.io/rgraphtool/reference/topology.md)
+  [`label_biconnected_components()`](https://diogro.github.io/rgraphtool/reference/topology.md)
+  [`topological_sort()`](https://diogro.github.io/rgraphtool/reference/topology.md)
+  [`is_dag()`](https://diogro.github.io/rgraphtool/reference/topology.md)
+  [`local_clustering()`](https://diogro.github.io/rgraphtool/reference/topology.md)
+  [`global_clustering()`](https://diogro.github.io/rgraphtool/reference/topology.md)
+  [`assortativity()`](https://diogro.github.io/rgraphtool/reference/topology.md)
+  : Shortest paths, connected components, clustering, and assortativity
+- [`random_graph_erdos_renyi()`](https://diogro.github.io/rgraphtool/reference/random_graphs.md)
+  [`random_graph_barabasi_albert()`](https://diogro.github.io/rgraphtool/reference/random_graphs.md)
+  [`random_graph_watts_strogatz()`](https://diogro.github.io/rgraphtool/reference/random_graphs.md)
+  [`random_graph_configuration()`](https://diogro.github.io/rgraphtool/reference/random_graphs.md)
+  [`random_graph_sbm()`](https://diogro.github.io/rgraphtool/reference/random_graphs.md)
+  : Classic random graph generators
+- [`modularity()`](https://diogro.github.io/rgraphtool/reference/modularity.md)
+  [`maximize_modularity()`](https://diogro.github.io/rgraphtool/reference/modularity.md)
+  [`print(`*`<rgraphtool_modularity_state>`*`)`](https://diogro.github.io/rgraphtool/reference/modularity.md)
+  : Newman modularity and modularity maximization (use with extreme
+  caution)
+
 ## Package
 
 - [`rgraphtool_max_threads()`](https://diogro.github.io/rgraphtool/reference/rgraphtool_threads.md)

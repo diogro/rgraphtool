@@ -1585,6 +1585,279 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_pagerank
+Rcpp::List cpp_pagerank(SEXP pointer, double damping, Rcpp::Nullable<Rcpp::NumericVector> pers, Rcpp::Nullable<Rcpp::NumericVector> weights, double tol, int max_iter);
+RcppExport SEXP _rgraphtool_cpp_pagerank(SEXP pointerSEXP, SEXP dampingSEXP, SEXP persSEXP, SEXP weightsSEXP, SEXP tolSEXP, SEXP max_iterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< double >::type damping(dampingSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type pers(persSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter(max_iterSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_pagerank(pointer, damping, pers, weights, tol, max_iter));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_betweenness
+Rcpp::List cpp_betweenness(SEXP pointer, Rcpp::Nullable<Rcpp::NumericVector> weights, bool normalized);
+RcppExport SEXP _rgraphtool_cpp_betweenness(SEXP pointerSEXP, SEXP weightsSEXP, SEXP normalizedSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< bool >::type normalized(normalizedSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_betweenness(pointer, weights, normalized));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_closeness
+Rcpp::NumericVector cpp_closeness(SEXP pointer, Rcpp::Nullable<Rcpp::NumericVector> weights, bool normalized, bool harmonic);
+RcppExport SEXP _rgraphtool_cpp_closeness(SEXP pointerSEXP, SEXP weightsSEXP, SEXP normalizedSEXP, SEXP harmonicSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< bool >::type normalized(normalizedSEXP);
+    Rcpp::traits::input_parameter< bool >::type harmonic(harmonicSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_closeness(pointer, weights, normalized, harmonic));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_eigenvector
+Rcpp::List cpp_eigenvector(SEXP pointer, Rcpp::Nullable<Rcpp::NumericVector> weights, double tol, int max_iter);
+RcppExport SEXP _rgraphtool_cpp_eigenvector(SEXP pointerSEXP, SEXP weightsSEXP, SEXP tolSEXP, SEXP max_iterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter(max_iterSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_eigenvector(pointer, weights, tol, max_iter));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_katz
+Rcpp::NumericVector cpp_katz(SEXP pointer, double alpha, Rcpp::Nullable<Rcpp::NumericVector> beta, Rcpp::Nullable<Rcpp::NumericVector> weights, bool normalized, double tol, int max_iter);
+RcppExport SEXP _rgraphtool_cpp_katz(SEXP pointerSEXP, SEXP alphaSEXP, SEXP betaSEXP, SEXP weightsSEXP, SEXP normalizedSEXP, SEXP tolSEXP, SEXP max_iterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type beta(betaSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< bool >::type normalized(normalizedSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter(max_iterSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_katz(pointer, alpha, beta, weights, normalized, tol, max_iter));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_hits
+Rcpp::List cpp_hits(SEXP pointer, Rcpp::Nullable<Rcpp::NumericVector> weights, double tol, int max_iter);
+RcppExport SEXP _rgraphtool_cpp_hits(SEXP pointerSEXP, SEXP weightsSEXP, SEXP tolSEXP, SEXP max_iterSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter(max_iterSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_hits(pointer, weights, tol, max_iter));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_shortest_distance
+Rcpp::NumericMatrix cpp_shortest_distance(SEXP pointer, Rcpp::IntegerVector sources, Rcpp::Nullable<Rcpp::NumericVector> weights, double max_dist);
+RcppExport SEXP _rgraphtool_cpp_shortest_distance(SEXP pointerSEXP, SEXP sourcesSEXP, SEXP weightsSEXP, SEXP max_distSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type sources(sourcesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< double >::type max_dist(max_distSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_shortest_distance(pointer, sources, weights, max_dist));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_shortest_path
+Rcpp::List cpp_shortest_path(SEXP pointer, int source, int target, Rcpp::Nullable<Rcpp::NumericVector> weights);
+RcppExport SEXP _rgraphtool_cpp_shortest_path(SEXP pointerSEXP, SEXP sourceSEXP, SEXP targetSEXP, SEXP weightsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< int >::type source(sourceSEXP);
+    Rcpp::traits::input_parameter< int >::type target(targetSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type weights(weightsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_shortest_path(pointer, source, target, weights));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_pseudo_diameter
+Rcpp::List cpp_pseudo_diameter(SEXP pointer, int source, Rcpp::Nullable<Rcpp::NumericVector> weights);
+RcppExport SEXP _rgraphtool_cpp_pseudo_diameter(SEXP pointerSEXP, SEXP sourceSEXP, SEXP weightsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< int >::type source(sourceSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type weights(weightsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_pseudo_diameter(pointer, source, weights));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_label_components
+Rcpp::List cpp_label_components(SEXP pointer);
+RcppExport SEXP _rgraphtool_cpp_label_components(SEXP pointerSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_label_components(pointer));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_biconnected_components
+Rcpp::List cpp_biconnected_components(SEXP pointer);
+RcppExport SEXP _rgraphtool_cpp_biconnected_components(SEXP pointerSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_biconnected_components(pointer));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_topological_sort
+Rcpp::List cpp_topological_sort(SEXP pointer);
+RcppExport SEXP _rgraphtool_cpp_topological_sort(SEXP pointerSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_topological_sort(pointer));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_clustering
+Rcpp::List cpp_clustering(SEXP pointer);
+RcppExport SEXP _rgraphtool_cpp_clustering(SEXP pointerSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_clustering(pointer));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_assortativity
+double cpp_assortativity(SEXP pointer, Rcpp::NumericVector x_src, Rcpp::NumericVector x_tgt, bool categorical, Rcpp::Nullable<Rcpp::NumericVector> weights);
+RcppExport SEXP _rgraphtool_cpp_assortativity(SEXP pointerSEXP, SEXP x_srcSEXP, SEXP x_tgtSEXP, SEXP categoricalSEXP, SEXP weightsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type x_src(x_srcSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type x_tgt(x_tgtSEXP);
+    Rcpp::traits::input_parameter< bool >::type categorical(categoricalSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type weights(weightsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_assortativity(pointer, x_src, x_tgt, categorical, weights));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_modularity
+double cpp_modularity(SEXP pointer, Rcpp::IntegerVector blocks, double gamma, Rcpp::Nullable<Rcpp::NumericVector> weights);
+RcppExport SEXP _rgraphtool_cpp_modularity(SEXP pointerSEXP, SEXP blocksSEXP, SEXP gammaSEXP, SEXP weightsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type blocks(blocksSEXP);
+    Rcpp::traits::input_parameter< double >::type gamma(gammaSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type weights(weightsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_modularity(pointer, blocks, gamma, weights));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_maximize_modularity
+Rcpp::List cpp_maximize_modularity(SEXP pointer, double gamma, Rcpp::Nullable<Rcpp::NumericVector> weights, int nruns, int max_levels);
+RcppExport SEXP _rgraphtool_cpp_maximize_modularity(SEXP pointerSEXP, SEXP gammaSEXP, SEXP weightsSEXP, SEXP nrunsSEXP, SEXP max_levelsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< double >::type gamma(gammaSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericVector> >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< int >::type nruns(nrunsSEXP);
+    Rcpp::traits::input_parameter< int >::type max_levels(max_levelsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_maximize_modularity(pointer, gamma, weights, nruns, max_levels));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_erdos_renyi_gnp
+Rcpp::IntegerMatrix cpp_erdos_renyi_gnp(int n, double p, bool directed, bool self_loops);
+RcppExport SEXP _rgraphtool_cpp_erdos_renyi_gnp(SEXP nSEXP, SEXP pSEXP, SEXP directedSEXP, SEXP self_loopsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< double >::type p(pSEXP);
+    Rcpp::traits::input_parameter< bool >::type directed(directedSEXP);
+    Rcpp::traits::input_parameter< bool >::type self_loops(self_loopsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_erdos_renyi_gnp(n, p, directed, self_loops));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_erdos_renyi_gnm
+Rcpp::IntegerMatrix cpp_erdos_renyi_gnm(int n, int m, bool directed, bool self_loops);
+RcppExport SEXP _rgraphtool_cpp_erdos_renyi_gnm(SEXP nSEXP, SEXP mSEXP, SEXP directedSEXP, SEXP self_loopsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< bool >::type directed(directedSEXP);
+    Rcpp::traits::input_parameter< bool >::type self_loops(self_loopsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_erdos_renyi_gnm(n, m, directed, self_loops));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_barabasi_albert
+Rcpp::IntegerMatrix cpp_barabasi_albert(int n, int m, double gamma_exp, bool directed);
+RcppExport SEXP _rgraphtool_cpp_barabasi_albert(SEXP nSEXP, SEXP mSEXP, SEXP gamma_expSEXP, SEXP directedSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< int >::type m(mSEXP);
+    Rcpp::traits::input_parameter< double >::type gamma_exp(gamma_expSEXP);
+    Rcpp::traits::input_parameter< bool >::type directed(directedSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_barabasi_albert(n, m, gamma_exp, directed));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_watts_strogatz
+Rcpp::IntegerMatrix cpp_watts_strogatz(int n, int k, double p, bool circular);
+RcppExport SEXP _rgraphtool_cpp_watts_strogatz(SEXP nSEXP, SEXP kSEXP, SEXP pSEXP, SEXP circularSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< int >::type n(nSEXP);
+    Rcpp::traits::input_parameter< int >::type k(kSEXP);
+    Rcpp::traits::input_parameter< double >::type p(pSEXP);
+    Rcpp::traits::input_parameter< bool >::type circular(circularSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_watts_strogatz(n, k, p, circular));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_uncertain_entropy
 Rcpp::List cpp_uncertain_entropy(int model, int N, bool directed, bool self_loops, Rcpp::IntegerMatrix obs_edges, Rcpp::NumericVector obs_v1, Rcpp::NumericVector obs_v2, double def1, double def2, Rcpp::NumericVector hparams, double lp, double lq, Rcpp::IntegerMatrix latent_edges, Rcpp::IntegerVector latent_w, Rcpp::List bs_list, bool dc, bool dist, bool sbm, bool density, double aE, double q_max);
 RcppExport SEXP _rgraphtool_cpp_uncertain_entropy(SEXP modelSEXP, SEXP NSEXP, SEXP directedSEXP, SEXP self_loopsSEXP, SEXP obs_edgesSEXP, SEXP obs_v1SEXP, SEXP obs_v2SEXP, SEXP def1SEXP, SEXP def2SEXP, SEXP hparamsSEXP, SEXP lpSEXP, SEXP lqSEXP, SEXP latent_edgesSEXP, SEXP latent_wSEXP, SEXP bs_listSEXP, SEXP dcSEXP, SEXP distSEXP, SEXP sbmSEXP, SEXP densitySEXP, SEXP aESEXP, SEXP q_maxSEXP) {
@@ -1988,6 +2261,26 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rgraphtool_cpp_nested_ranked_minimize", (DL_FUNC) &_rgraphtool_cpp_nested_ranked_minimize, 11},
     {"_rgraphtool_cpp_ranked_mcmc", (DL_FUNC) &_rgraphtool_cpp_ranked_mcmc, 11},
     {"_rgraphtool_cpp_nested_ranked_mcmc", (DL_FUNC) &_rgraphtool_cpp_nested_ranked_mcmc, 11},
+    {"_rgraphtool_cpp_pagerank", (DL_FUNC) &_rgraphtool_cpp_pagerank, 6},
+    {"_rgraphtool_cpp_betweenness", (DL_FUNC) &_rgraphtool_cpp_betweenness, 3},
+    {"_rgraphtool_cpp_closeness", (DL_FUNC) &_rgraphtool_cpp_closeness, 4},
+    {"_rgraphtool_cpp_eigenvector", (DL_FUNC) &_rgraphtool_cpp_eigenvector, 4},
+    {"_rgraphtool_cpp_katz", (DL_FUNC) &_rgraphtool_cpp_katz, 7},
+    {"_rgraphtool_cpp_hits", (DL_FUNC) &_rgraphtool_cpp_hits, 4},
+    {"_rgraphtool_cpp_shortest_distance", (DL_FUNC) &_rgraphtool_cpp_shortest_distance, 4},
+    {"_rgraphtool_cpp_shortest_path", (DL_FUNC) &_rgraphtool_cpp_shortest_path, 4},
+    {"_rgraphtool_cpp_pseudo_diameter", (DL_FUNC) &_rgraphtool_cpp_pseudo_diameter, 3},
+    {"_rgraphtool_cpp_label_components", (DL_FUNC) &_rgraphtool_cpp_label_components, 1},
+    {"_rgraphtool_cpp_biconnected_components", (DL_FUNC) &_rgraphtool_cpp_biconnected_components, 1},
+    {"_rgraphtool_cpp_topological_sort", (DL_FUNC) &_rgraphtool_cpp_topological_sort, 1},
+    {"_rgraphtool_cpp_clustering", (DL_FUNC) &_rgraphtool_cpp_clustering, 1},
+    {"_rgraphtool_cpp_assortativity", (DL_FUNC) &_rgraphtool_cpp_assortativity, 5},
+    {"_rgraphtool_cpp_modularity", (DL_FUNC) &_rgraphtool_cpp_modularity, 4},
+    {"_rgraphtool_cpp_maximize_modularity", (DL_FUNC) &_rgraphtool_cpp_maximize_modularity, 5},
+    {"_rgraphtool_cpp_erdos_renyi_gnp", (DL_FUNC) &_rgraphtool_cpp_erdos_renyi_gnp, 4},
+    {"_rgraphtool_cpp_erdos_renyi_gnm", (DL_FUNC) &_rgraphtool_cpp_erdos_renyi_gnm, 4},
+    {"_rgraphtool_cpp_barabasi_albert", (DL_FUNC) &_rgraphtool_cpp_barabasi_albert, 4},
+    {"_rgraphtool_cpp_watts_strogatz", (DL_FUNC) &_rgraphtool_cpp_watts_strogatz, 4},
     {"_rgraphtool_cpp_uncertain_entropy", (DL_FUNC) &_rgraphtool_cpp_uncertain_entropy, 21},
     {"_rgraphtool_cpp_uncertain_edge_probs", (DL_FUNC) &_rgraphtool_cpp_uncertain_edge_probs, 20},
     {"_rgraphtool_cpp_uncertain_edge_dS", (DL_FUNC) &_rgraphtool_cpp_uncertain_edge_dS, 20},
