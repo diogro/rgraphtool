@@ -1,0 +1,163 @@
+---
+title: "Weighted & Layered Stochastic Block Models"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Weighted & Layered Stochastic Block Models}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7.5,
+  fig.height = 4.6,
+  dpi = 120
+)
+library(rgraphtool)
+
+load_or_fallback_lesmis_weighted <- function() {
+  res <- tryCatch(netzschleuder_network("lesmis"), error = function(e) NULL)
+  if (!is.null(res) && "value" %in% graph_edge_properties(res$graph)) return(res)
+  set.seed(42)
+  n <- 48L
+  b <- rep(1:4, each = 12L)
+  el <- list()
+  w <- integer(0)
+  for (i in seq_len(n - 1L)) {
+    for (j in (i + 1L):n) {
+      same <- b[i] == b[j]
+      if (stats::runif(1L) < ifelse(same, 0.35, 0.03)) {
+        el[[length(el) + 1L]] <- c(i, j)
+        w <- c(w, 1L + stats::rpois(1L, ifelse(same, 4.0, 0.6)))
+      }
+    }
+  }
+  g <- graph_create(n, directed = FALSE)
+  graph_add_edges(g, do.call(rbind, el), properties = list(value = w))
+  list(graph = g)
+}
+```
+
+This article combines the `weighted_sbm` and `layered_sbm` demos, showing how
+to incorporate edge weights (discrete or continuous covariates) and discrete
+multiplex layers into flat and nested SBMs.
+
+## 1. Weighted / edge-covariate SBMs
+
+`rgraphtool` implements all five Peixoto (2018) discrete and continuous
+covariate distributions (`discrete-geometric`, `discrete-poisson`,
+`discrete-binomial`, `real-exponential`, `real-normal`), including simultaneous
+multi-covariate models and exact change-of-variables log-Jacobians via
+`transform_weights()` for comparing raw vs. log-transformed continuous models.
+
+```{r weighted-sbm, fig.height = 4.5}
+lesmis <- load_or_fallback_lesmis_weighted()
+g <- lesmis$graph
+
+w <- graph_edge_property(g, "value")
+summary(w)
+
+# Discrete count covariate models (MAP description length)
+set.seed(42)
+cmp_disc <- compare_weight_models(
+  g,
+  weights = "value",
+  nested = TRUE,
+  method = "map",
+  nruns = 3L
+)
+print(cmp_disc)
+
+# Continuous and log-transformed weight models with exact Jacobian adjustment
+set.seed(42)
+cmp_cont <- compare_weight_models(
+  g,
+  weights = "value",
+  candidates = c("real-exponential", "real-normal", "log-normal"),
+  nested = TRUE,
+  method = "posterior",
+  nsamples = 80L,
+  thin = 5L,
+  burnin = 40L
+)
+print(cmp_cont)
+
+best_w <- cmp_disc$best_state
+set.seed(42)
+unw <- minimize_nested_blockmodel_dl(g)
+ov_w <- partition_overlap(nested_levels(best_w)[[1L]], nested_levels(unw)[[1L]],
+                          norm = TRUE)
+cat(sprintf("Level-0 partition overlap (weighted %s vs unweighted): %.3f\n",
+            cmp_disc$best_model, ov_w))
+
+old_par <- graphics::par(mfrow = c(1L, 2L), mar = c(7, 4, 3, 1))
+tab <- cmp_cont$summary
+graphics::barplot(
+  tab$delta,
+  names.arg = tab$model,
+  las = 2,
+  ylab = "Delta(-log P(A, w)) [nats]",
+  col = ifelse(tab$model == cmp_cont$best_model, "darkorange", "steelblue"),
+  main = "Continuous weight models (0 = best)"
+)
+graphics::par(mar = c(2, 2, 3, 1))
+plot_hierarchy(best_w,
+               main = sprintf("Weighted nested SBM (%s)", cmp_disc$best_model))
+graphics::par(old_par)
+```
+
+## 2. Layered (multiplex) SBMs
+
+When discrete edge types stratify a network into layers, `compare_layered_models()`
+compares the **edge-covariate** hypothesis (`independent = FALSE`, where layers
+are edge labels on a shared topology) against the **conditionally independent
+layers** hypothesis (`independent = TRUE`, where each layer is generated
+independently given the shared vertex partition).
+
+```{r layered-sbm, fig.height = 4.6}
+cat(sprintf("N = %d vertices, E = %d edges, C = %d discrete layers\n",
+            graph_num_vertices(g), graph_num_edges(g), length(unique(w))))
+
+set.seed(42)
+cmp_l_map <- compare_layered_models(
+  g,
+  layers = "value",
+  models = c("edge_covariates_dc", "edge_covariates_ndc",
+             "independent_layers_dc", "independent_layers_ndc"),
+  nested = TRUE,
+  method = "map",
+  nruns = 3L
+)
+print(cmp_l_map)
+
+set.seed(42)
+cmp_l_post <- compare_layered_models(
+  g,
+  layers = "value",
+  models = c("edge_covariates", "independent_layers"),
+  nested = TRUE,
+  method = "posterior",
+  nsamples = 80L,
+  thin = 5L,
+  burnin = 40L
+)
+print(cmp_l_post)
+
+best_l <- cmp_l_post$best_state
+old_par <- graphics::par(mfrow = c(1L, 2L), mar = c(9, 4, 3, 1))
+tab_l <- cmp_l_map$summary
+graphics::barplot(
+  tab_l$delta,
+  names.arg = tab_l$model,
+  las = 2,
+  ylab = "Delta(DL) [nats]",
+  col = ifelse(tab_l$model == cmp_l_map$best_model, "darkorange", "steelblue"),
+  main = "Layered model variants (0 = best)"
+)
+graphics::par(mar = c(2, 2, 3, 1))
+plot_hierarchy(best_l,
+               main = sprintf("Layered SBM (%s)", cmp_l_post$best_model))
+graphics::par(old_par)
+```

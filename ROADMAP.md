@@ -49,8 +49,27 @@ never the default path for core cookbook tasks.
   annealing, Hungarian label alignment, vertex marginals, consensus estimates,
   and posterior mode clustering, with Les Misérables and hierarchical sampling
   demos and pie-chart marginal plots.
-- [ ] Model class selection (overlapping/planted/weighted/layered SBMs),
-  reconstruction, and general visualization.
+- [x] Overlapping SBMs, posterior partition probabilities, and Bayesian model
+  class selection (`compare_model_classes()`, `model_evidence()`).
+- [x] Weighted edge-covariate SBMs (all five Peixoto 2018 covariate models,
+  weight transformations, and Jacobian-adjusted model comparison) and layered
+  SBMs (edge-covariate and conditionally independent layers).
+- [x] Assortative planted-partition SBMs and flat/nested ordered (ranked) SBMs
+  with vertical rank-ordered layouts.
+- [x] Portable C++23 `std::thread` parallelism, compact nested hierarchies,
+  strictly agglomerative search, and `simple_init` scaling up to `N = 100,000`.
+- [x] Uncertain network reconstruction (measured, mixed-measured, uncertain,
+  latent Poisson multigraph, and latent triadic closure) and indirect network
+  reconstruction from all 10 Ising, epidemic, Gaussian, and Potts dynamical
+  models with L1 and quantized MDL priors.
+- [x] Native SFDP force-directed layouts, BFS traversal, standalone HTML5
+  animations and interactive views, base-R/`grid`/`ggplot2` vector/raster
+  plotting, and offline geographic map projections.
+- [x] Public C++ extension header interface (`inst/include/rgraphtool.h`),
+  range-based iteration, checked/unchecked property maps, and live
+  `Rcpp::sourceCpp()` extension examples.
+
+All 14 roadmap milestones are **complete**.
 
 Fixed-partition scores match graph-tool 3.9 to a relative tolerance of 1e-10 for directed
 and undirected multigraphs with loops, both degree priors, and groups whose

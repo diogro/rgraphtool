@@ -1,0 +1,135 @@
+---
+title: "Posterior MCMC Sampling & Partition Modes"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Posterior MCMC Sampling & Partition Modes}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7.5,
+  fig.height = 4.5,
+  dpi = 120
+)
+library(rgraphtool)
+
+load_or_fallback_lesmis <- function() {
+  res <- tryCatch(netzschleuder_network("lesmis"), error = function(e) NULL)
+  if (!is.null(res)) return(res)
+  set.seed(42)
+  n <- 48L
+  b <- rep(1:4, each = 12L)
+  el <- list()
+  for (i in seq_len(n - 1L)) {
+    for (j in (i + 1L):n) {
+      if (stats::runif(1L) < ifelse(b[i] == b[j], 0.35, 0.025)) {
+        el[[length(el) + 1L]] <- c(i, j)
+      }
+    }
+  }
+  g <- graph_add_edges(graph_create(n, directed = FALSE), do.call(rbind, el))
+  list(graph = g, positions = sfdp_layout(g, groups = b, mu = 0.4, max_iter = 80L))
+}
+```
+
+This article corresponds to the `posterior_sampling` and
+`hierarchical_sampling` demos. Rather than relying on a single point estimate
+of the community partition, `rgraphtool` samples directly from the exact
+Bayesian posterior $P(b \mid A) \propto \exp(-\Sigma(A, b))$ using merge-split
+MCMC and summarizes multimodal posteriors through optimal label alignment and
+mode clustering.
+
+## 1. Flat posterior sampling, vertex marginals, and mode clustering
+
+Starting from a multilevel point estimate, `mcmc_equilibrate()` runs
+merge-split MCMC until the description length reaches stationarity, after
+which `sample_posterior()` draws thinned posterior partitions.
+
+```{r flat-posterior, fig.height = 4.3}
+lesmis <- load_or_fallback_lesmis()
+g <- lesmis$graph
+
+set.seed(42)
+state <- minimize_blockmodel_dl(g)
+eq <- mcmc_equilibrate(state, wait = 100L, nbreaks = 2L,
+                       mcmc_args = list(niter = 10L))
+cat(sprintf("Equilibrated flat DC SBM in %d steps (DL = %.2f nats)\n",
+            eq$niter, eq$entropy))
+
+post <- sample_posterior(eq$state, nsamples = 300L, thin = 8L, burnin = 0L)
+
+# Posterior distribution over the number of groups B
+B_samples <- vapply(post$samples, function(b) max(b), integer(1L))
+B_dist <- prop.table(table(B_samples))
+round(B_dist, 3)
+
+# Single-mode optimal label alignment and multimodal clustering
+pm <- partition_mode_state(post)
+print(pm)
+
+mc <- mode_cluster_state(post)
+print(mc)
+
+old_par <- graphics::par(mfrow = c(1L, 2L), mar = c(4, 4, 3, 1))
+graphics::barplot(B_dist, xlab = "Number of groups B", ylab = "Posterior P(B | A)",
+                  col = "steelblue", main = "Posterior P(B | A)")
+
+dom <- mc$modes[[1L]]
+plot_marginals(g, dom, positions = lesmis$positions, radius = 0.045,
+               main = sprintf("Dominant mode (w = %.2f, unc = %.3f)",
+                              mc$weights[1L], mode_uncertainty(dom)))
+graphics::par(old_par)
+```
+
+## 2. Hierarchical posterior sampling and consensus hierarchies
+
+The exact same workflow extends to nested SBMs, capturing uncertainty in both
+level-0 memberships and the depth and branching structure of the hierarchy.
+
+```{r nested-posterior, fig.height = 4.5}
+set.seed(42)
+nstate <- minimize_nested_blockmodel_dl(g)
+print(nstate)
+
+npost <- sample_posterior(nstate, nsamples = 250L, thin = 5L,
+                          equilibrate_args = list(wait = 100L, nbreaks = 2L))
+
+B0 <- vapply(npost$samples, function(bs) max(bs[[1L]]), integer(1L))
+depth <- vapply(npost$samples, function(bs) {
+  top <- match(1L, vapply(bs, max, integer(1L)))
+  if (is.na(top)) length(bs) else top
+}, integer(1L))
+
+round(prop.table(table(B0)), 3)
+round(prop.table(table(depth)), 3)
+
+nmc <- mode_cluster_state(npost)
+print(nmc)
+
+# Reconstruct a clean consensus hierarchy from the dominant posterior mode
+dom_n <- nmc$modes[[1L]]
+cons_levels <- mode_consensus(dom_n)
+clean <- list()
+used <- NULL
+for (l in seq_along(cons_levels)) {
+  b <- cons_levels[[l]]
+  if (l > 1L) b <- b[used]
+  b[is.na(b)] <- 1L
+  used <- unique(b)
+  clean[[l]] <- match(b, used)
+  if (length(used) == 1L) break
+}
+cons_state <- nested_block_state(g, clean, degree_corrected = TRUE)
+
+old_par <- graphics::par(mfrow = c(1L, 2L), mar = c(2, 2, 3, 1))
+plot_hierarchy(cons_state,
+               main = sprintf("Dominant mode hierarchy (w = %.2f)", nmc$weights[1L]))
+plot_marginals(g, dom_n, positions = lesmis$positions, radius = 0.045,
+               main = sprintf("Level-0 marginals (unc = %.3f)",
+                              mode_uncertainty(dom_n)))
+graphics::par(old_par)
+```

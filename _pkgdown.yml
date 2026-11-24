@@ -1,0 +1,85 @@
+url: https://diogro.github.io/rgraphtool/
+
+# Shared site layout (same in stanimal, indri, grnland, evomod2): build with
+# `Rscript pkgdown/build_site.R`; the look is in pkgdown/extra.scss and only
+# the accent colour below is per package. The home page is the README.
+template:
+  bootstrap: 5
+  light-switch: true
+  math-rendering: mathjax
+  bslib:
+    primary: "#7a4e8c"
+
+home:
+  title: "rgraphtool: graph-tool's stochastic block models, natively in R"
+
+navbar:
+  structure:
+    left: [intro, reference, articles, news]
+    right: [search, github, lightswitch]
+
+articles:
+- title: Stochastic block models
+  navbar: Stochastic block models
+  contents:
+  - blockmodels-and-hierarchy
+  - posterior-sampling
+  - model-class-selection
+  - weighted-and-layered-sbms
+  - assortative-and-ordered-sbms
+- title: Network reconstruction
+  navbar: Network reconstruction
+  contents:
+  - network-reconstruction
+- title: Visualization, scaling & C++ extensions
+  navbar: Visualization, scaling & C++
+  contents:
+  - visualization-and-animation
+  - scaling-and-cpp-extensions
+
+reference:
+- title: Graphs and data
+  contents:
+  - graph_create
+  - football_network
+  - netzschleuder_network
+- title: Block models
+  contents:
+  - block_state
+  - weighted_block_state
+  - layered_block_state
+  - overlap_block_state
+  - pp_block_state
+  - ranked_block_state
+  - uncertain_block_state
+  - dynamics_block_state
+  - latent_closure_block_state
+- title: Inference
+  contents:
+  - minimize_blockmodel_dl
+  - minimize_nested_blockmodel_dl
+  - mcmc_sweep
+  - partition_mode_state
+  - predict_edges
+- title: Model selection
+  contents:
+  - compare_layered_models
+  - compare_model_classes
+  - compare_weight_models
+- title: Dynamics
+  contents:
+  - simulate_dynamics
+  - animate_sirs
+  - interactive_bfs
+- title: Plots and layouts
+  contents:
+  - plot_graph
+  - plot_graph_map
+  - plot_hierarchy
+  - plot_marginals
+  - plotting_integration
+  - sfdp_layout
+- title: Package
+  contents:
+  - rgraphtool_threads
+  - cpp_extensions
