@@ -3,25 +3,10 @@
 #ifndef GRAPHTOOL_R_GRAPH_TYPES_H
 #define GRAPHTOOL_R_GRAPH_TYPES_H
 
-#include <Rcpp.h>
-#include <map>
-#include <string>
-#include <vector>
-#include "vendor/graph_adjacency.hh"
+#include <rgraphtool.h>
 
-typedef boost::adj_list<size_t> Adjacency;
-
-struct Graph {
-    Adjacency adjacency;
-    bool directed;
-    std::map<std::string, std::vector<double>> edge_props;
-    explicit Graph(bool directed_) : directed(directed_) {}
-};
-
-inline Graph& get_graph(SEXP pointer) {
-    if (TYPEOF(pointer) != EXTPTRSXP || R_ExternalPtrAddr(pointer) == NULL)
-        Rcpp::stop("Graph pointer is invalid; graphs cannot be restored from serialized R objects");
-    return *Rcpp::XPtr<Graph>(pointer);
-}
+using rgraphtool::Adjacency;
+using rgraphtool::Graph;
+using rgraphtool::get_graph;
 
 #endif

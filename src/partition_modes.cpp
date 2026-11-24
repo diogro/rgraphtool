@@ -18,7 +18,7 @@
 #include <limits>
 #include <numeric>
 #include <vector>
-#include "vendor/hash_map_wrap.hh"
+#include <rgraphtool/vendor/hash_map_wrap.hh>
 
 namespace {
 

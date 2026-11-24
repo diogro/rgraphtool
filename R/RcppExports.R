@@ -101,6 +101,18 @@ cpp_sim_potts <- function(pointer, weights, f_mat, theta, n_samples, burnin, thi
     .Call(`_rgraphtool_cpp_sim_potts`, pointer, weights, f_mat, theta, n_samples, burnin, thin, async_eq, init_state)
 }
 
+cpp_kcore_decomposition <- function(graph_obj, deg_mode = "total", checked = FALSE) {
+    .Call(`_rgraphtool_cpp_kcore_decomposition`, graph_obj, deg_mode, checked)
+}
+
+cpp_vertex_strength <- function(graph_obj, prop_name, mode = "total", checked = FALSE) {
+    .Call(`_rgraphtool_cpp_vertex_strength`, graph_obj, prop_name, mode, checked)
+}
+
+cpp_extension_check_bounds <- function(graph_obj, vprop, vertex_idx, use_unchecked = FALSE) {
+    .Call(`_rgraphtool_cpp_extension_check_bounds`, graph_obj, vprop, vertex_idx, use_unchecked)
+}
+
 cpp_graph_create <- function(n, directed) {
     .Call(`_rgraphtool_cpp_graph_create`, n, directed)
 }

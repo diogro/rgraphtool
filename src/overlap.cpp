@@ -20,7 +20,7 @@
 #include <numeric>
 #include <vector>
 #include "graph_types.h"
-#include "vendor/hash_map_wrap.hh"
+#include <rgraphtool/vendor/hash_map_wrap.hh>
 
 namespace {
 

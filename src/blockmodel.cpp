@@ -27,7 +27,7 @@
 #include <vector>
 #include "graph_types.h"
 #include "parallel.h"
-#include "vendor/hash_map_wrap.hh"
+#include <rgraphtool/vendor/hash_map_wrap.hh>
 
 namespace {
 
