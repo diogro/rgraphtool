@@ -89,6 +89,15 @@ test_that("bipartite_description_length matches pinned graph-tool 3.9 pclabel to
   expected_diff <- lchoose(2 * 2 + 7 - 1, 7) - lchoose(4 * 5 / 2 + 7 - 1, 7)
   expect_equal(s_bip - s_uni, expected_diff, tolerance = 1e-13)
 
+  # Nested bipartite level entropies match pinned graph-tool 3.9 NestedBlockState
+  nst_gt <- nested_bipartite_block_state(
+    gu, type = type,
+    levels = list(blocks, c(1L, 1L, 2L, 2L)),
+    degree_corrected = TRUE, edge_prior = "bipartite"
+  )
+  expect_equal(nst_gt$level_entropies[1L], 17.02970343492809, tolerance = 1e-12)
+  expect_equal(nst_gt$level_entropies[2L], 6.173786103901936, tolerance = 1e-12)
+
   # Directed bipartite graph (8 edges including reverse 6 -> 2)
   gd <- graph_create(8L, directed = TRUE)
   graph_add_edges(gd, rbind(edges, c(6L, 2L)))
@@ -221,6 +230,8 @@ test_that("bipartite MCMC posterior sampling and plotting work cleanly", {
 
   post <- sample_posterior(fit, nsamples = 15L, burnin = 10L, thin = 2L)
   expect_length(post$samples, 15L)
+  expect_length(post$entropies, 15L)
+  expect_true(all(is.finite(post$entropies)))
   # Every sampled partition must keep type-0 and type-1 blocks disjoint
   for (s in post$samples) {
     expect_length(intersect(unique(s[fit$type == 0L]), unique(s[fit$type == 1L])), 0L)
@@ -246,4 +257,17 @@ test_that("bipartite edge cases (empty graph, E = 0) are handled cleanly", {
   fit0 <- minimize_bipartite_blockmodel_dl(M0)
   expect_equal(graph_num_edges(fit0$graph), 0)
   expect_true(is.finite(bipartite_description_length(fit0)))
+})
+
+test_that("bundled fungus_tree_network loads offline and fits bipartite SBM", {
+  ft <- fungus_tree_network()
+  expect_equal(dim(ft$fungus_tree), c(154L, 51L))
+  expect_equal(dim(ft$tree_tree), c(51L, 51L))
+  expect_true(is_bipartite(ft$graph))
+  expect_equal(graph_num_vertices(ft$graph), 205)
+
+  set.seed(42)
+  fit <- minimize_bipartite_blockmodel_dl(ft$fungus_tree, dim_labels = c("fungus", "tree"))
+  expect_s3_class(fit, "rgraphtool_bipartite_block_state")
+  expect_true(all(fit$B >= 2L))
 })

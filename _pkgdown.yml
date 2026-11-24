@@ -27,6 +27,7 @@ articles:
   - model-class-selection
   - weighted-and-layered-sbms
   - assortative-and-ordered-sbms
+  - bipartite-sbms
 - title: Network reconstruction
   navbar: Network reconstruction
   contents:
@@ -43,6 +44,7 @@ reference:
   - graph_create
   - read_gt
   - football_network
+  - fungus_tree_network
   - netzschleuder_network
 - title: Block models
   contents:

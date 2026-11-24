@@ -440,6 +440,7 @@ public:
     bool dist;
     bool bp_edge_prior;
     bool include_edges_dl;
+    bool multiset_adj;
 
     int B_cap = 0;
     std::vector<int> b;          // vertex -> block id in [0, B_cap)
@@ -468,9 +469,10 @@ public:
 
     BipartiteBlockState(const BpGraphData* g_, const std::vector<int>& init_b,
                         bool dc_, bool dist_, bool bp_edge_prior_,
-                        bool include_edges_dl_ = true)
+                        bool include_edges_dl_ = true,
+                        bool multiset_adj_ = false)
         : g(g_), dc(dc_), dist(dist_), bp_edge_prior(bp_edge_prior_),
-          include_edges_dl(include_edges_dl_) {
+          include_edges_dl(include_edges_dl_), multiset_adj(multiset_adj_) {
         init_from_blocks(init_b);
     }
 
@@ -656,7 +658,29 @@ public:
         return s;
     }
 
+    inline double multiset_pair_dl(int64_t na, int64_t nb, int64_t e) const {
+        if (e <= 0 || na <= 0 || nb <= 0) return 0.0;
+        return bp_lbinom_d(static_cast<double>(na * nb + e - 1), static_cast<double>(e));
+    }
+
     double entropy() const {
+        if (multiset_adj) {
+            double S = part_dl_type(0, B_type[0]) + part_dl_type(1, B_type[1]);
+            S += edges_dl(B_type[0], B_type[1]);
+            for (const auto& kv : mrs) {
+                if (kv.second.e <= 0) continue;
+                int a = static_cast<int>(kv.first >> 32);
+                int b_id = static_cast<int>(kv.first & 0xffffffffULL);
+                S += multiset_pair_dl(wr[a], wr[b_id], kv.second.e);
+            }
+            for (int c = 0; c < 2; ++c) {
+                for (int r : active_by_type[c]) {
+                    S -= bp_math().lgam1(wr[r]);
+                }
+            }
+            return S;
+        }
+
         double S = g->edge_factor - (dc ? g->degree_factor : 0.0);
         for (int m = 0; m < g->M; ++m) S += g->cov_specs[m].const_term;
 
@@ -694,6 +718,63 @@ public:
 
         int64_t nr = wr[r], nr_new = nr - 1;
         int64_t ns = is_new ? 0 : wr[s], ns_new = ns + 1;
+
+        if (multiset_adj) {
+            double dS = (-bp_math().lgam1(nr_new) + bp_math().lgam1(nr))
+                      + (-bp_math().lgam1(ns_new) + bp_math().lgam1(ns));
+            int dB = (is_new ? 1 : 0) - (nr_new == 0 ? 1 : 0);
+            if (dB != 0) {
+                int B0 = B_type[0], B1 = B_type[1];
+                int B0_new = B0 + (t == 0 ? dB : 0);
+                int B1_new = B1 + (t == 1 ? dB : 0);
+                dS += part_dl_type(t, B_type[t] + dB) - part_dl_type(t, B_type[t]);
+                dS += edges_dl(B0_new, B1_new) - edges_dl(B0, B1);
+            }
+            // Collect delta edges from v per opposite-type block q (and direction)
+            auto multiset_dir = [&](const std::vector<BpEdgeEntry>& adj, bool v_is_src) {
+                bp_hash_map<int, int64_t> dq;
+                for (const auto& e : adj) dq[b[e.nbr]] += e.mult;
+                bp_hash_map<int, bool> touched;
+                for (const auto& qkv : blk_nbrs[r]) touched[qkv.first] = true;
+                if (!is_new) for (const auto& qkv : blk_nbrs[s]) touched[qkv.first] = true;
+                for (const auto& qkv : dq) touched[qkv.first] = true;
+
+                for (const auto& tkv : touched) {
+                    int q = tkv.first;
+                    int64_t wq = wr[q];
+                    int64_t dv = 0;
+                    auto it_d = dq.find(q);
+                    if (it_d != dq.end()) dv = it_d->second;
+
+                    uint64_t krq = (!g->directed)
+                        ? (t == 0 ? bp_pair_key(r, q) : bp_pair_key(q, r))
+                        : (v_is_src ? bp_pair_key(r, q) : bp_pair_key(q, r));
+                    auto it_rq = mrs.find(krq);
+                    int64_t erq = (it_rq != mrs.end()) ? it_rq->second.e : 0;
+                    if (erq > 0 || dv > 0) {
+                        dS -= multiset_pair_dl(nr, wq, erq);
+                        dS += multiset_pair_dl(nr_new, wq, erq - dv);
+                    }
+
+                    int64_t esq = 0;
+                    if (!is_new) {
+                        uint64_t ksq = (!g->directed)
+                            ? (t == 0 ? bp_pair_key(s, q) : bp_pair_key(q, s))
+                            : (v_is_src ? bp_pair_key(s, q) : bp_pair_key(q, s));
+                        auto it_sq = mrs.find(ksq);
+                        if (it_sq != mrs.end()) esq = it_sq->second.e;
+                    }
+                    if (esq > 0 || dv > 0) {
+                        dS -= multiset_pair_dl(ns, wq, esq);
+                        dS += multiset_pair_dl(ns_new, wq, esq + dv);
+                    }
+                }
+            };
+            multiset_dir(g->out_adj[v], true);
+            if (g->directed) multiset_dir(g->in_adj[v], false);
+            return dS;
+        }
+
         int64_t er_out = mr_out[r], er_out_new = er_out - k_out;
         int64_t er_in = mr_in[r], er_in_new = er_in - k_in;
         int64_t es_out = is_new ? 0 : mr_out[s], es_out_new = es_out + k_out;
@@ -927,6 +1008,41 @@ public:
         if (r == s || wr[r] == 0 || wr[s] == 0 || btype[r] != btype[s]) return BP_INF;
         int t = btype[r];
         int64_t nr = wr[r], ns = wr[s], n_new = nr + ns;
+        if (multiset_adj) {
+            double dS = -bp_math().lgam1(n_new) + bp_math().lgam1(nr) + bp_math().lgam1(ns);
+            int B0_new = B_type[0] - (t == 0 ? 1 : 0);
+            int B1_new = B_type[1] - (t == 1 ? 1 : 0);
+            dS += part_dl_type(t, B_type[t] - 1) - part_dl_type(t, B_type[t]);
+            dS += edges_dl(B0_new, B1_new) - edges_dl(B_type[0], B_type[1]);
+
+            bp_hash_map<int, bool> touched;
+            for (const auto& qkv : blk_nbrs[r]) touched[qkv.first] = true;
+            for (const auto& qkv : blk_nbrs[s]) touched[qkv.first] = true;
+
+            auto do_multiset = [&](int q, uint64_t krq, uint64_t ksq) {
+                int64_t wq = wr[q];
+                auto it_rq = mrs.find(krq);
+                auto it_sq = mrs.find(ksq);
+                int64_t erq = (it_rq != mrs.end()) ? it_rq->second.e : 0;
+                int64_t esq = (it_sq != mrs.end()) ? it_sq->second.e : 0;
+                if (erq > 0 || esq > 0) {
+                    dS -= multiset_pair_dl(nr, wq, erq) + multiset_pair_dl(ns, wq, esq);
+                    dS += multiset_pair_dl(n_new, wq, erq + esq);
+                }
+            };
+            for (const auto& tkv : touched) {
+                int q = tkv.first;
+                if (!g->directed) {
+                    do_multiset(q, t == 0 ? bp_pair_key(r, q) : bp_pair_key(q, r),
+                                   t == 0 ? bp_pair_key(s, q) : bp_pair_key(q, s));
+                } else {
+                    do_multiset(q, bp_pair_key(r, q), bp_pair_key(s, q));
+                    do_multiset(q, bp_pair_key(q, r), bp_pair_key(q, s));
+                }
+            }
+            return dS;
+        }
+
         int64_t er_out = mr_out[r], es_out = mr_out[s], e_out_new = er_out + es_out;
         int64_t er_in = mr_in[r], es_in = mr_in[s], e_in_new = er_in + es_in;
 
@@ -1685,21 +1801,30 @@ Rcpp::List cpp_bipartite_mcmc(SEXP pointer,
     }
 
     int n_attempts = 0, n_accepted = 0;
-    double S_cur = st.entropy();
+    double S_init = st.entropy();
+    double S_cur = S_init;
     double S_min = S_cur, S_max = S_cur;
     int break_count = 0, no_break = 0;
 
-    std::vector<double> entropies;
+    std::vector<double> hist_entropy;
+    std::vector<int> hist_iter;
+    std::vector<double> sample_entropies;
     Rcpp::List samples;
+    int actual_sweeps = 0;
 
     for (int sw = 1; sw <= total_sweeps; ++sw) {
         Rcpp::checkUserInterrupt();
         st.mcmc_sweep(beta, d_empty, multiflip, B0_min, B0_max, B1_min, B1_max,
                       rng, n_attempts, n_accepted);
         S_cur = st.entropy();
-        if (record_history) entropies.push_back(S_cur);
+        actual_sweeps = sw;
+        if (record_history) {
+            hist_iter.push_back(sw);
+            hist_entropy.push_back(S_cur);
+        }
         if (collect && (sw % thin == 0)) {
             samples.push_back(st.canonical_blocks());
+            sample_entropies.push_back(S_cur);
         }
         if (do_eq && !fixed_niter && wait > 0) {
             if (S_cur < S_min - 1e-9 || S_cur > S_max + 1e-9) {
@@ -1714,16 +1839,27 @@ Rcpp::List cpp_bipartite_mcmc(SEXP pointer,
         }
     }
 
-    return Rcpp::List::create(
+    Rcpp::List out = Rcpp::List::create(
         Rcpp::Named("blocks") = st.canonical_blocks(),
         Rcpp::Named("entropy") = S_cur,
+        Rcpp::Named("dS") = S_cur - S_init,
         Rcpp::Named("B0") = st.B_type[0],
         Rcpp::Named("B1") = st.B_type[1],
-        Rcpp::Named("attempts") = n_attempts,
-        Rcpp::Named("accepted") = n_accepted,
-        Rcpp::Named("entropies") = entropies,
-        Rcpp::Named("samples") = samples
+        Rcpp::Named("nattempts") = static_cast<double>(n_attempts),
+        Rcpp::Named("nmoves") = static_cast<double>(n_accepted),
+        Rcpp::Named("niter") = static_cast<double>(actual_sweeps)
     );
+    if (record_history) {
+        out["history"] = Rcpp::DataFrame::create(
+            Rcpp::Named("iter") = hist_iter,
+            Rcpp::Named("entropy") = hist_entropy
+        );
+    }
+    if (collect) {
+        out["samples"] = samples;
+        out["sample_entropies"] = sample_entropies;
+    }
+    return out;
 }
 
 // [[Rcpp::export]]
@@ -1753,7 +1889,7 @@ Rcpp::NumericVector cpp_nested_bipartite_entropy(SEXP pointer,
         for (int i = 0; i < cur_g.N; ++i) b0[i] = bl[i] - 1;
         bool is_top = (l == L - 1);
         BipartiteBlockState st(&cur_g, b0, (l == 0) ? degree_corrected : false,
-                               distributed, bp_edge_prior, is_top);
+                               distributed, bp_edge_prior, is_top, l > 0);
         lev_S[l] = st.entropy();
         if (!is_top) {
             cur_g = build_upper_bp_graph(st);
@@ -1803,7 +1939,7 @@ Rcpp::List cpp_nested_bipartite_minimize(SEXP pointer,
         std::vector<int> b0(cur_g.N);
         std::iota(b0.begin(), b0.end(), 0);
         BipartiteBlockState st(&cur_g, b0, (l == 0) ? degree_corrected : false,
-                               distributed, bp_edge_prior, true);
+                               distributed, bp_edge_prior, true, l > 0);
 
         double best_S = st.entropy();
         Rcpp::IntegerVector best_b = st.canonical_blocks();
@@ -1830,12 +1966,39 @@ Rcpp::List cpp_nested_bipartite_minimize(SEXP pointer,
             if (!progressed) break;
         }
 
-        // Reconstruct best state at level l
+        // Reconstruct best state at level l and run greedy + merge refinement
         std::vector<int> b_best(cur_g.N);
         for (int i = 0; i < cur_g.N; ++i) b_best[i] = best_b[i] - 1;
         BipartiteBlockState st_best(&cur_g, b_best, (l == 0) ? degree_corrected : false,
-                                    distributed, bp_edge_prior, true);
-        st_best.greedy_sweep(15, 0.5, rng, B0_min, N0, B1_min, N1);
+                                    distributed, bp_edge_prior, true, l > 0);
+        st_best.greedy_sweep(20, 0.5, rng, B0_min, N0, B1_min, N1);
+        bool improved = true;
+        while (improved) {
+            improved = false;
+            for (int c = 0; c < 2; ++c) {
+                int Bmin_c = (c == 0) ? B0_min : B1_min;
+                if (st_best.B_type[c] <= Bmin_c) continue;
+                const auto& act = st_best.active_by_type[c];
+                int Bc = static_cast<int>(act.size());
+                double min_dS = -1e-12;
+                int br = -1, bs = -1;
+                if (Bc <= 64) {
+                    for (int i = 0; i < Bc; ++i) {
+                        for (int j = i + 1; j < Bc; ++j) {
+                            double dS = st_best.merge_delta(act[i], act[j]);
+                            if (dS < min_dS) { min_dS = dS; br = act[i]; bs = act[j]; }
+                        }
+                    }
+                }
+                if (br >= 0 && bs >= 0) {
+                    std::vector<std::vector<int>> bv(st_best.B_cap);
+                    for (int v = 0; v < cur_g.N; ++v) if (st_best.b[v] == br) bv[br].push_back(v);
+                    st_best.merge_blocks(br, bs, bv);
+                    st_best.greedy_sweep(10, 0.5, rng, B0_min, N0, B1_min, N1);
+                    improved = true;
+                }
+            }
+        }
         best_b = st_best.canonical_blocks();
         best_B0 = st_best.B_type[0];
         best_B1 = st_best.B_type[1];

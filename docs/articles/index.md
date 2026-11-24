@@ -12,6 +12,8 @@
   Models](https://diogro.github.io/rgraphtool/articles/weighted-and-layered-sbms.md):
 - [Assortative & Ordered (Ranked)
   Communities](https://diogro.github.io/rgraphtool/articles/assortative-and-ordered-sbms.md):
+- [Bipartite & Ecological Networks: The Fungus-Tree Case
+  Study](https://diogro.github.io/rgraphtool/articles/bipartite-sbms.md):
 
 ### Network reconstruction
 

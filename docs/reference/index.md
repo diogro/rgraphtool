@@ -30,6 +30,25 @@
   : Read, write, and convert graphs between graph-tool (.gt) and igraph
 - [`football_network()`](https://diogro.github.io/rgraphtool/reference/football_network.md)
   : Load the cookbook football network
+- [`fungus_tree_network()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`bipartite_graph()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`is_bipartite()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`as_incidence_matrix()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`bipartite_block_state()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`bipartite_description_length()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`minimize_bipartite_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`nested_bipartite_block_state()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`nested_bipartite_description_length()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`minimize_nested_bipartite_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`bipartite_membership()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`bipartite_edge_counts()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`bipartite_block_matrix()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`compare_bipartite_models()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`print(`*`<rgraphtool_bipartite_block_state>`*`)`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`print(`*`<rgraphtool_nested_bipartite_block_state>`*`)`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`print(`*`<rgraphtool_bipartite_model_comparison>`*`)`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  : Native bipartite network representation and Stochastic Block Model
+  inference
 - [`netzschleuder_network()`](https://diogro.github.io/rgraphtool/reference/netzschleuder_network.md)
   : Load a network from the Netzschleuder repository
 
@@ -42,7 +61,8 @@
   [`block_log_likelihood()`](https://diogro.github.io/rgraphtool/reference/block_state.md)
   [`block_description_length()`](https://diogro.github.io/rgraphtool/reference/block_state.md)
   : Inspect a fixed block-model partition
-- [`bipartite_graph()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+- [`fungus_tree_network()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`bipartite_graph()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
   [`is_bipartite()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
   [`as_incidence_matrix()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
   [`bipartite_block_state()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)

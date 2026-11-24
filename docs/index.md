@@ -15,9 +15,9 @@ incremental MCMC updates are numerically verified to machine precision
 ## Installation
 
 `rgraphtool` requires R with a C++23-capable compiler, plus the `Rcpp`
-and `BH` (`>= 1.81.0`) packages. Optional packages `ggplot2` and
-`svglite` enable
-[`ggplot_graph()`](https://diogro.github.io/rgraphtool/reference/plotting_integration.md)
+and `BH` (`>= 1.81.0`) packages. Optional packages `igraph`, `ggplot2`,
+and `svglite` enable `igraph` conversion,
+[`ggplot_graph()`](https://diogro.github.io/rgraphtool/reference/plotting_integration.md),
 and dependency-free SVG export.
 
 ``` r
@@ -35,7 +35,7 @@ install.packages(".", repos = NULL, type = "source")
 
 ## Quick start
 
-### 1. Creating graphs & edge properties
+### 1. Creating graphs & property maps
 
 ``` r
 
@@ -45,24 +45,57 @@ g <- graph_create(4L, directed = TRUE)
 graph_add_edges(
   g,
   rbind(c(1, 2), c(2, 3), c(3, 1), c(2, 4)),
-  properties = list(weight = c(1.2, 0.8, 2.5, 1.0))
+  properties = list(weight = c(1.2, 0.8, 2.5, 1.0), label = c("a", "b", "c", "d"))
 )
-graph_num_vertices(g)          # 4
-graph_num_edges(g)             # 4
+graph_set_vertex_property(g, "name", c("v1", "v2", "v3", "v4"))
+graph_set_graph_property(g, "title", "toy network")
+
+g                              # summary header + compact ASCII adjacency for small graphs
 graph_degree(g, "out")         # 1 2 1 0
 graph_edge_property(g, "weight")
 ```
 
 Vertex IDs are 1-based. Parallel edges and self-loops are supported.
-Graphs are mutable external-pointer objects (process-local; store edge
-tables separately if saving to disk with
-[`saveRDS()`](https://rdrr.io/r/base/readRDS.html)).
+Graphs are mutable external-pointer objects; persist graphs across
+sessions using
+[`write_gt()`](https://diogro.github.io/rgraphtool/reference/graph_io.md)
+/
+[`read_gt()`](https://diogro.github.io/rgraphtool/reference/graph_io.md)
+(below).
 
-### 2. Hierarchical SBM inference & posterior sampling
+### 2. Graph I/O: `graph-tool` (`.gt`) and `igraph` interoperability
+
+`rgraphtool` implements the official `graph-tool` `.gt` binary format
+(v1, little- and big-endian, all 15 property map types, with optional
+`.gz`, `.bz2`, `.xz`, or `.zst` compression) natively in C++ with no
+Python dependency, as well as lossless bidirectional conversion with
+`igraph` (plus GraphML, GML, and edgelist files via
+[`graph_load()`](https://diogro.github.io/rgraphtool/reference/graph_io.md)
+/
+[`graph_save()`](https://diogro.github.io/rgraphtool/reference/graph_io.md)):
 
 ``` r
 
-# Load any network from Netzschleuder (https://networks.skewed.de)
+# Native C++ graph-tool .gt binary read/write (interoperable with Python graph-tool)
+write_gt(g, "network.gt.gz")
+g2 <- read_gt("network.gt.gz")
+
+# Bidirectional conversion with igraph (preserving graph, vertex, and edge attributes)
+if (requireNamespace("igraph", quietly = TRUE)) {
+  ig <- as_igraph(g)
+  g_from_ig <- from_igraph(ig)
+}
+
+# Format-detecting load/save (.gt, .gt.gz, .graphml, .gml, .edgelist)
+graph_save(g, "network.graphml")
+g3 <- graph_load("network.graphml")
+```
+
+### 3. Hierarchical & bipartite SBM inference + posterior sampling
+
+``` r
+
+# Hierarchical SBM on C. elegans from Netzschleuder (https://networks.skewed.de)
 celegans <- netzschleuder_network("celegansneural")
 
 set.seed(42)
@@ -70,13 +103,18 @@ fit <- minimize_nested_blockmodel_dl(celegans$graph)
 fit
 plot_hierarchy(fit)
 
+# Bipartite SBM directly from an ecological incidence matrix (154 fungi x 51 trees)
+ft <- fungus_tree_network()
+fit_bip <- minimize_bipartite_blockmodel_dl(ft$fungus_tree, dim_labels = c("fungus", "tree"))
+plot_bipartite(fit_bip, type = "matrix")
+
 # Posterior MCMC sampling and partition mode clustering
 samples <- sample_posterior(fit, nsamples = 100L, burnin = 50L, thin = 5L)
 modes <- mode_cluster_state(samples)
 mode_summary(modes)
 ```
 
-### 3. Network reconstruction from dynamics
+### 4. Network reconstruction from dynamics
 
 ``` r
 
@@ -91,7 +129,7 @@ rec <- reconstruct_dynamics(st, niter = 20L)
 rec
 ```
 
-### 4. Layouts, animations, interactive views & maps
+### 5. Layouts, animations, interactive views & maps
 
 ``` r
 
@@ -109,21 +147,22 @@ interactive_bfs(g_true, pos = pos, max_dist = 3L, mode = "html", open = TRUE)
 
 The package website
 ([diogro.github.io/rgraphtool](https://diogro.github.io/rgraphtool/))
-uses this README as its home page and hosts 8 grouped cookbook articles
-covering all 21 bundled demos:
+uses this README as its home page and hosts 9 grouped cookbook articles
+covering all 22 bundled demos:
 
 | Module | Key functions | Article |
 |----|----|----|
-| **Core graphs, flat & nested SBMs** | [`graph_create()`](https://diogro.github.io/rgraphtool/reference/graph.md), [`graph_add_edges()`](https://diogro.github.io/rgraphtool/reference/graph.md), [`graph_set_edge_property()`](https://diogro.github.io/rgraphtool/reference/graph.md), [`netzschleuder_network()`](https://diogro.github.io/rgraphtool/reference/netzschleuder_network.md), [`block_state()`](https://diogro.github.io/rgraphtool/reference/block_state.md), [`minimize_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/minimize_blockmodel_dl.md), [`compare_blockmodels()`](https://diogro.github.io/rgraphtool/reference/minimize_blockmodel_dl.md), [`nested_block_state()`](https://diogro.github.io/rgraphtool/reference/minimize_nested_blockmodel_dl.md), [`minimize_nested_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/minimize_nested_blockmodel_dl.md), [`plot_hierarchy()`](https://diogro.github.io/rgraphtool/reference/plot_hierarchy.md) | [Block models & hierarchy](https://diogro.github.io/rgraphtool/articles/blockmodels-and-hierarchy.html) |
+| **Core graphs, I/O, flat & nested SBMs** | [`graph_create()`](https://diogro.github.io/rgraphtool/reference/graph.md), [`graph_add_edges()`](https://diogro.github.io/rgraphtool/reference/graph.md), [`graph_set_vertex_property()`](https://diogro.github.io/rgraphtool/reference/graph.md), [`graph_set_edge_property()`](https://diogro.github.io/rgraphtool/reference/graph.md), [`read_gt()`](https://diogro.github.io/rgraphtool/reference/graph_io.md), [`write_gt()`](https://diogro.github.io/rgraphtool/reference/graph_io.md), [`as_igraph()`](https://diogro.github.io/rgraphtool/reference/graph_io.md), [`from_igraph()`](https://diogro.github.io/rgraphtool/reference/graph_io.md), [`graph_load()`](https://diogro.github.io/rgraphtool/reference/graph_io.md), [`graph_save()`](https://diogro.github.io/rgraphtool/reference/graph_io.md), [`netzschleuder_network()`](https://diogro.github.io/rgraphtool/reference/netzschleuder_network.md), [`block_state()`](https://diogro.github.io/rgraphtool/reference/block_state.md), [`minimize_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/minimize_blockmodel_dl.md), [`compare_blockmodels()`](https://diogro.github.io/rgraphtool/reference/minimize_blockmodel_dl.md), [`nested_block_state()`](https://diogro.github.io/rgraphtool/reference/minimize_nested_blockmodel_dl.md), [`minimize_nested_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/minimize_nested_blockmodel_dl.md), [`plot_hierarchy()`](https://diogro.github.io/rgraphtool/reference/plot_hierarchy.md) | [Block models & hierarchy](https://diogro.github.io/rgraphtool/articles/blockmodels-and-hierarchy.html) |
 | **Posterior MCMC & partition modes** | [`mcmc_sweep()`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md), [`mcmc_equilibrate()`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md), [`mcmc_anneal()`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md), [`sample_posterior()`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md), [`align_partition_labels()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md), [`partition_overlap()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md), [`partition_mode_state()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md), [`mode_marginals()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md), [`mode_consensus()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md), [`mode_cluster_state()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md), [`plot_marginals()`](https://diogro.github.io/rgraphtool/reference/plot_marginals.md) | [Posterior sampling](https://diogro.github.io/rgraphtool/articles/posterior-sampling.html) |
 | **Overlapping SBMs & model evidence** | [`overlap_block_state()`](https://diogro.github.io/rgraphtool/reference/overlap_block_state.md), [`minimize_overlap_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/overlap_block_state.md), [`nested_overlap_block_state()`](https://diogro.github.io/rgraphtool/reference/overlap_block_state.md), [`minimize_nested_overlap_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/overlap_block_state.md), [`overlap_mcmc_sweep()`](https://diogro.github.io/rgraphtool/reference/overlap_block_state.md), [`model_evidence()`](https://diogro.github.io/rgraphtool/reference/compare_model_classes.md), [`compare_model_classes()`](https://diogro.github.io/rgraphtool/reference/compare_model_classes.md) | [Model class selection](https://diogro.github.io/rgraphtool/articles/model-class-selection.html) |
 | **Weighted & layered SBMs** | [`weighted_block_state()`](https://diogro.github.io/rgraphtool/reference/weighted_block_state.md), [`minimize_weighted_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/weighted_block_state.md), [`nested_weighted_block_state()`](https://diogro.github.io/rgraphtool/reference/weighted_block_state.md), [`transform_weights()`](https://diogro.github.io/rgraphtool/reference/graph.md), [`compare_weight_models()`](https://diogro.github.io/rgraphtool/reference/compare_weight_models.md), [`layered_block_state()`](https://diogro.github.io/rgraphtool/reference/layered_block_state.md), [`minimize_layered_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/layered_block_state.md), [`nested_layered_block_state()`](https://diogro.github.io/rgraphtool/reference/layered_block_state.md), [`compare_layered_models()`](https://diogro.github.io/rgraphtool/reference/compare_layered_models.md) | [Weighted & layered SBMs](https://diogro.github.io/rgraphtool/articles/weighted-and-layered-sbms.html) |
 | **Assortative & ordered (ranked) SBMs** | [`pp_block_state()`](https://diogro.github.io/rgraphtool/reference/pp_block_state.md), [`minimize_pp_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/pp_block_state.md), [`pp_assortativity()`](https://diogro.github.io/rgraphtool/reference/pp_block_state.md), [`compare_assortative_models()`](https://diogro.github.io/rgraphtool/reference/pp_block_state.md), [`ranked_block_state()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md), [`minimize_ranked_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md), [`nested_ranked_block_state()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md), [`ranked_vertex_order()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md), [`ranked_edge_directions()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md), [`compare_ordered_models()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md), [`plot_ranked_hierarchy()`](https://diogro.github.io/rgraphtool/reference/plot_hierarchy.md) | [Assortative & ordered SBMs](https://diogro.github.io/rgraphtool/articles/assortative-and-ordered-sbms.html) |
+| **Bipartite & ecological SBMs** | [`bipartite_graph()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md), [`is_bipartite()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md), [`as_incidence_matrix()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md), [`fungus_tree_network()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md), [`bipartite_block_state()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md), [`minimize_bipartite_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md), [`nested_bipartite_block_state()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md), [`minimize_nested_bipartite_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md), [`bipartite_membership()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md), [`bipartite_block_matrix()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md), [`compare_bipartite_models()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md), [`plot_bipartite()`](https://diogro.github.io/rgraphtool/reference/plot_bipartite.md) | [Bipartite & ecological networks](https://diogro.github.io/rgraphtool/articles/bipartite-sbms.html) |
 | **Uncertain networks, triadic closure & dynamics** | [`measured_block_state()`](https://diogro.github.io/rgraphtool/reference/uncertain_block_state.md), [`mixed_measured_block_state()`](https://diogro.github.io/rgraphtool/reference/uncertain_block_state.md), [`uncertain_block_state()`](https://diogro.github.io/rgraphtool/reference/uncertain_block_state.md), [`latent_multigraph()`](https://diogro.github.io/rgraphtool/reference/uncertain_block_state.md), [`reconstruct_network()`](https://diogro.github.io/rgraphtool/reference/uncertain_block_state.md), [`predict_edges()`](https://diogro.github.io/rgraphtool/reference/predict_edges.md), [`latent_closure_block_state()`](https://diogro.github.io/rgraphtool/reference/latent_closure_block_state.md), [`infer_triadic_closure()`](https://diogro.github.io/rgraphtool/reference/latent_closure_block_state.md), all 10 dynamical models (`pseudo_ising`, `ising_glauber`, `pseudo_cising`, `cising_glauber`, `epidemics`, `pseudo_normal`, `normal_glauber`, `linear_normal`, `pseudo_potts`, `potts_glauber`), [`reconstruct_dynamics()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md), [`reconstruct_l1_path()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md), [`simulate_ising()`](https://diogro.github.io/rgraphtool/reference/simulate_dynamics.md), [`simulate_epidemics()`](https://diogro.github.io/rgraphtool/reference/simulate_dynamics.md), [`simulate_normal_dynamics()`](https://diogro.github.io/rgraphtool/reference/simulate_dynamics.md), [`simulate_potts()`](https://diogro.github.io/rgraphtool/reference/simulate_dynamics.md) | [Network reconstruction](https://diogro.github.io/rgraphtool/articles/network-reconstruction.html) |
 | **Layouts, animations, plotting & maps** | [`sfdp_layout()`](https://diogro.github.io/rgraphtool/reference/sfdp_layout.md), [`graph_bfs()`](https://diogro.github.io/rgraphtool/reference/sfdp_layout.md), [`plot_graph()`](https://diogro.github.io/rgraphtool/reference/plot_graph.md), [`animate_sirs()`](https://diogro.github.io/rgraphtool/reference/animate_sirs.md), [`animate_dynamic_layout()`](https://diogro.github.io/rgraphtool/reference/animate_sirs.md), [`interactive_bfs()`](https://diogro.github.io/rgraphtool/reference/interactive_bfs.md), [`prop_to_size()`](https://diogro.github.io/rgraphtool/reference/plotting_integration.md), [`map_colors()`](https://diogro.github.io/rgraphtool/reference/plotting_integration.md), [`plot_colorbar()`](https://diogro.github.io/rgraphtool/reference/plotting_integration.md), [`save_graph_plot()`](https://diogro.github.io/rgraphtool/reference/plotting_integration.md), [`graph_grob()`](https://diogro.github.io/rgraphtool/reference/plotting_integration.md), [`ggplot_graph()`](https://diogro.github.io/rgraphtool/reference/plotting_integration.md), [`project_coords()`](https://diogro.github.io/rgraphtool/reference/plot_graph_map.md), [`great_circle_arc()`](https://diogro.github.io/rgraphtool/reference/plot_graph_map.md), [`world_coastlines()`](https://diogro.github.io/rgraphtool/reference/plot_graph_map.md), [`plot_graph_map()`](https://diogro.github.io/rgraphtool/reference/plot_graph_map.md) | [Visualization & animation](https://diogro.github.io/rgraphtool/articles/visualization-and-animation.html) |
 | **Large-network scaling & C++ extensions** | [`rgraphtool_max_threads()`](https://diogro.github.io/rgraphtool/reference/rgraphtool_threads.md), [`rgraphtool_num_threads()`](https://diogro.github.io/rgraphtool/reference/rgraphtool_threads.md), [`rgraphtool_set_num_threads()`](https://diogro.github.io/rgraphtool/reference/rgraphtool_threads.md), public `<rgraphtool.h>` API (`LinkingTo: rgraphtool, Rcpp, BH`), [`kcore_decomposition()`](https://diogro.github.io/rgraphtool/reference/cpp_extensions.md), [`vertex_strength()`](https://diogro.github.io/rgraphtool/reference/cpp_extensions.md), [`rgraphtool_include_dir()`](https://diogro.github.io/rgraphtool/reference/cpp_extensions.md), [`rgraphtool_extension_example()`](https://diogro.github.io/rgraphtool/reference/cpp_extensions.md), [`compile_cpp_extension()`](https://diogro.github.io/rgraphtool/reference/cpp_extensions.md) | [Scaling & C++ extensions](https://diogro.github.io/rgraphtool/articles/scaling-and-cpp-extensions.html) |
 
-All 21 underlying cookbook scripts remain runnable interactively via
+All 22 underlying cookbook scripts remain runnable interactively via
 `demo("<name>", package = "rgraphtool")` (see
 `demo(package = "rgraphtool")`).
 

@@ -48,6 +48,7 @@
     <li><a class="dropdown-item" href="articles/model-class-selection.html">Overlapping SBMs &amp; Bayesian Model Class Selection</a></li>
     <li><a class="dropdown-item" href="articles/weighted-and-layered-sbms.html">Weighted &amp; Layered Stochastic Block Models</a></li>
     <li><a class="dropdown-item" href="articles/assortative-and-ordered-sbms.html">Assortative &amp; Ordered (Ranked) Communities</a></li>
+    <li><a class="dropdown-item" href="articles/bipartite-sbms.html">Bipartite &amp; Ecological Networks: The Fungus-Tree Case Study</a></li>
     <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>Network reconstruction</h6></li>
     <li><a class="dropdown-item" href="articles/network-reconstruction.html">Network Reconstruction: Uncertain Edges, Triadic Closure &amp; Dynamics</a></li>
@@ -86,7 +87,7 @@
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p><code>rgraphtool</code> requires R with a C++23-capable compiler, plus the <code>Rcpp</code> and <code>BH</code> (<code>&gt;= 1.81.0</code>) packages. Optional packages <code>ggplot2</code> and <code>svglite</code> enable <code><a href="reference/plotting_integration.html">ggplot_graph()</a></code> and dependency-free SVG export.</p>
+<p><code>rgraphtool</code> requires R with a C++23-capable compiler, plus the <code>Rcpp</code> and <code>BH</code> (<code>&gt;= 1.81.0</code>) packages. Optional packages <code>igraph</code>, <code>ggplot2</code>, and <code>svglite</code> enable <code>igraph</code> conversion, <code><a href="reference/plotting_integration.html">ggplot_graph()</a></code>, and dependency-free SVG export.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># From a local checkout:</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"."</span>, repos <span class="op">=</span> <span class="cn">NULL</span>, type <span class="op">=</span> <span class="st">"source"</span><span class="op">)</span></span>
@@ -101,7 +102,7 @@
 <h2 id="quick-start">Quick start<a class="anchor" aria-label="anchor" href="#quick-start"></a>
 </h2>
 <div class="section level3">
-<h3 id="id_1-creating-graphs--edge-properties">1. Creating graphs &amp; edge properties<a class="anchor" aria-label="anchor" href="#id_1-creating-graphs--edge-properties"></a>
+<h3 id="id_1-creating-graphs--property-maps">1. Creating graphs &amp; property maps<a class="anchor" aria-label="anchor" href="#id_1-creating-graphs--property-maps"></a>
 </h3>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/diogro/rgraphtool" class="external-link">rgraphtool</a></span><span class="op">)</span></span>
@@ -110,19 +111,40 @@
 <span><span class="fu"><a href="reference/graph.html">graph_add_edges</a></span><span class="op">(</span></span>
 <span>  <span class="va">g</span>,</span>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">3</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3</span>, <span class="fl">1</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="fl">4</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>  properties <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>weight <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.2</span>, <span class="fl">0.8</span>, <span class="fl">2.5</span>, <span class="fl">1.0</span><span class="op">)</span><span class="op">)</span></span>
+<span>  properties <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>weight <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1.2</span>, <span class="fl">0.8</span>, <span class="fl">2.5</span>, <span class="fl">1.0</span><span class="op">)</span>, label <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"c"</span>, <span class="st">"d"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
-<span><span class="fu"><a href="reference/graph.html">graph_num_vertices</a></span><span class="op">(</span><span class="va">g</span><span class="op">)</span>          <span class="co"># 4</span></span>
-<span><span class="fu"><a href="reference/graph.html">graph_num_edges</a></span><span class="op">(</span><span class="va">g</span><span class="op">)</span>             <span class="co"># 4</span></span>
+<span><span class="fu"><a href="reference/graph.html">graph_set_vertex_property</a></span><span class="op">(</span><span class="va">g</span>, <span class="st">"name"</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"v1"</span>, <span class="st">"v2"</span>, <span class="st">"v3"</span>, <span class="st">"v4"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/graph.html">graph_set_graph_property</a></span><span class="op">(</span><span class="va">g</span>, <span class="st">"title"</span>, <span class="st">"toy network"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="va">g</span>                              <span class="co"># summary header + compact ASCII adjacency for small graphs</span></span>
 <span><span class="fu"><a href="reference/graph.html">graph_degree</a></span><span class="op">(</span><span class="va">g</span>, <span class="st">"out"</span><span class="op">)</span>         <span class="co"># 1 2 1 0</span></span>
 <span><span class="fu"><a href="reference/graph.html">graph_edge_property</a></span><span class="op">(</span><span class="va">g</span>, <span class="st">"weight"</span><span class="op">)</span></span></code></pre></div>
-<p>Vertex IDs are 1-based. Parallel edges and self-loops are supported. Graphs are mutable external-pointer objects (process-local; store edge tables separately if saving to disk with <code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">saveRDS()</a></code>).</p>
+<p>Vertex IDs are 1-based. Parallel edges and self-loops are supported. Graphs are mutable external-pointer objects; persist graphs across sessions using <code><a href="reference/graph_io.html">write_gt()</a></code> / <code><a href="reference/graph_io.html">read_gt()</a></code> (below).</p>
 </div>
 <div class="section level3">
-<h3 id="id_2-hierarchical-sbm-inference--posterior-sampling">2. Hierarchical SBM inference &amp; posterior sampling<a class="anchor" aria-label="anchor" href="#id_2-hierarchical-sbm-inference--posterior-sampling"></a>
+<h3 id="id_2-graph-io-graph-tool-gt-and-igraph-interoperability">2. Graph I/O: <code>graph-tool</code> (<code>.gt</code>) and <code>igraph</code> interoperability<a class="anchor" aria-label="anchor" href="#id_2-graph-io-graph-tool-gt-and-igraph-interoperability"></a>
 </h3>
+<p><code>rgraphtool</code> implements the official <code>graph-tool</code> <code>.gt</code> binary format (v1, little- and big-endian, all 15 property map types, with optional <code>.gz</code>, <code>.bz2</code>, <code>.xz</code>, or <code>.zst</code> compression) natively in C++ with no Python dependency, as well as lossless bidirectional conversion with <code>igraph</code> (plus GraphML, GML, and edgelist files via <code><a href="reference/graph_io.html">graph_load()</a></code> / <code><a href="reference/graph_io.html">graph_save()</a></code>):</p>
 <div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="co"># Load any network from Netzschleuder (https://networks.skewed.de)</span></span>
+<code class="sourceCode R"><span><span class="co"># Native C++ graph-tool .gt binary read/write (interoperable with Python graph-tool)</span></span>
+<span><span class="fu"><a href="reference/graph_io.html">write_gt</a></span><span class="op">(</span><span class="va">g</span>, <span class="st">"network.gt.gz"</span><span class="op">)</span></span>
+<span><span class="va">g2</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/graph_io.html">read_gt</a></span><span class="op">(</span><span class="st">"network.gt.gz"</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Bidirectional conversion with igraph (preserving graph, vertex, and edge attributes)</span></span>
+<span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"igraph"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  <span class="va">ig</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/graph_io.html">as_igraph</a></span><span class="op">(</span><span class="va">g</span><span class="op">)</span></span>
+<span>  <span class="va">g_from_ig</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/graph_io.html">from_igraph</a></span><span class="op">(</span><span class="va">ig</span><span class="op">)</span></span>
+<span><span class="op">}</span></span>
+<span></span>
+<span><span class="co"># Format-detecting load/save (.gt, .gt.gz, .graphml, .gml, .edgelist)</span></span>
+<span><span class="fu"><a href="reference/graph_io.html">graph_save</a></span><span class="op">(</span><span class="va">g</span>, <span class="st">"network.graphml"</span><span class="op">)</span></span>
+<span><span class="va">g3</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/graph_io.html">graph_load</a></span><span class="op">(</span><span class="st">"network.graphml"</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level3">
+<h3 id="id_3-hierarchical--bipartite-sbm-inference--posterior-sampling">3. Hierarchical &amp; bipartite SBM inference + posterior sampling<a class="anchor" aria-label="anchor" href="#id_3-hierarchical--bipartite-sbm-inference--posterior-sampling"></a>
+</h3>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># Hierarchical SBM on C. elegans from Netzschleuder (https://networks.skewed.de)</span></span>
 <span><span class="va">celegans</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/netzschleuder_network.html">netzschleuder_network</a></span><span class="op">(</span><span class="st">"celegansneural"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">42</span><span class="op">)</span></span>
@@ -130,15 +152,20 @@
 <span><span class="va">fit</span></span>
 <span><span class="fu"><a href="reference/plot_hierarchy.html">plot_hierarchy</a></span><span class="op">(</span><span class="va">fit</span><span class="op">)</span></span>
 <span></span>
+<span><span class="co"># Bipartite SBM directly from an ecological incidence matrix (154 fungi x 51 trees)</span></span>
+<span><span class="va">ft</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/bipartite_block_state.html">fungus_tree_network</a></span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="va">fit_bip</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/bipartite_block_state.html">minimize_bipartite_blockmodel_dl</a></span><span class="op">(</span><span class="va">ft</span><span class="op">$</span><span class="va">fungus_tree</span>, dim_labels <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"fungus"</span>, <span class="st">"tree"</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/plot_bipartite.html">plot_bipartite</a></span><span class="op">(</span><span class="va">fit_bip</span>, type <span class="op">=</span> <span class="st">"matrix"</span><span class="op">)</span></span>
+<span></span>
 <span><span class="co"># Posterior MCMC sampling and partition mode clustering</span></span>
 <span><span class="va">samples</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/mcmc_sweep.html">sample_posterior</a></span><span class="op">(</span><span class="va">fit</span>, nsamples <span class="op">=</span> <span class="fl">100L</span>, burnin <span class="op">=</span> <span class="fl">50L</span>, thin <span class="op">=</span> <span class="fl">5L</span><span class="op">)</span></span>
 <span><span class="va">modes</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/partition_mode_state.html">mode_cluster_state</a></span><span class="op">(</span><span class="va">samples</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/partition_mode_state.html">mode_summary</a></span><span class="op">(</span><span class="va">modes</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level3">
-<h3 id="id_3-network-reconstruction-from-dynamics">3. Network reconstruction from dynamics<a class="anchor" aria-label="anchor" href="#id_3-network-reconstruction-from-dynamics"></a>
+<h3 id="id_4-network-reconstruction-from-dynamics">4. Network reconstruction from dynamics<a class="anchor" aria-label="anchor" href="#id_4-network-reconstruction-from-dynamics"></a>
 </h3>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Reconstruct an interaction graph directly from equilibrium Ising spins</span></span>
 <span><span class="va">g_true</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/graph.html">graph_create</a></span><span class="op">(</span><span class="fl">20L</span>, directed <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/graph.html">graph_add_edges</a></span><span class="op">(</span><span class="va">g_true</span>, <span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">rbind</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/cbind.html" class="external-link">cbind</a></span><span class="op">(</span><span class="fl">1</span><span class="op">:</span><span class="fl">19</span>, <span class="fl">2</span><span class="op">:</span><span class="fl">20</span><span class="op">)</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">20L</span>, <span class="fl">1L</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
@@ -150,9 +177,9 @@
 <span><span class="va">rec</span></span></code></pre></div>
 </div>
 <div class="section level3">
-<h3 id="id_4-layouts-animations-interactive-views--maps">4. Layouts, animations, interactive views &amp; maps<a class="anchor" aria-label="anchor" href="#id_4-layouts-animations-interactive-views--maps"></a>
+<h3 id="id_5-layouts-animations-interactive-views--maps">5. Layouts, animations, interactive views &amp; maps<a class="anchor" aria-label="anchor" href="#id_5-layouts-animations-interactive-views--maps"></a>
 </h3>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">7</span><span class="op">)</span></span>
 <span><span class="va">pos</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/sfdp_layout.html">sfdp_layout</a></span><span class="op">(</span><span class="va">g_true</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/plot_graph.html">plot_graph</a></span><span class="op">(</span><span class="va">g_true</span>, pos <span class="op">=</span> <span class="va">pos</span>, edge_curve <span class="op">=</span> <span class="fl">0.12</span>, axes <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -166,7 +193,7 @@
 <div class="section level2">
 <h2 id="capabilities--articles">Capabilities &amp; articles<a class="anchor" aria-label="anchor" href="#capabilities--articles"></a>
 </h2>
-<p>The package website (<a href="https://diogro.github.io/rgraphtool/">diogro.github.io/rgraphtool</a>) uses this README as its home page and hosts 8 grouped cookbook articles covering all 21 bundled demos:</p>
+<p>The package website (<a href="https://diogro.github.io/rgraphtool/">diogro.github.io/rgraphtool</a>) uses this README as its home page and hosts 9 grouped cookbook articles covering all 22 bundled demos:</p>
 <table class="table">
 <colgroup>
 <col width="33%">
@@ -180,9 +207,9 @@
 </tr></thead>
 <tbody>
 <tr>
-<td><strong>Core graphs, flat &amp; nested SBMs</strong></td>
+<td><strong>Core graphs, I/O, flat &amp; nested SBMs</strong></td>
 <td>
-<code><a href="reference/graph.html">graph_create()</a></code>, <code><a href="reference/graph.html">graph_add_edges()</a></code>, <code><a href="reference/graph.html">graph_set_edge_property()</a></code>, <code><a href="reference/netzschleuder_network.html">netzschleuder_network()</a></code>, <code><a href="reference/block_state.html">block_state()</a></code>, <code><a href="reference/minimize_blockmodel_dl.html">minimize_blockmodel_dl()</a></code>, <code><a href="reference/minimize_blockmodel_dl.html">compare_blockmodels()</a></code>, <code><a href="reference/minimize_nested_blockmodel_dl.html">nested_block_state()</a></code>, <code><a href="reference/minimize_nested_blockmodel_dl.html">minimize_nested_blockmodel_dl()</a></code>, <code><a href="reference/plot_hierarchy.html">plot_hierarchy()</a></code>
+<code><a href="reference/graph.html">graph_create()</a></code>, <code><a href="reference/graph.html">graph_add_edges()</a></code>, <code><a href="reference/graph.html">graph_set_vertex_property()</a></code>, <code><a href="reference/graph.html">graph_set_edge_property()</a></code>, <code><a href="reference/graph_io.html">read_gt()</a></code>, <code><a href="reference/graph_io.html">write_gt()</a></code>, <code><a href="reference/graph_io.html">as_igraph()</a></code>, <code><a href="reference/graph_io.html">from_igraph()</a></code>, <code><a href="reference/graph_io.html">graph_load()</a></code>, <code><a href="reference/graph_io.html">graph_save()</a></code>, <code><a href="reference/netzschleuder_network.html">netzschleuder_network()</a></code>, <code><a href="reference/block_state.html">block_state()</a></code>, <code><a href="reference/minimize_blockmodel_dl.html">minimize_blockmodel_dl()</a></code>, <code><a href="reference/minimize_blockmodel_dl.html">compare_blockmodels()</a></code>, <code><a href="reference/minimize_nested_blockmodel_dl.html">nested_block_state()</a></code>, <code><a href="reference/minimize_nested_blockmodel_dl.html">minimize_nested_blockmodel_dl()</a></code>, <code><a href="reference/plot_hierarchy.html">plot_hierarchy()</a></code>
 </td>
 <td><a href="https://diogro.github.io/rgraphtool/articles/blockmodels-and-hierarchy.html">Block models &amp; hierarchy</a></td>
 </tr>
@@ -215,6 +242,13 @@
 <td><a href="https://diogro.github.io/rgraphtool/articles/assortative-and-ordered-sbms.html">Assortative &amp; ordered SBMs</a></td>
 </tr>
 <tr>
+<td><strong>Bipartite &amp; ecological SBMs</strong></td>
+<td>
+<code><a href="reference/bipartite_block_state.html">bipartite_graph()</a></code>, <code><a href="reference/bipartite_block_state.html">is_bipartite()</a></code>, <code><a href="reference/bipartite_block_state.html">as_incidence_matrix()</a></code>, <code><a href="reference/bipartite_block_state.html">fungus_tree_network()</a></code>, <code><a href="reference/bipartite_block_state.html">bipartite_block_state()</a></code>, <code><a href="reference/bipartite_block_state.html">minimize_bipartite_blockmodel_dl()</a></code>, <code><a href="reference/bipartite_block_state.html">nested_bipartite_block_state()</a></code>, <code><a href="reference/bipartite_block_state.html">minimize_nested_bipartite_blockmodel_dl()</a></code>, <code><a href="reference/bipartite_block_state.html">bipartite_membership()</a></code>, <code><a href="reference/bipartite_block_state.html">bipartite_block_matrix()</a></code>, <code><a href="reference/bipartite_block_state.html">compare_bipartite_models()</a></code>, <code><a href="reference/plot_bipartite.html">plot_bipartite()</a></code>
+</td>
+<td><a href="https://diogro.github.io/rgraphtool/articles/bipartite-sbms.html">Bipartite &amp; ecological networks</a></td>
+</tr>
+<tr>
 <td><strong>Uncertain networks, triadic closure &amp; dynamics</strong></td>
 <td>
 <code><a href="reference/uncertain_block_state.html">measured_block_state()</a></code>, <code><a href="reference/uncertain_block_state.html">mixed_measured_block_state()</a></code>, <code><a href="reference/uncertain_block_state.html">uncertain_block_state()</a></code>, <code><a href="reference/uncertain_block_state.html">latent_multigraph()</a></code>, <code><a href="reference/uncertain_block_state.html">reconstruct_network()</a></code>, <code><a href="reference/predict_edges.html">predict_edges()</a></code>, <code><a href="reference/latent_closure_block_state.html">latent_closure_block_state()</a></code>, <code><a href="reference/latent_closure_block_state.html">infer_triadic_closure()</a></code>, all 10 dynamical models (<code>pseudo_ising</code>, <code>ising_glauber</code>, <code>pseudo_cising</code>, <code>cising_glauber</code>, <code>epidemics</code>, <code>pseudo_normal</code>, <code>normal_glauber</code>, <code>linear_normal</code>, <code>pseudo_potts</code>, <code>potts_glauber</code>), <code><a href="reference/dynamics_block_state.html">reconstruct_dynamics()</a></code>, <code><a href="reference/dynamics_block_state.html">reconstruct_l1_path()</a></code>, <code><a href="reference/simulate_dynamics.html">simulate_ising()</a></code>, <code><a href="reference/simulate_dynamics.html">simulate_epidemics()</a></code>, <code><a href="reference/simulate_dynamics.html">simulate_normal_dynamics()</a></code>, <code><a href="reference/simulate_dynamics.html">simulate_potts()</a></code>
@@ -237,13 +271,13 @@
 </tr>
 </tbody>
 </table>
-<p>All 21 underlying cookbook scripts remain runnable interactively via <code>demo("&lt;name&gt;", package = "rgraphtool")</code> (see <code>demo(package = "rgraphtool")</code>).</p>
+<p>All 22 underlying cookbook scripts remain runnable interactively via <code>demo("&lt;name&gt;", package = "rgraphtool")</code> (see <code>demo(package = "rgraphtool")</code>).</p>
 </div>
 <div class="section level2">
 <h2 id="multi-threading-for-large-networks">Multi-threading for large networks<a class="anchor" aria-label="anchor" href="#multi-threading-for-large-networks"></a>
 </h2>
 <p><code>rgraphtool</code> includes a portable header-only C++23 thread pool (<code>src/parallel.h</code>) that works across macOS, Linux, and Windows without requiring OpenMP:</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/rgraphtool_threads.html">rgraphtool_max_threads</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/rgraphtool_threads.html">rgraphtool_set_num_threads</a></span><span class="op">(</span><span class="fl">4L</span><span class="op">)</span></span>
 <span><span class="co"># Or via global option:</span></span>
@@ -253,7 +287,7 @@
 <h2 id="writing-c-extensions">Writing C++ extensions<a class="anchor" aria-label="anchor" href="#writing-c-extensions"></a>
 </h2>
 <p>User C++ extensions and downstream R packages (<code>LinkingTo: rgraphtool, Rcpp, BH</code>) can <code>#include &lt;rgraphtool.h&gt;</code> for zero-copy access to <code>rgraphtool::Graph</code>, range-based graph iteration (<code>vertices_range</code>, <code>edges_range</code>, <code>out_edges_range</code>, <code>in_edges_range</code>, <code>all_edges_range</code>, <code>out_neighbors_range</code>, <code>in_neighbors_range</code>, <code>all_neighbors_range</code>), and vertex/edge property maps with bounds-checked defaults and upfront-validated zero-overhead unchecked access (<code>.get_unchecked()</code>):</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># Compile and run a bundled standalone C++ extension via Rcpp::sourceCpp()</span></span>
 <span><span class="fu"><a href="reference/cpp_extensions.html">compile_cpp_extension</a></span><span class="op">(</span><span class="fu"><a href="reference/cpp_extensions.html">rgraphtool_extension_example</a></span><span class="op">(</span><span class="st">"kcore"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu">ext_kcore_decomposition</span><span class="op">(</span><span class="va">g</span>, checked <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></code></pre></div>

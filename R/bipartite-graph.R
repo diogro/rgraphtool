@@ -297,3 +297,20 @@ as_incidence_matrix <- function(graph, type = NULL, weight = NULL) {
   )
   mat
 }
+
+fungus_tree_network <- function() {
+  path <- system.file("extdata", "fungus_tree_network.rds", package = "rgraphtool")
+  if (!nzchar(path) || !file.exists(path)) {
+    stop("Bundled fungus_tree_network.rds dataset not found in rgraphtool installation",
+         call. = FALSE)
+  }
+  dat <- readRDS(path)
+  dat$fungus_names <- as.character(dat$fungus_names)
+  dat$tree_names <- as.character(dat$tree_names)
+  dat$graph <- bipartite_graph(
+    dat$fungus_tree,
+    dim_labels = c("fungus", "tree"),
+    weight_mode = "binary"
+  )
+  dat
+}

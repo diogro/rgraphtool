@@ -7,6 +7,7 @@ native multi-threaded C++23.
 ## Usage
 
 ``` r
+fungus_tree_network()
 bipartite_graph(x, type = NULL, directed = FALSE, dim_labels = NULL,
   weight_mode = c("auto", "binary", "multigraph", "weight"),
   weight_name = "weight", covariates = NULL)
@@ -210,6 +211,13 @@ for exact finite-temperature Bayesian posterior sampling.
 
 ## Value
 
+`fungus_tree_network()` returns a list containing the antagonistic
+tree–fungus interaction dataset of Vacher, Piou & Desprez-Loustau (2008,
+*PLoS ONE* 3(3): e1740; packaged in sbm as `fungusTreeNetwork`):
+`fungus_tree` (\\154 \times 51\\ binary incidence matrix), `tree_tree`
+(\\51 \times 51\\ shared-fungus count matrix), `covar_tree` (genetic,
+taxonomic, and geographic distance matrices), `fungus_names`,
+`tree_names`, and `graph` (the bipartite `rgraphtool_graph`).
 `bipartite_graph()` returns an `rgraphtool_graph` with vertex property
 `"type"`. `is_bipartite()` returns a logical scalar.
 `as_incidence_matrix()`, `bipartite_edge_counts()`, and

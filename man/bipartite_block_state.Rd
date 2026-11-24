@@ -1,4 +1,5 @@
 \name{bipartite_block_state}
+\alias{fungus_tree_network}
 \alias{bipartite_graph}
 \alias{is_bipartite}
 \alias{as_incidence_matrix}
@@ -17,6 +18,7 @@
 \alias{print.rgraphtool_bipartite_model_comparison}
 \title{Native bipartite network representation and Stochastic Block Model inference}
 \usage{
+fungus_tree_network()
 bipartite_graph(x, type = NULL, directed = FALSE, dim_labels = NULL,
   weight_mode = c("auto", "binary", "multigraph", "weight"),
   weight_name = "weight", covariates = NULL)
@@ -135,6 +137,14 @@ Flat bipartite states also integrate with \code{\link{mcmc_sweep}()},
 exact finite-temperature Bayesian posterior sampling.
 }
 \value{
+\code{fungus_tree_network()} returns a list containing the antagonistic
+tree--fungus interaction dataset of Vacher, Piou & Desprez-Loustau (2008,
+\emph{PLoS ONE} 3(3): e1740; packaged in \pkg{sbm} as
+\code{fungusTreeNetwork}): \code{fungus_tree} (\eqn{154 \times 51} binary
+incidence matrix), \code{tree_tree} (\eqn{51 \times 51} shared-fungus count
+matrix), \code{covar_tree} (genetic, taxonomic, and geographic distance
+matrices), \code{fungus_names}, \code{tree_names}, and \code{graph} (the
+bipartite \code{rgraphtool_graph}).
 \code{bipartite_graph()} returns an \code{rgraphtool_graph} with vertex property
 \code{"type"}. \code{is_bipartite()} returns a logical scalar.
 \code{as_incidence_matrix()}, \code{bipartite_edge_counts()}, and

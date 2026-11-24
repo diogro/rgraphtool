@@ -65,13 +65,13 @@ cat(sprintf(
   t_flat_1t, nthr, t_flat_mt, t_flat_1t / max(t_flat_mt, 1e-6),
   partition_overlap(block_membership(st_mt), truth, norm = TRUE)
 ))
-#> Flat (1 thr): 0.201 s | Flat (4 thr): 0.088 s (2.28x) | overlap = 0.9992
+#> Flat (1 thr): 0.277 s | Flat (4 thr): 0.106 s (2.61x) | overlap = 0.9992
 cat(sprintf(
   "Nested simple_init (%d thr): %.3f s | B0 = %d | overlap = %.4f\n",
   nthr, t_nest_mt, max(nested_levels(nst_mt)[[1L]]),
   partition_overlap(nested_levels(nst_mt)[[1L]], truth, norm = TRUE)
 ))
-#> Nested simple_init (4 thr): 0.170 s | B0 = 25 | overlap = 0.9992
+#> Nested simple_init (4 thr): 0.179 s | B0 = 25 | overlap = 0.9992
 
 old_par <- graphics::par(mfrow = c(1L, 2L), mar = c(5, 4, 3, 1))
 graphics::barplot(
@@ -143,7 +143,7 @@ t_uchk <- system.time(
 )[3L]
 cat(sprintf("50 x k-core (N=%d, E=%d): checked = %.4f s | unchecked = %.4f s\n",
             n_ext, graph_num_edges(g_ext), t_chk, t_uchk))
-#> 50 x k-core (N=1500, E=7497): checked = 0.0140 s | unchecked = 0.0050 s
+#> 50 x k-core (N=1500, E=7497): checked = 0.0150 s | unchecked = 0.0050 s
 ```
 
 You can also compile inline C++ code directly with

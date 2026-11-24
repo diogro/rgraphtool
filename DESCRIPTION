@@ -24,3 +24,4 @@ Suggests: testthat (>= 3.0.0), igraph, ggplot2, svglite, knitr, rmarkdown
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 SystemRequirements: C++23
+Config/roxygen2/version: 8.1.1
