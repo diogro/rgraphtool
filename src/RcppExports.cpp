@@ -760,6 +760,84 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// cpp_sfdp_layout
+Rcpp::NumericMatrix cpp_sfdp_layout(SEXP pointer, Rcpp::Nullable<Rcpp::NumericMatrix> init_pos, double C, double K, double p, double theta, double gamma, double mu, double mu_p, double init_step, double cooling_step, int max_level, double tol, int max_iter, bool simple, Rcpp::Nullable<Rcpp::IntegerVector> groups, Rcpp::Nullable<Rcpp::LogicalVector> pin);
+RcppExport SEXP _rgraphtool_cpp_sfdp_layout(SEXP pointerSEXP, SEXP init_posSEXP, SEXP CSEXP, SEXP KSEXP, SEXP pSEXP, SEXP thetaSEXP, SEXP gammaSEXP, SEXP muSEXP, SEXP mu_pSEXP, SEXP init_stepSEXP, SEXP cooling_stepSEXP, SEXP max_levelSEXP, SEXP tolSEXP, SEXP max_iterSEXP, SEXP simpleSEXP, SEXP groupsSEXP, SEXP pinSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type init_pos(init_posSEXP);
+    Rcpp::traits::input_parameter< double >::type C(CSEXP);
+    Rcpp::traits::input_parameter< double >::type K(KSEXP);
+    Rcpp::traits::input_parameter< double >::type p(pSEXP);
+    Rcpp::traits::input_parameter< double >::type theta(thetaSEXP);
+    Rcpp::traits::input_parameter< double >::type gamma(gammaSEXP);
+    Rcpp::traits::input_parameter< double >::type mu(muSEXP);
+    Rcpp::traits::input_parameter< double >::type mu_p(mu_pSEXP);
+    Rcpp::traits::input_parameter< double >::type init_step(init_stepSEXP);
+    Rcpp::traits::input_parameter< double >::type cooling_step(cooling_stepSEXP);
+    Rcpp::traits::input_parameter< int >::type max_level(max_levelSEXP);
+    Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
+    Rcpp::traits::input_parameter< int >::type max_iter(max_iterSEXP);
+    Rcpp::traits::input_parameter< bool >::type simple(simpleSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::IntegerVector> >::type groups(groupsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::LogicalVector> >::type pin(pinSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_sfdp_layout(pointer, init_pos, C, K, p, theta, gamma, mu, mu_p, init_step, cooling_step, max_level, tol, max_iter, simple, groups, pin));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_graph_bfs
+Rcpp::List cpp_graph_bfs(SEXP pointer, int source, int max_dist, bool directed);
+RcppExport SEXP _rgraphtool_cpp_graph_bfs(SEXP pointerSEXP, SEXP sourceSEXP, SEXP max_distSEXP, SEXP directedSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< int >::type source(sourceSEXP);
+    Rcpp::traits::input_parameter< int >::type max_dist(max_distSEXP);
+    Rcpp::traits::input_parameter< bool >::type directed(directedSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_graph_bfs(pointer, source, max_dist, directed));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_sirs_animation_sim
+Rcpp::List cpp_sirs_animation_sim(SEXP pointer, int n_steps, double x_spont, double r_rec, double s_resusc, Rcpp::IntegerVector init_state, bool directed);
+RcppExport SEXP _rgraphtool_cpp_sirs_animation_sim(SEXP pointerSEXP, SEXP n_stepsSEXP, SEXP x_spontSEXP, SEXP r_recSEXP, SEXP s_resuscSEXP, SEXP init_stateSEXP, SEXP directedSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< int >::type n_steps(n_stepsSEXP);
+    Rcpp::traits::input_parameter< double >::type x_spont(x_spontSEXP);
+    Rcpp::traits::input_parameter< double >::type r_rec(r_recSEXP);
+    Rcpp::traits::input_parameter< double >::type s_resusc(s_resuscSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type init_state(init_stateSEXP);
+    Rcpp::traits::input_parameter< bool >::type directed(directedSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_sirs_animation_sim(pointer, n_steps, x_spont, r_rec, s_resusc, init_state, directed));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_dynamic_layout_sim
+Rcpp::List cpp_dynamic_layout_sim(SEXP pointer, Rcpp::NumericMatrix init_pos, int n_steps, double K, double C, double p, double step, int n_rewire, double theta, int max_level);
+RcppExport SEXP _rgraphtool_cpp_dynamic_layout_sim(SEXP pointerSEXP, SEXP init_posSEXP, SEXP n_stepsSEXP, SEXP KSEXP, SEXP CSEXP, SEXP pSEXP, SEXP stepSEXP, SEXP n_rewireSEXP, SEXP thetaSEXP, SEXP max_levelSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type init_pos(init_posSEXP);
+    Rcpp::traits::input_parameter< int >::type n_steps(n_stepsSEXP);
+    Rcpp::traits::input_parameter< double >::type K(KSEXP);
+    Rcpp::traits::input_parameter< double >::type C(CSEXP);
+    Rcpp::traits::input_parameter< double >::type p(pSEXP);
+    Rcpp::traits::input_parameter< double >::type step(stepSEXP);
+    Rcpp::traits::input_parameter< int >::type n_rewire(n_rewireSEXP);
+    Rcpp::traits::input_parameter< double >::type theta(thetaSEXP);
+    Rcpp::traits::input_parameter< int >::type max_level(max_levelSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_dynamic_layout_sim(pointer, init_pos, n_steps, K, C, p, step, n_rewire, theta, max_level));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_overlap_entropy
 double cpp_overlap_entropy(SEXP pointer, Rcpp::IntegerMatrix half_edges, bool degree_corrected, bool distributed, bool gen_overlap, double q_max);
 RcppExport SEXP _rgraphtool_cpp_overlap_entropy(SEXP pointerSEXP, SEXP half_edgesSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP gen_overlapSEXP, SEXP q_maxSEXP) {
@@ -1627,6 +1705,10 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rgraphtool_cpp_nested_layered_minimize", (DL_FUNC) &_rgraphtool_cpp_nested_layered_minimize, 10},
     {"_rgraphtool_cpp_layered_mcmc", (DL_FUNC) &_rgraphtool_cpp_layered_mcmc, 9},
     {"_rgraphtool_cpp_nested_layered_mcmc", (DL_FUNC) &_rgraphtool_cpp_nested_layered_mcmc, 9},
+    {"_rgraphtool_cpp_sfdp_layout", (DL_FUNC) &_rgraphtool_cpp_sfdp_layout, 17},
+    {"_rgraphtool_cpp_graph_bfs", (DL_FUNC) &_rgraphtool_cpp_graph_bfs, 4},
+    {"_rgraphtool_cpp_sirs_animation_sim", (DL_FUNC) &_rgraphtool_cpp_sirs_animation_sim, 7},
+    {"_rgraphtool_cpp_dynamic_layout_sim", (DL_FUNC) &_rgraphtool_cpp_dynamic_layout_sim, 10},
     {"_rgraphtool_cpp_overlap_entropy", (DL_FUNC) &_rgraphtool_cpp_overlap_entropy, 6},
     {"_rgraphtool_cpp_overlap_check_moves", (DL_FUNC) &_rgraphtool_cpp_overlap_check_moves, 7},
     {"_rgraphtool_cpp_overlap_groups", (DL_FUNC) &_rgraphtool_cpp_overlap_groups, 2},

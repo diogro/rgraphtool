@@ -177,6 +177,22 @@ cpp_nested_layered_mcmc <- function(pointer, bs, layers, independent, degree_cor
     .Call(`_rgraphtool_cpp_nested_layered_mcmc`, pointer, bs, layers, independent, degree_corrected, distributed, mcmc_opts, eq_opts, q_max)
 }
 
+cpp_sfdp_layout <- function(pointer, init_pos = NULL, C = 0.2, K = 1.0, p = 2.0, theta = 0.6, gamma = 1.0, mu = 0.0, mu_p = 1.0, init_step = -1.0, cooling_step = 0.95, max_level = 10L, tol = 1e-4, max_iter = 200L, simple = FALSE, groups = NULL, pin = NULL) {
+    .Call(`_rgraphtool_cpp_sfdp_layout`, pointer, init_pos, C, K, p, theta, gamma, mu, mu_p, init_step, cooling_step, max_level, tol, max_iter, simple, groups, pin)
+}
+
+cpp_graph_bfs <- function(pointer, source, max_dist = -1L, directed = FALSE) {
+    .Call(`_rgraphtool_cpp_graph_bfs`, pointer, source, max_dist, directed)
+}
+
+cpp_sirs_animation_sim <- function(pointer, n_steps, x_spont, r_rec, s_resusc, init_state, directed = FALSE) {
+    .Call(`_rgraphtool_cpp_sirs_animation_sim`, pointer, n_steps, x_spont, r_rec, s_resusc, init_state, directed)
+}
+
+cpp_dynamic_layout_sim <- function(pointer, init_pos, n_steps = 60L, K = 0.5, C = 0.2, p = 2.0, step = 0.005, n_rewire = 10L, theta = 0.6, max_level = 10L) {
+    .Call(`_rgraphtool_cpp_dynamic_layout_sim`, pointer, init_pos, n_steps, K, C, p, step, n_rewire, theta, max_level)
+}
+
 cpp_overlap_entropy <- function(pointer, half_edges, degree_corrected, distributed, gen_overlap, q_max) {
     .Call(`_rgraphtool_cpp_overlap_entropy`, pointer, half_edges, degree_corrected, distributed, gen_overlap, q_max)
 }
