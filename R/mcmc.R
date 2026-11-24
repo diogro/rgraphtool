@@ -24,8 +24,14 @@ is_ranked_state <- function(state) {
     inherits(state, "rgraphtool_nested_ranked_block_state")
 }
 
+is_bipartite_state <- function(state) {
+  inherits(state, "rgraphtool_bipartite_block_state")
+}
+
 validate_mcmc_state <- function(state) {
-  if (inherits(state, "rgraphtool_nested_weighted_block_state")) {
+  if (inherits(state, "rgraphtool_bipartite_block_state")) {
+    validate_bipartite_state(state)
+  } else if (inherits(state, "rgraphtool_nested_weighted_block_state")) {
     validate_nested_weighted_state(state)
   } else if (inherits(state, "rgraphtool_weighted_block_state")) {
     validate_weighted_state(state)
@@ -107,9 +113,23 @@ run_native_mcmc <- function(state, mcmc_opts, eq_opts) {
   layered <- is_layered_state(state)
   pp <- is_pp_state(state)
   ranked <- is_ranked_state(state)
+  bipartite <- is_bipartite_state(state)
   pointer <- graph_pointer(state$graph)
   dist <- identical(state$degree_prior, "distributed")
-  if (pp) {
+  if (bipartite) {
+    res <- cpp_bipartite_mcmc(pointer, state$type, state$blocks,
+                              state$degree_corrected, dist,
+                              identical(state$edge_prior, "bipartite"),
+                              state$weights, state$types, state$cpp_params,
+                              mcmc_opts, eq_opts, q_cache_max())
+    wspec <- list(W = state$weights, types = state$types,
+                  params = state$params, cpp_params = state$cpp_params,
+                  weighted = state$weighted)
+    new_state <- new_bipartite_state(state$graph, state$type, res$blocks,
+                                     state$degree_corrected, state$degree_prior,
+                                     state$edge_prior, wspec, state$dim_labels,
+                                     fit = list(description_length = res$entropy))
+  } else if (pp) {
     res <- cpp_pp_mcmc(pointer, state$blocks, state$uniform,
                        state$degree_corrected, dist, mcmc_opts, eq_opts,
                        q_cache_max())

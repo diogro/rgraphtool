@@ -44,7 +44,7 @@ print(anim)
 #>   vertices: 90 | frames: 61 (steps = 60)
 #>   rates: x = 0.002, r = 0.12, s = 0.02 | hide_recovered = TRUE | fear_state = TRUE
 #>   peak infected: 49 | total new infections: 113
-#>   mode: html -> /var/folders/ph/fmqmjzln2h15bm5bstsgpng80000gn/T//Rtmpo7reWx/file5057295be975.html
+#>   mode: html -> /var/folders/ph/fmqmjzln2h15bm5bstsgpng80000gn/T//Rtmp5GckFp/filec0b715922fdd.html
 
 # Render an epidemic curve alongside a mid-outbreak snapshot
 peak_t <- which.max(anim$counts[, "I"])

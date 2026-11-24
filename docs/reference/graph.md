@@ -1,4 +1,4 @@
-# Create, modify, and inspect a graph and its edge properties
+# Create, modify, and inspect a graph and its property maps
 
 Create and modify a native graph-tool adjacency structure, inspect its
 vertices and edges, attach numeric edge property maps, and transform
@@ -17,6 +17,15 @@ graph_degree(graph, mode = c("total", "in", "out"))
 graph_set_edge_property(graph, name, values)
 graph_edge_property(graph, name)
 graph_edge_properties(graph)
+graph_set_vertex_property(graph, name, values)
+graph_vertex_property(graph, name)
+graph_vertex_properties(graph)
+graph_set_graph_property(graph, name, value)
+graph_graph_property(graph, name)
+graph_graph_properties(graph)
+# S3 method for class 'rgraphtool_graph'
+print(x, max_edges = 20L, max_ascii = 12L,
+  ascii = NULL, ...)
 transform_weights(x, transform = c("identity", "log", "log1p", "sqrt",
   "sign", "abs", "rank", "zscore"), shift = 0)
 ```
@@ -41,9 +50,9 @@ transform_weights(x, transform = c("identity", "log", "log1p", "sqrt",
 
 - properties:
 
-  Optional named list or data frame of numeric edge vectors (each of
-  length `nrow(edges)`) to attach as edge property maps aligned with the
-  newly added edges.
+  Optional named list or data frame of edge vectors (each of length
+  `nrow(edges)`) to attach as edge property maps aligned with the newly
+  added edges.
 
 - mode:
 
@@ -51,16 +60,43 @@ transform_weights(x, transform = c("identity", "log", "log1p", "sqrt",
 
 - name:
 
-  Non-empty character string naming an edge property map.
+  Non-empty character string naming a graph, vertex, or edge property
+  map.
 
 - values:
 
-  Numeric vector of length `graph_num_edges(graph)` aligned with
-  `graph_edges(graph)`.
+  Vector, matrix, or list of property values aligned with
+  `graph_edges(graph)` (for edge properties) or
+  `1:graph_num_vertices(graph)` (for vertex properties).
+
+- value:
+
+  Single value (scalar, vector, or raw object) for a graph-level
+  property.
 
 - x:
 
-  Finite numeric vector of edge weights to transform.
+  For [`print()`](https://rdrr.io/r/base/print.html), an
+  `rgraphtool_graph` object; for `transform_weights()`, a finite numeric
+  vector of edge weights to transform.
+
+- max_edges:
+
+  Maximum number of edges to display in the edge preview.
+
+- max_ascii:
+
+  Maximum vertex count for automatically displaying the ASCII adjacency
+  matrix.
+
+- ascii:
+
+  Optional logical overriding whether to display the ASCII adjacency
+  matrix.
+
+- ...:
+
+  Unused; included for S3 `print` compatibility.
 
 - transform:
 

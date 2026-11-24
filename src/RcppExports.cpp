@@ -11,6 +11,137 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// cpp_bipartite_entropy
+double cpp_bipartite_entropy(SEXP pointer, Rcpp::IntegerVector type_vec, Rcpp::IntegerVector blocks, bool degree_corrected, bool distributed, bool bp_edge_prior, Rcpp::NumericMatrix W, Rcpp::CharacterVector cov_types, Rcpp::List cov_params, double q_max);
+RcppExport SEXP _rgraphtool_cpp_bipartite_entropy(SEXP pointerSEXP, SEXP type_vecSEXP, SEXP blocksSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP bp_edge_priorSEXP, SEXP WSEXP, SEXP cov_typesSEXP, SEXP cov_paramsSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type type_vec(type_vecSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type blocks(blocksSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< bool >::type bp_edge_prior(bp_edge_priorSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type W(WSEXP);
+    Rcpp::traits::input_parameter< Rcpp::CharacterVector >::type cov_types(cov_typesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type cov_params(cov_paramsSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_bipartite_entropy(pointer, type_vec, blocks, degree_corrected, distributed, bp_edge_prior, W, cov_types, cov_params, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_bipartite_check_moves
+Rcpp::NumericVector cpp_bipartite_check_moves(SEXP pointer, Rcpp::IntegerVector type_vec, Rcpp::IntegerVector blocks, bool degree_corrected, bool distributed, bool bp_edge_prior, Rcpp::NumericMatrix W, Rcpp::CharacterVector cov_types, Rcpp::List cov_params, int nmoves, double q_max);
+RcppExport SEXP _rgraphtool_cpp_bipartite_check_moves(SEXP pointerSEXP, SEXP type_vecSEXP, SEXP blocksSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP bp_edge_priorSEXP, SEXP WSEXP, SEXP cov_typesSEXP, SEXP cov_paramsSEXP, SEXP nmovesSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type type_vec(type_vecSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type blocks(blocksSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< bool >::type bp_edge_prior(bp_edge_priorSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type W(WSEXP);
+    Rcpp::traits::input_parameter< Rcpp::CharacterVector >::type cov_types(cov_typesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type cov_params(cov_paramsSEXP);
+    Rcpp::traits::input_parameter< int >::type nmoves(nmovesSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_bipartite_check_moves(pointer, type_vec, blocks, degree_corrected, distributed, bp_edge_prior, W, cov_types, cov_params, nmoves, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_bipartite_minimize
+Rcpp::List cpp_bipartite_minimize(SEXP pointer, Rcpp::IntegerVector type_vec, bool degree_corrected, bool distributed, bool bp_edge_prior, Rcpp::NumericMatrix W, Rcpp::CharacterVector cov_types, Rcpp::List cov_params, int B0_min, int B0_max, int B1_min, int B1_max, double r_shrink, int n_cand, bool refine, double q_max, Rcpp::Nullable<Rcpp::IntegerVector> init_blocks);
+RcppExport SEXP _rgraphtool_cpp_bipartite_minimize(SEXP pointerSEXP, SEXP type_vecSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP bp_edge_priorSEXP, SEXP WSEXP, SEXP cov_typesSEXP, SEXP cov_paramsSEXP, SEXP B0_minSEXP, SEXP B0_maxSEXP, SEXP B1_minSEXP, SEXP B1_maxSEXP, SEXP r_shrinkSEXP, SEXP n_candSEXP, SEXP refineSEXP, SEXP q_maxSEXP, SEXP init_blocksSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type type_vec(type_vecSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< bool >::type bp_edge_prior(bp_edge_priorSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type W(WSEXP);
+    Rcpp::traits::input_parameter< Rcpp::CharacterVector >::type cov_types(cov_typesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type cov_params(cov_paramsSEXP);
+    Rcpp::traits::input_parameter< int >::type B0_min(B0_minSEXP);
+    Rcpp::traits::input_parameter< int >::type B0_max(B0_maxSEXP);
+    Rcpp::traits::input_parameter< int >::type B1_min(B1_minSEXP);
+    Rcpp::traits::input_parameter< int >::type B1_max(B1_maxSEXP);
+    Rcpp::traits::input_parameter< double >::type r_shrink(r_shrinkSEXP);
+    Rcpp::traits::input_parameter< int >::type n_cand(n_candSEXP);
+    Rcpp::traits::input_parameter< bool >::type refine(refineSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::IntegerVector> >::type init_blocks(init_blocksSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_bipartite_minimize(pointer, type_vec, degree_corrected, distributed, bp_edge_prior, W, cov_types, cov_params, B0_min, B0_max, B1_min, B1_max, r_shrink, n_cand, refine, q_max, init_blocks));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_bipartite_mcmc
+Rcpp::List cpp_bipartite_mcmc(SEXP pointer, Rcpp::IntegerVector type_vec, Rcpp::IntegerVector blocks, bool degree_corrected, bool distributed, bool bp_edge_prior, Rcpp::NumericMatrix W, Rcpp::CharacterVector cov_types, Rcpp::List cov_params, Rcpp::List mcmc_opts, Rcpp::List eq_opts, double q_max);
+RcppExport SEXP _rgraphtool_cpp_bipartite_mcmc(SEXP pointerSEXP, SEXP type_vecSEXP, SEXP blocksSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP bp_edge_priorSEXP, SEXP WSEXP, SEXP cov_typesSEXP, SEXP cov_paramsSEXP, SEXP mcmc_optsSEXP, SEXP eq_optsSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type type_vec(type_vecSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type blocks(blocksSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< bool >::type bp_edge_prior(bp_edge_priorSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type W(WSEXP);
+    Rcpp::traits::input_parameter< Rcpp::CharacterVector >::type cov_types(cov_typesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type cov_params(cov_paramsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type mcmc_opts(mcmc_optsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type eq_opts(eq_optsSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_bipartite_mcmc(pointer, type_vec, blocks, degree_corrected, distributed, bp_edge_prior, W, cov_types, cov_params, mcmc_opts, eq_opts, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_nested_bipartite_entropy
+Rcpp::NumericVector cpp_nested_bipartite_entropy(SEXP pointer, Rcpp::IntegerVector type_vec, Rcpp::List levels, bool degree_corrected, bool distributed, bool bp_edge_prior, Rcpp::NumericMatrix W, Rcpp::CharacterVector cov_types, Rcpp::List cov_params, double q_max);
+RcppExport SEXP _rgraphtool_cpp_nested_bipartite_entropy(SEXP pointerSEXP, SEXP type_vecSEXP, SEXP levelsSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP bp_edge_priorSEXP, SEXP WSEXP, SEXP cov_typesSEXP, SEXP cov_paramsSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type type_vec(type_vecSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type levels(levelsSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< bool >::type bp_edge_prior(bp_edge_priorSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type W(WSEXP);
+    Rcpp::traits::input_parameter< Rcpp::CharacterVector >::type cov_types(cov_typesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type cov_params(cov_paramsSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_nested_bipartite_entropy(pointer, type_vec, levels, degree_corrected, distributed, bp_edge_prior, W, cov_types, cov_params, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
+// cpp_nested_bipartite_minimize
+Rcpp::List cpp_nested_bipartite_minimize(SEXP pointer, Rcpp::IntegerVector type_vec, bool degree_corrected, bool distributed, bool bp_edge_prior, Rcpp::NumericMatrix W, Rcpp::CharacterVector cov_types, Rcpp::List cov_params, double r_shrink, int n_cand, double q_max);
+RcppExport SEXP _rgraphtool_cpp_nested_bipartite_minimize(SEXP pointerSEXP, SEXP type_vecSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP bp_edge_priorSEXP, SEXP WSEXP, SEXP cov_typesSEXP, SEXP cov_paramsSEXP, SEXP r_shrinkSEXP, SEXP n_candSEXP, SEXP q_maxSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type pointer(pointerSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type type_vec(type_vecSEXP);
+    Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
+    Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
+    Rcpp::traits::input_parameter< bool >::type bp_edge_prior(bp_edge_priorSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type W(WSEXP);
+    Rcpp::traits::input_parameter< Rcpp::CharacterVector >::type cov_types(cov_typesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type cov_params(cov_paramsSEXP);
+    Rcpp::traits::input_parameter< double >::type r_shrink(r_shrinkSEXP);
+    Rcpp::traits::input_parameter< int >::type n_cand(n_candSEXP);
+    Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_nested_bipartite_minimize(pointer, type_vec, degree_corrected, distributed, bp_edge_prior, W, cov_types, cov_params, r_shrink, n_cand, q_max));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_sbm_entropy
 double cpp_sbm_entropy(SEXP pointer, Rcpp::IntegerVector blocks, bool degree_corrected, bool distributed, double q_max);
 RcppExport SEXP _rgraphtool_cpp_sbm_entropy(SEXP pointerSEXP, SEXP blocksSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP q_maxSEXP) {
@@ -1766,6 +1897,12 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_rgraphtool_cpp_bipartite_entropy", (DL_FUNC) &_rgraphtool_cpp_bipartite_entropy, 10},
+    {"_rgraphtool_cpp_bipartite_check_moves", (DL_FUNC) &_rgraphtool_cpp_bipartite_check_moves, 11},
+    {"_rgraphtool_cpp_bipartite_minimize", (DL_FUNC) &_rgraphtool_cpp_bipartite_minimize, 17},
+    {"_rgraphtool_cpp_bipartite_mcmc", (DL_FUNC) &_rgraphtool_cpp_bipartite_mcmc, 12},
+    {"_rgraphtool_cpp_nested_bipartite_entropy", (DL_FUNC) &_rgraphtool_cpp_nested_bipartite_entropy, 10},
+    {"_rgraphtool_cpp_nested_bipartite_minimize", (DL_FUNC) &_rgraphtool_cpp_nested_bipartite_minimize, 11},
     {"_rgraphtool_cpp_sbm_entropy", (DL_FUNC) &_rgraphtool_cpp_sbm_entropy, 5},
     {"_rgraphtool_cpp_sbm_check_moves", (DL_FUNC) &_rgraphtool_cpp_sbm_check_moves, 6},
     {"_rgraphtool_cpp_max_threads", (DL_FUNC) &_rgraphtool_cpp_max_threads, 0},

@@ -47,6 +47,7 @@ reference:
 - title: Block models
   contents:
   - block_state
+  - bipartite_block_state
   - weighted_block_state
   - layered_block_state
   - overlap_block_state
@@ -75,6 +76,7 @@ reference:
 - title: Plots and layouts
   contents:
   - plot_graph
+  - plot_bipartite
   - plot_graph_map
   - plot_hierarchy
   - plot_marginals

@@ -13,6 +13,7 @@
 <url><loc>https://diogro.github.io/rgraphtool/authors.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/index.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/animate_sirs.html</loc></url>
+<url><loc>https://diogro.github.io/rgraphtool/reference/bipartite_block_state.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/block_state.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/compare_layered_models.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/compare_model_classes.html</loc></url>
@@ -21,6 +22,7 @@
 <url><loc>https://diogro.github.io/rgraphtool/reference/dynamics_block_state.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/football_network.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/graph.html</loc></url>
+<url><loc>https://diogro.github.io/rgraphtool/reference/graph_io.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/index.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/interactive_bfs.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/latent_closure_block_state.html</loc></url>
@@ -31,6 +33,7 @@
 <url><loc>https://diogro.github.io/rgraphtool/reference/netzschleuder_network.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/overlap_block_state.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/partition_mode_state.html</loc></url>
+<url><loc>https://diogro.github.io/rgraphtool/reference/plot_bipartite.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/plot_graph.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/plot_graph_map.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/plot_hierarchy.html</loc></url>

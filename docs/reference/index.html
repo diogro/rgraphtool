@@ -71,10 +71,17 @@
 
       <dl><dt>
 
-          <code><a href="graph.html">graph_create()</a></code> <code><a href="graph.html">graph_add_vertices()</a></code> <code><a href="graph.html">graph_add_edges()</a></code> <code><a href="graph.html">graph_num_vertices()</a></code> <code><a href="graph.html">graph_num_edges()</a></code> <code><a href="graph.html">graph_edges()</a></code> <code><a href="graph.html">graph_degree()</a></code> <code><a href="graph.html">graph_set_edge_property()</a></code> <code><a href="graph.html">graph_edge_property()</a></code> <code><a href="graph.html">graph_edge_properties()</a></code> <code><a href="graph.html">transform_weights()</a></code>
+          <code><a href="graph.html">graph_create()</a></code> <code><a href="graph.html">graph_add_vertices()</a></code> <code><a href="graph.html">graph_add_edges()</a></code> <code><a href="graph.html">graph_num_vertices()</a></code> <code><a href="graph.html">graph_num_edges()</a></code> <code><a href="graph.html">graph_edges()</a></code> <code><a href="graph.html">graph_degree()</a></code> <code><a href="graph.html">graph_set_edge_property()</a></code> <code><a href="graph.html">graph_edge_property()</a></code> <code><a href="graph.html">graph_edge_properties()</a></code> <code><a href="graph.html">graph_set_vertex_property()</a></code> <code><a href="graph.html">graph_vertex_property()</a></code> <code><a href="graph.html">graph_vertex_properties()</a></code> <code><a href="graph.html">graph_set_graph_property()</a></code> <code><a href="graph.html">graph_graph_property()</a></code> <code><a href="graph.html">graph_graph_properties()</a></code> <code><a href="graph.html">print(<i>&lt;rgraphtool_graph&gt;</i>)</a></code> <code><a href="graph.html">transform_weights()</a></code>
 
         </dt>
-        <dd>Create, modify, and inspect a graph and its edge properties</dd>
+        <dd>Create, modify, and inspect a graph and its property maps</dd>
+
+        <dt>
+
+          <code><a href="graph_io.html">read_gt()</a></code> <code><a href="graph_io.html">write_gt()</a></code> <code><a href="graph_io.html">graph_load()</a></code> <code><a href="graph_io.html">graph_save()</a></code> <code><a href="graph_io.html">as_igraph()</a></code> <code><a href="graph_io.html">from_igraph()</a></code>
+
+        </dt>
+        <dd>Read, write, and convert graphs between graph-tool (.gt) and igraph</dd>
 
         <dt>
 
@@ -105,6 +112,13 @@
 
         </dt>
         <dd>Inspect a fixed block-model partition</dd>
+
+        <dt>
+
+          <code><a href="bipartite_block_state.html">bipartite_graph()</a></code> <code><a href="bipartite_block_state.html">is_bipartite()</a></code> <code><a href="bipartite_block_state.html">as_incidence_matrix()</a></code> <code><a href="bipartite_block_state.html">bipartite_block_state()</a></code> <code><a href="bipartite_block_state.html">bipartite_description_length()</a></code> <code><a href="bipartite_block_state.html">minimize_bipartite_blockmodel_dl()</a></code> <code><a href="bipartite_block_state.html">nested_bipartite_block_state()</a></code> <code><a href="bipartite_block_state.html">nested_bipartite_description_length()</a></code> <code><a href="bipartite_block_state.html">minimize_nested_bipartite_blockmodel_dl()</a></code> <code><a href="bipartite_block_state.html">bipartite_membership()</a></code> <code><a href="bipartite_block_state.html">bipartite_edge_counts()</a></code> <code><a href="bipartite_block_state.html">bipartite_block_matrix()</a></code> <code><a href="bipartite_block_state.html">compare_bipartite_models()</a></code> <code><a href="bipartite_block_state.html">print(<i>&lt;rgraphtool_bipartite_block_state&gt;</i>)</a></code> <code><a href="bipartite_block_state.html">print(<i>&lt;rgraphtool_nested_bipartite_block_state&gt;</i>)</a></code> <code><a href="bipartite_block_state.html">print(<i>&lt;rgraphtool_bipartite_model_comparison&gt;</i>)</a></code>
+
+        </dt>
+        <dd>Native bipartite network representation and Stochastic Block Model inference</dd>
 
         <dt>
 
@@ -281,6 +295,13 @@
 
         </dt>
         <dd>Draw a graph with base R graphics</dd>
+
+        <dt>
+
+          <code><a href="plot_bipartite.html">plot_bipartite()</a></code>
+
+        </dt>
+        <dd>Visualize a fitted bipartite stochastic block model</dd>
 
         <dt>
 

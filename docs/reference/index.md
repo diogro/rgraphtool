@@ -12,8 +12,22 @@
   [`graph_set_edge_property()`](https://diogro.github.io/rgraphtool/reference/graph.md)
   [`graph_edge_property()`](https://diogro.github.io/rgraphtool/reference/graph.md)
   [`graph_edge_properties()`](https://diogro.github.io/rgraphtool/reference/graph.md)
+  [`graph_set_vertex_property()`](https://diogro.github.io/rgraphtool/reference/graph.md)
+  [`graph_vertex_property()`](https://diogro.github.io/rgraphtool/reference/graph.md)
+  [`graph_vertex_properties()`](https://diogro.github.io/rgraphtool/reference/graph.md)
+  [`graph_set_graph_property()`](https://diogro.github.io/rgraphtool/reference/graph.md)
+  [`graph_graph_property()`](https://diogro.github.io/rgraphtool/reference/graph.md)
+  [`graph_graph_properties()`](https://diogro.github.io/rgraphtool/reference/graph.md)
+  [`print(`*`<rgraphtool_graph>`*`)`](https://diogro.github.io/rgraphtool/reference/graph.md)
   [`transform_weights()`](https://diogro.github.io/rgraphtool/reference/graph.md)
-  : Create, modify, and inspect a graph and its edge properties
+  : Create, modify, and inspect a graph and its property maps
+- [`read_gt()`](https://diogro.github.io/rgraphtool/reference/graph_io.md)
+  [`write_gt()`](https://diogro.github.io/rgraphtool/reference/graph_io.md)
+  [`graph_load()`](https://diogro.github.io/rgraphtool/reference/graph_io.md)
+  [`graph_save()`](https://diogro.github.io/rgraphtool/reference/graph_io.md)
+  [`as_igraph()`](https://diogro.github.io/rgraphtool/reference/graph_io.md)
+  [`from_igraph()`](https://diogro.github.io/rgraphtool/reference/graph_io.md)
+  : Read, write, and convert graphs between graph-tool (.gt) and igraph
 - [`football_network()`](https://diogro.github.io/rgraphtool/reference/football_network.md)
   : Load the cookbook football network
 - [`netzschleuder_network()`](https://diogro.github.io/rgraphtool/reference/netzschleuder_network.md)
@@ -28,6 +42,24 @@
   [`block_log_likelihood()`](https://diogro.github.io/rgraphtool/reference/block_state.md)
   [`block_description_length()`](https://diogro.github.io/rgraphtool/reference/block_state.md)
   : Inspect a fixed block-model partition
+- [`bipartite_graph()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`is_bipartite()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`as_incidence_matrix()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`bipartite_block_state()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`bipartite_description_length()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`minimize_bipartite_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`nested_bipartite_block_state()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`nested_bipartite_description_length()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`minimize_nested_bipartite_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`bipartite_membership()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`bipartite_edge_counts()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`bipartite_block_matrix()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`compare_bipartite_models()`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`print(`*`<rgraphtool_bipartite_block_state>`*`)`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`print(`*`<rgraphtool_nested_bipartite_block_state>`*`)`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  [`print(`*`<rgraphtool_bipartite_model_comparison>`*`)`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)
+  : Native bipartite network representation and Stochastic Block Model
+  inference
 - [`weighted_block_state()`](https://diogro.github.io/rgraphtool/reference/weighted_block_state.md)
   [`weighted_description_length()`](https://diogro.github.io/rgraphtool/reference/weighted_block_state.md)
   [`minimize_weighted_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/weighted_block_state.md)
@@ -172,6 +204,8 @@
 
 - [`plot_graph()`](https://diogro.github.io/rgraphtool/reference/plot_graph.md)
   : Draw a graph with base R graphics
+- [`plot_bipartite()`](https://diogro.github.io/rgraphtool/reference/plot_bipartite.md)
+  : Visualize a fitted bipartite stochastic block model
 - [`project_coords()`](https://diogro.github.io/rgraphtool/reference/plot_graph_map.md)
   [`great_circle_arc()`](https://diogro.github.io/rgraphtool/reference/plot_graph_map.md)
   [`world_coastlines()`](https://diogro.github.io/rgraphtool/reference/plot_graph_map.md)
