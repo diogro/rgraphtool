@@ -13,3 +13,6 @@ uncertain_reconstruction   Uncertain network reconstruction, latent multigraphs,
 triadic_closure   Disentangling community structure and triadic closure
 dynamics_reconstruction   Network reconstruction from synthetic Ising, epidemic, Gaussian, and Potts dynamics
 empirical_dynamics   Empirical financial partial-correlation network reconstruction via PseudoNormalBlockState
+animation_sirs   SIRS epidemic animation and fear-state visualization
+animation_dynamic_layout   Dynamic force-directed layout with spatial-segregation rewiring
+interactive_bfs   Interactive BFS shortest-path tree visualization
