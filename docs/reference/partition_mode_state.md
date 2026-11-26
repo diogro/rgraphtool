@@ -34,7 +34,7 @@ mode_summary(cluster)
 
 - norm:
 
-  Whether to return the normalized overlap in \\\[0, 1\]\\ or the raw
+  Whether to return the normalized overlap in \\(\[0, 1\]\\) or the raw
   number of matching nodes.
 
 - partitions:

@@ -3,8 +3,9 @@
 Declarative, callback-free Bayesian model class selection across flat,
 hierarchical (nested), degree-corrected, non-degree-corrected, and
 overlapping stochastic block models. Computes both MAP description
-lengths and full posterior marginal log-evidences \\\ln P(A \|
-\mathcal{M})\\, posterior model weights, and pairwise log Bayes factors.
+lengths and full posterior marginal log-evidences \\(\ln P(A \|
+\mathcal{M})\\), posterior model weights, and pairwise log Bayes
+factors.
 
 ## Usage
 
@@ -58,9 +59,9 @@ compare_model_classes(graph,
 
   For `compare_model_classes()`, rank models by `"map"` minimum
   description length or full Bayesian `"posterior"` marginal evidence.
-  For `model_evidence()`, choose between `"variational"` (\\\ln P(A) =
-  -\langle \Sigma \rangle + H(b)\\) and `"importance"` (Peixoto 2021 Eq.
-  29 mode-mixture importance sampling).
+  For `model_evidence()`, choose between `"variational"` (\\(\ln P(A) =
+  -\langle \Sigma \rangle + H(b)\\)) and `"importance"` (Peixoto 2021
+  Eq. 29 mode-mixture importance sampling).
 
 - evidence_method:
 
@@ -121,14 +122,14 @@ compare_model_classes(graph,
 
 For a given model class, `model_evidence()` equilibrates an MCMC chain,
 collects posterior partition samples and exact description lengths
-\\\Sigma(b^{(m)})\\ natively in C++, clusters the samples into posterior
-modes via
+\\(\Sigma(b^{(m)})\\) natively in C++, clusters the samples into
+posterior modes via
 [`mode_cluster_state`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
-and computes both the variational evidence \\\ln P(A) = -\langle \Sigma
-\rangle + H\_{\mathrm{posterior}}\\ (matching graph-tool's model class
+and computes both the variational evidence \\(\ln P(A) = -\langle \Sigma
+\rangle + H\_{\mathrm{posterior}}\\) (matching graph-tool's model class
 selection cookbook) and Peixoto's (2021) mode-mixture importance
-estimate \\-\ln P(A) = \ln\\\left(\frac{1}{M}\sum\_{m=1}^M
-\exp(\Sigma(b^{(m)}) + \ln q(b^{(m)}))\right)\\.
+estimate \\(-\ln P(A) = \ln\\!\left(\frac{1}{M}\sum\_{m=1}^M
+\exp(\Sigma(b^{(m)}) + \ln q(b^{(m)}))\right)\\).
 
 Note that for overlapping states, the posterior partition entropy is
 estimated from per-vertex majority-group samples rather than full

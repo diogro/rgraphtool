@@ -69,7 +69,7 @@ print(x, ...)
 
 - type:
 
-  Optional length-\\N\\ vertex type vector (logical, 0/1, 1/2,
+  Optional length-\\(N\\) vertex type vector (logical, 0/1, 1/2,
   character, or factor with at most two distinct values). If `NULL`,
   reads vertex property `"type"` from `graph`.
 
@@ -105,7 +105,7 @@ print(x, ...)
 
 - blocks:
 
-  Optional length-\\N\\ positive integer block assignment respecting
+  Optional length-\\(N\\) positive integer block assignment respecting
   bipartite vertex types.
 
 - levels:
@@ -125,7 +125,7 @@ print(x, ...)
 - edge_prior:
 
   Block edge-count matrix prior: `"bipartite"` (default, exact Yen &
-  Larremore 2020 \\\ln\binom{B_1 B_2 + E - 1}{E}\\ prior exploiting
+  Larremore 2020 \\(\ln\binom{B_1 B_2 + E - 1}{E}\\) prior exploiting
   bipartite structural zeros) or `"unipartite"` (matches `graph-tool`
   3.9 `BlockState(..., pclabel=type)`).
 
@@ -180,8 +180,9 @@ print(x, ...)
 
 - normalize:
 
-  Summary returned by `bipartite_block_matrix()`: `"density"` (\\e\_{rs}
-  / (n_r n_s)\\), `"counts"` (\\e\_{rs}\\), or `"mean_weight"`.
+  Summary returned by `bipartite_block_matrix()`: `"density"`
+  (\\(e\_{rs} / (n_r n_s)\\)), `"counts"` (\\(e\_{rs}\\)), or
+  `"mean_weight"`.
 
 - nested:
 
@@ -197,8 +198,8 @@ print(x, ...)
 The native C++ engine implements the exact microcanonical bipartite
 description length of Yen & Larremore (2020, *Phys. Rev. E* 102, 032309)
 with type-constrained partitions, exact per-type partition priors, and
-the bipartite edge-count prior \\\ln\binom{B_1 B_2 + E - 1}{E}\\ (or
-\\\ln\binom{2 B_1 B_2 + E - 1}{E}\\ for directed bipartite networks).
+the bipartite edge-count prior \\(\ln\binom{B_1 B_2 + E - 1}{E}\\) (or
+\\(\ln\binom{2 B_1 B_2 + E - 1}{E}\\) for directed bipartite networks).
 Setting `edge_prior = "unipartite"` reproduces `graph-tool` 3.9's
 `BlockState(..., pclabel=type)` to machine precision.
 
@@ -214,8 +215,8 @@ for exact finite-temperature Bayesian posterior sampling.
 `fungus_tree_network()` returns a list containing the antagonistic
 tree–fungus interaction dataset of Vacher, Piou & Desprez-Loustau (2008,
 *PLoS ONE* 3(3): e1740; packaged in sbm as `fungusTreeNetwork`):
-`fungus_tree` (\\154 \times 51\\ binary incidence matrix), `tree_tree`
-(\\51 \times 51\\ shared-fungus count matrix), `covar_tree` (genetic,
+`fungus_tree` (\\(154 \times 51\\) binary incidence matrix), `tree_tree`
+(\\(51 \times 51\\) shared-fungus count matrix), `covar_tree` (genetic,
 taxonomic, and geographic distance matrices), `fungus_names`,
 `tree_names`, and `graph` (the bipartite `rgraphtool_graph`).
 `bipartite_graph()` returns an `rgraphtool_graph` with vertex property

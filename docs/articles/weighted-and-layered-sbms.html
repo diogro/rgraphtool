@@ -13,8 +13,8 @@
     }
   };
 </script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Weighted &amp; Layered Stochastic Block Models">
 </head>
@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">rgraphtool</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -128,9 +128,9 @@ vs. log-transformed continuous models.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">cmp_disc</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;weighted SBM model comparison (nested, DC, MAP)&gt;</span></span>
 <span><span class="co">#&gt;               model  B description_length jacobian_adj  delta posterior_weight</span></span>
-<span><span class="co">#&gt;   discrete-binomial 12           1238.345            0  0.000         1.00e+00</span></span>
-<span><span class="co">#&gt;    discrete-poisson 10           1250.209            0 11.863         7.04e-06</span></span>
-<span><span class="co">#&gt;  discrete-geometric  5           1301.308            0 62.963         4.53e-28</span></span>
+<span><span class="co">#&gt;   discrete-binomial 12           1245.055            0  0.000         7.30e-01</span></span>
+<span><span class="co">#&gt;    discrete-poisson  9           1246.049            0  0.994         2.70e-01</span></span>
+<span><span class="co">#&gt;  discrete-geometric  5           1301.671            0 56.616         1.88e-25</span></span>
 <span><span class="co">#&gt; Best weight model: discrete-binomial</span></span>
 <span></span>
 <span><span class="co"># Continuous and log-transformed weight models with exact Jacobian adjustment</span></span>
@@ -148,13 +148,13 @@ vs. log-transformed continuous models.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">cmp_cont</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;weighted SBM model comparison (nested, DC, posterior/variational)&gt;</span></span>
 <span><span class="co">#&gt;             model B description_length jacobian_adj posterior_entropy</span></span>
-<span><span class="co">#&gt;        log-normal 6           1176.268      205.164            32.017</span></span>
-<span><span class="co">#&gt;       real-normal 6           1233.020        0.000            14.427</span></span>
-<span><span class="co">#&gt;  real-exponential 5           1256.698        0.000            19.859</span></span>
-<span><span class="co">#&gt;  neg_log_evidence  delta posterior_weight</span></span>
-<span><span class="co">#&gt;          1150.539  0.000         1.00e+00</span></span>
-<span><span class="co">#&gt;          1217.979 67.440         5.14e-30</span></span>
-<span><span class="co">#&gt;          1249.032 98.493         1.68e-43</span></span>
+<span><span class="co">#&gt;        log-normal 8           1160.054      205.164            26.079</span></span>
+<span><span class="co">#&gt;       real-normal 6           1251.396        0.000             9.892</span></span>
+<span><span class="co">#&gt;  real-exponential 5           1256.703        0.000            10.016</span></span>
+<span><span class="co">#&gt;  neg_log_evidence   delta posterior_weight</span></span>
+<span><span class="co">#&gt;          1139.358   0.000         1.00e+00</span></span>
+<span><span class="co">#&gt;          1204.992  65.634         3.13e-29</span></span>
+<span><span class="co">#&gt;          1253.457 114.099         2.80e-50</span></span>
 <span><span class="co">#&gt; Best weight model: log-normal</span></span>
 <span></span>
 <span><span class="va">best_w</span> <span class="op">&lt;-</span> <span class="va">cmp_disc</span><span class="op">$</span><span class="va">best_state</span></span>
@@ -164,7 +164,7 @@ vs. log-transformed continuous models.</p>
 <span>                          norm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"Level-0 partition overlap (weighted %s vs unweighted): %.3f\n"</span>,</span>
 <span>            <span class="va">cmp_disc</span><span class="op">$</span><span class="va">best_model</span>, <span class="va">ov_w</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Level-0 partition overlap (weighted discrete-binomial vs unweighted): 0.675</span></span>
+<span><span class="co">#&gt; Level-0 partition overlap (weighted discrete-binomial vs unweighted): 0.649</span></span>
 <span></span>
 <span><span class="va">old_par</span> <span class="op">&lt;-</span> <span class="fu">graphics</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1L</span>, <span class="fl">2L</span><span class="op">)</span>, mar <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">7</span>, <span class="fl">4</span>, <span class="fl">3</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">tab</span> <span class="op">&lt;-</span> <span class="va">cmp_cont</span><span class="op">$</span><span class="va">summary</span></span>
@@ -211,11 +211,11 @@ layer is generated independently given the shared vertex partition).</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">cmp_l_map</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;layered SBM model comparison (nested, 17 layers, MAP)&gt;</span></span>
 <span><span class="co">#&gt;                   model B description_length   delta posterior_weight</span></span>
-<span><span class="co">#&gt;   independent_layers_dc 2            963.264   0.000         9.96e-01</span></span>
-<span><span class="co">#&gt;  independent_layers_ndc 4            968.828   5.564         3.82e-03</span></span>
-<span><span class="co">#&gt;     edge_covariates_ndc 7           1214.874 251.609        5.32e-110</span></span>
-<span><span class="co">#&gt;      edge_covariates_dc 4           1219.804 256.539        3.84e-112</span></span>
-<span><span class="co">#&gt; Best layered model: independent_layers_dc</span></span>
+<span><span class="co">#&gt;  independent_layers_ndc 4            961.466   0.000         5.41e-01</span></span>
+<span><span class="co">#&gt;   independent_layers_dc 3            961.630   0.164         4.59e-01</span></span>
+<span><span class="co">#&gt;     edge_covariates_ndc 7           1210.021 248.555        6.13e-109</span></span>
+<span><span class="co">#&gt;      edge_covariates_dc 4           1216.658 255.193        8.02e-112</span></span>
+<span><span class="co">#&gt; Best layered model: independent_layers_ndc</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">42</span><span class="op">)</span></span>
 <span><span class="va">cmp_l_post</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/compare_layered_models.html">compare_layered_models</a></span><span class="op">(</span></span>
@@ -231,11 +231,11 @@ layer is generated independently given the shared vertex partition).</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">cmp_l_post</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;layered SBM model comparison (nested, 17 layers, posterior/variational)&gt;</span></span>
 <span><span class="co">#&gt;               model B description_length posterior_entropy neg_log_evidence</span></span>
-<span><span class="co">#&gt;  independent_layers 2            963.264             6.882          956.298</span></span>
-<span><span class="co">#&gt;     edge_covariates 4           1222.992            11.825         1206.045</span></span>
+<span><span class="co">#&gt;  independent_layers 2            963.264             6.568          956.758</span></span>
+<span><span class="co">#&gt;     edge_covariates 4           1240.402            13.392         1205.275</span></span>
 <span><span class="co">#&gt;    delta posterior_weight</span></span>
 <span><span class="co">#&gt;    0.000         1.00e+00</span></span>
-<span><span class="co">#&gt;  249.747        3.44e-109</span></span>
+<span><span class="co">#&gt;  248.517        1.18e-108</span></span>
 <span><span class="co">#&gt; Best layered model: independent_layers</span></span>
 <span></span>
 <span><span class="va">best_l</span> <span class="op">&lt;-</span> <span class="va">cmp_l_post</span><span class="op">$</span><span class="va">best_state</span></span>

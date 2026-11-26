@@ -1,5 +1,104 @@
 # Changelog
 
+## rgraphtool 0.5.0
+
+Feature release adding native gene-expression preprocessing and
+Gram-matrix GMRF network reconstruction, multi-threaded weighted and
+combined layered-weighted SBMs, and weighted planted-partition community
+detection.
+
+### Gene-Expression Network Utilities
+
+- Added zero-dependency expression preprocessing and post-clustering
+  helpers:
+  [`project_fixed_effects()`](https://diogro.github.io/rgraphtool/reference/expression_utils.md)
+  (with `print.rgraphtool_expression_projection()`),
+  [`filter_expression_genes()`](https://diogro.github.io/rgraphtool/reference/expression_utils.md),
+  [`shrinkage_covariance()`](https://diogro.github.io/rgraphtool/reference/expression_utils.md)
+  (analytical Ledoit–Wolf shrinkage toward `"diagonal"` or `"identity"`
+  targets), and
+  [`module_eigengenes()`](https://diogro.github.io/rgraphtool/reference/expression_utils.md).
+
+### Fast `PseudoNormal` Reconstruction & Merge-Split `DynBlockPrior`
+
+- Added an exact \\(O(\deg)\\) sufficient-statistic Gram-matrix
+  `PseudoNormal` backend (`cov`, `n_eff` arguments in
+  [`pseudo_normal_block_state()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md),
+  auto-enabled for sample matrices when \\(M \ge 64, N \le 4{,}000\\)).
+- Extended the precomputed 1D Gram edge-weight optimizer
+  (`optimize_edge_weight_pn_gram()`) to both continuous Laplace and
+  quantized MDL priors (`xdist = TRUE, tdist = TRUE`) via incremental
+  \\(O(\log K)\\) `QuantHist` histogram maintenance.
+- Parallelized candidate generation (`build_candidates()`) and added
+  periodic partial-residual active-set refreshes (`refresh_every` in
+  [`reconstruct_dynamics()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md))
+  so greedy reconstruction recovers zero-marginal-correlation suppressor
+  edges.
+- Added `DynBlockPrior::merge_split_sweep()` (`merge_split = TRUE` in
+  [`reconstruct_dynamics()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md))
+  with BFS-seeded level-0 splits, local 2-way refinement, same-parent
+  merges, and upper-level sweeps to escape single-block traps, plus
+  Phase 2 finite-temperature posterior block sampling (`bs_samples` when
+  `nsamples > 0`).
+
+### Multi-Threaded Weighted & Combined Layered-Weighted SBMs
+
+- Extracted shared conjugate/microcanonical edge-covariate likelihoods
+  and sufficient statistics into `src/weight_cov.h`.
+- Parallelized weighted SBM coarsening and flat refinement sweeps via
+  `WeightedLevel::virtual_move_const()` and `virtual_merge_const()`, and
+  exposed `nthreads` on
+  [`minimize_weighted_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/weighted_block_state.md)
+  and
+  [`minimize_nested_weighted_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/weighted_block_state.md).
+- Extended
+  [`layered_block_state()`](https://diogro.github.io/rgraphtool/reference/layered_block_state.md),
+  [`nested_layered_block_state()`](https://diogro.github.io/rgraphtool/reference/layered_block_state.md),
+  [`minimize_layered_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/layered_block_state.md),
+  [`minimize_nested_layered_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/layered_block_state.md),
+  [`sample_posterior()`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md),
+  [`model_evidence()`](https://diogro.github.io/rgraphtool/reference/compare_model_classes.md),
+  and
+  [`compare_layered_models()`](https://diogro.github.io/rgraphtool/reference/compare_layered_models.md)
+  to jointly model discrete edge `layers` and edge covariates
+  (`weights`, `types`, `params`) under both pooled
+  (`independent = FALSE` / `"edge_covariates"`) and layer-stratified
+  (`independent = TRUE` / `"independent_layers"`) models, with parallel
+  greedy sweeps (`nthreads`) and `Rcpp::Nullable` C++ default bindings.
+
+### Weighted & Layered Planted-Partition SBMs
+
+- Extended
+  [`pp_block_state()`](https://diogro.github.io/rgraphtool/reference/pp_block_state.md),
+  [`minimize_pp_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/pp_block_state.md),
+  [`pp_assortativity()`](https://diogro.github.io/rgraphtool/reference/pp_block_state.md),
+  [`compare_assortative_models()`](https://diogro.github.io/rgraphtool/reference/pp_block_state.md),
+  and native PP MCMC
+  ([`mcmc_sweep()`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md),
+  [`mcmc_equilibrate()`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md),
+  [`mcmc_anneal()`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md),
+  [`sample_posterior()`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md),
+  [`model_evidence()`](https://diogro.github.io/rgraphtool/reference/compare_model_classes.md))
+  to support edge covariates (`weights`, `types`, `params`), discrete
+  edge `layers` (`independent = FALSE` or `TRUE`), and simultaneous
+  layered-weighted inference across 2 (`uniform = TRUE`) or \\(B + 1\\)
+  (`uniform = FALSE`) weight buckets per stratum with \\(O(\deg(v))\\)
+  incremental moves.
+- Added `pp_edge_covariates`, `pp_independent_layers`,
+  `pp_edge_covariates_uniform`, and `pp_independent_layers_uniform`
+  options to
+  [`compare_layered_models()`](https://diogro.github.io/rgraphtool/reference/compare_layered_models.md),
+  `weight_in_mean` / `weight_out_mean` and per-layer (`*_layer`,
+  `err_layer`) diagnostics to
+  [`pp_assortativity()`](https://diogro.github.io/rgraphtool/reference/pp_block_state.md),
+  weighted model dispatch against flat and nested weighted SBMs in
+  [`compare_assortative_models()`](https://diogro.github.io/rgraphtool/reference/pp_block_state.md),
+  and explicit caveats documentation in
+  [`?pp_block_state`](https://diogro.github.io/rgraphtool/reference/pp_block_state.md)
+  (pooled inter-community `out` weights, mean-ordering / sign symmetry
+  particularly at \\(B = 2\\), and extension beyond upstream
+  `graph-tool` 3.9).
+
 ## rgraphtool 0.4.0
 
 Initial public release of `rgraphtool`, a standalone native R/C++23 port
@@ -98,7 +197,7 @@ of Python `graph-tool` 3.9 with zero Python runtime dependency.
   [`infer_triadic_closure()`](https://diogro.github.io/rgraphtool/reference/latent_closure_block_state.md)).
 - **Reconstruction from dynamics & behavior**: all 10 dynamical models
   (equilibrium/Glauber Ising & continuous Ising, compartmental
-  epidemics, Gaussian/linear-normal, and \\q\\-state Potts) with L1
+  epidemics, Gaussian/linear-normal, and \\(q\\)-state Potts) with L1
   regularization paths, quantized MDL priors, and native forward
   simulators
   ([`reconstruct_dynamics()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md),

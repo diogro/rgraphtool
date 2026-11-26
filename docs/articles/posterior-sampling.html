@@ -13,8 +13,8 @@
     }
   };
 </script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Posterior MCMC Sampling &amp; Partition Modes">
 </head>
@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">rgraphtool</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -119,7 +119,7 @@ description length reaches stationarity, after which
 <span>                       mcmc_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>niter <span class="op">=</span> <span class="fl">10L</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"Equilibrated flat DC SBM in %d steps (DL = %.2f nats)\n"</span>,</span>
 <span>            <span class="va">eq</span><span class="op">$</span><span class="va">niter</span>, <span class="va">eq</span><span class="op">$</span><span class="va">entropy</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Equilibrated flat DC SBM in 306 steps (DL = 711.65 nats)</span></span>
+<span><span class="co">#&gt; Equilibrated flat DC SBM in 496 steps (DL = 716.56 nats)</span></span>
 <span></span>
 <span><span class="va">post</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mcmc_sweep.html">sample_posterior</a></span><span class="op">(</span><span class="va">eq</span><span class="op">$</span><span class="va">state</span>, nsamples <span class="op">=</span> <span class="fl">300L</span>, thin <span class="op">=</span> <span class="fl">8L</span>, burnin <span class="op">=</span> <span class="fl">0L</span><span class="op">)</span></span>
 <span></span>
@@ -128,20 +128,21 @@ description length reaches stationarity, after which
 <span><span class="va">B_dist</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/proportions.html" class="external-link">prop.table</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">B_samples</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">B_dist</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt; B_samples</span></span>
-<span><span class="co">#&gt;     6     7     8 </span></span>
-<span><span class="co">#&gt; 0.033 0.920 0.047</span></span>
+<span><span class="co">#&gt;     5     6     7     8     9 </span></span>
+<span><span class="co">#&gt; 0.013 0.067 0.723 0.190 0.007</span></span>
 <span></span>
 <span><span class="co"># Single-mode optimal label alignment and multimodal clustering</span></span>
 <span><span class="va">pm</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/partition_mode_state.html">partition_mode_state</a></span><span class="op">(</span><span class="va">post</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">pm</span><span class="op">)</span></span>
-<span><span class="co">#&gt; &lt;partition mode: M = 300, B = 10, uncertainty = 0.0847, DL = 9697.2738 nats&gt;</span></span>
+<span><span class="co">#&gt; &lt;partition mode: M = 300, B = 11, uncertainty = 0.1581, DL = 14761.6343 nats&gt;</span></span>
 <span></span>
 <span><span class="va">mc</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/partition_mode_state.html">mode_cluster_state</a></span><span class="op">(</span><span class="va">post</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">mc</span><span class="op">)</span></span>
-<span><span class="co">#&gt; &lt;flat mode cluster state: K = 2 modes (Be = 1.18), M = 300 partitions, DL = 9226.1196 nats&gt;</span></span>
-<span><span class="co">#&gt;  mode   M weight B uncertainty posterior_entropy description_length</span></span>
-<span><span class="co">#&gt;     1 288   0.96 8  0.07805736          20.98771           8130.134</span></span>
-<span><span class="co">#&gt;     2  12   0.04 8  0.12229437          21.89292           1036.346</span></span>
+<span><span class="co">#&gt; &lt;flat mode cluster state: K = 3 modes (Be = 1.98), M = 300 partitions, DL = 12859.1903 nats&gt;</span></span>
+<span><span class="co">#&gt;  mode   M      weight  B uncertainty posterior_entropy description_length</span></span>
+<span><span class="co">#&gt;     1 194 0.646666667  7   0.1049003          27.76036          6993.0107</span></span>
+<span><span class="co">#&gt;     2 104 0.346666667  8   0.1727023          35.92085          5321.8706</span></span>
+<span><span class="co">#&gt;     3   2 0.006666667 10   0.1363636          14.55609           327.4646</span></span>
 <span></span>
 <span><span class="va">old_par</span> <span class="op">&lt;-</span> <span class="fu">graphics</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1L</span>, <span class="fl">2L</span><span class="op">)</span>, mar <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">4</span>, <span class="fl">4</span>, <span class="fl">3</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu">graphics</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/graphics/barplot.html" class="external-link">barplot</a></span><span class="op">(</span><span class="va">B_dist</span>, xlab <span class="op">=</span> <span class="st">"Number of groups B"</span>, ylab <span class="op">=</span> <span class="st">"Posterior P(B | A)"</span>,</span>
@@ -165,9 +166,9 @@ hierarchy.</p>
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">42</span><span class="op">)</span></span>
 <span><span class="va">nstate</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/minimize_nested_blockmodel_dl.html">minimize_nested_blockmodel_dl</a></span><span class="op">(</span><span class="va">g</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">nstate</span><span class="op">)</span></span>
-<span><span class="co">#&gt; &lt;nested block state: degree-corrected, 8 levels, description length 702.9242 nats&gt;</span></span>
-<span><span class="co">#&gt; l: 0, N: 77, B: 6</span></span>
-<span><span class="co">#&gt; l: 1, N: 6, B: 1</span></span>
+<span><span class="co">#&gt; &lt;nested block state: degree-corrected, 8 levels, description length 708.3461 nats&gt;</span></span>
+<span><span class="co">#&gt; l: 0, N: 77, B: 7</span></span>
+<span><span class="co">#&gt; l: 1, N: 7, B: 1</span></span>
 <span><span class="co">#&gt; l: 2, N: 1, B: 1</span></span>
 <span></span>
 <span><span class="va">npost</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mcmc_sweep.html">sample_posterior</a></span><span class="op">(</span><span class="va">nstate</span>, nsamples <span class="op">=</span> <span class="fl">250L</span>, thin <span class="op">=</span> <span class="fl">5L</span>,</span>
@@ -181,19 +182,19 @@ hierarchy.</p>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/proportions.html" class="external-link">prop.table</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">B0</span><span class="op">)</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt; B0</span></span>
-<span><span class="co">#&gt;     5     6     7     8 </span></span>
-<span><span class="co">#&gt; 0.008 0.084 0.740 0.168</span></span>
+<span><span class="co">#&gt;     6     7     8     9 </span></span>
+<span><span class="co">#&gt; 0.016 0.428 0.352 0.204</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/proportions.html" class="external-link">prop.table</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span><span class="va">depth</span><span class="op">)</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt; depth</span></span>
 <span><span class="co">#&gt;     2     3     4     5     6     7 </span></span>
-<span><span class="co">#&gt; 0.092 0.556 0.252 0.080 0.016 0.004</span></span>
+<span><span class="co">#&gt; 0.036 0.668 0.200 0.068 0.024 0.004</span></span>
 <span></span>
 <span><span class="va">nmc</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/partition_mode_state.html">mode_cluster_state</a></span><span class="op">(</span><span class="va">npost</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">nmc</span><span class="op">)</span></span>
-<span><span class="co">#&gt; &lt;nested mode cluster state: K = 2 modes (Be = 1.68), M = 250 partitions, DL = 11994.8425 nats&gt;</span></span>
+<span><span class="co">#&gt; &lt;nested mode cluster state: K = 2 modes (Be = 1.98), M = 250 partitions, DL = 13558.3676 nats&gt;</span></span>
 <span><span class="co">#&gt;  mode   M weight B uncertainty posterior_entropy description_length</span></span>
-<span><span class="co">#&gt;     1 197  0.788 8   0.1136528          35.85975           8494.971</span></span>
-<span><span class="co">#&gt;     2  53  0.212 8   0.1362411          38.57326           3362.471</span></span>
+<span><span class="co">#&gt;     1 141  0.564 8   0.1131068          38.15999           6569.625</span></span>
+<span><span class="co">#&gt;     2 109  0.436 9   0.1579888          48.93175           6809.450</span></span>
 <span></span>
 <span><span class="co"># Reconstruct a clean consensus hierarchy from the dominant posterior mode</span></span>
 <span><span class="va">dom_n</span> <span class="op">&lt;-</span> <span class="va">nmc</span><span class="op">$</span><span class="va">modes</span><span class="op">[[</span><span class="fl">1L</span><span class="op">]</span><span class="op">]</span></span>

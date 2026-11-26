@@ -197,6 +197,15 @@
   [`evaluate_edge_prediction()`](https://diogro.github.io/rgraphtool/reference/predict_edges.md)
   : Bayesian missing and spurious edge prediction and evaluation
 
+## Expression & preprocessing
+
+- [`project_fixed_effects()`](https://diogro.github.io/rgraphtool/reference/expression_utils.md)
+  [`filter_expression_genes()`](https://diogro.github.io/rgraphtool/reference/expression_utils.md)
+  [`module_eigengenes()`](https://diogro.github.io/rgraphtool/reference/expression_utils.md)
+  [`shrinkage_covariance()`](https://diogro.github.io/rgraphtool/reference/expression_utils.md)
+  : Gene-Expression Fixed-Effects Projection, Filtering, Shrinkage
+  Covariance, and Module Eigengenes
+
 ## Model selection
 
 - [`compare_layered_models()`](https://diogro.github.io/rgraphtool/reference/compare_layered_models.md)

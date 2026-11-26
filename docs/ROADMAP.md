@@ -43,55 +43,47 @@ core cookbook tasks.
 
 ## Current state
 
-Native directed and undirected multigraph construction and inspection.
-
-Fixed-partition block sizes, edge-count matrix, and conditional
-microcanonical likelihood.
-
-Native flat block-model description length, with incremental move costs.
-
-Native multilevel agglomerative minimization and refinement.
-
-Football cookbook data loader and runnable fit/plot demonstration.
-
-Native nested block model description length and level-by-level
-minimization, with a Netzschleuder loader, the C. elegans demo, and a
-radial hierarchy plot.
-
-Native flat and nested single-node and merge-split MCMC, equilibration,
-annealing, Hungarian label alignment, vertex marginals, consensus
-estimates, and posterior mode clustering, with Les Misérables and
-hierarchical sampling demos and pie-chart marginal plots.
-
-Overlapping SBMs, posterior partition probabilities, and Bayesian model
-class selection
-([`compare_model_classes()`](https://diogro.github.io/rgraphtool/reference/compare_model_classes.md),
-[`model_evidence()`](https://diogro.github.io/rgraphtool/reference/compare_model_classes.md)).
-
-Weighted edge-covariate SBMs (all five Peixoto 2018 covariate models,
-weight transformations, and Jacobian-adjusted model comparison) and
-layered SBMs (edge-covariate and conditionally independent layers).
-
-Assortative planted-partition SBMs and flat/nested ordered (ranked) SBMs
-with vertical rank-ordered layouts.
-
-Portable C++23 `std::thread` parallelism, compact nested hierarchies,
-strictly agglomerative search, and `simple_init` scaling up to
-`N = 100,000`.
-
-Uncertain network reconstruction (measured, mixed-measured, uncertain,
-latent Poisson multigraph, and latent triadic closure) and indirect
-network reconstruction from all 10 Ising, epidemic, Gaussian, and Potts
-dynamical models with L1 and quantized MDL priors.
-
-Native SFDP force-directed layouts, BFS traversal, standalone HTML5
-animations and interactive views, base-R/`grid`/`ggplot2` vector/raster
-plotting, and offline geographic map projections.
-
-Public C++ extension header interface (`inst/include/rgraphtool.h`),
-range-based iteration, checked/unchecked property maps, and live
-[`Rcpp::sourceCpp()`](https://rdrr.io/pkg/Rcpp/man/sourceCpp.html)
-extension examples.
+- [x] Native directed and undirected multigraph construction and
+  inspection.
+- [x] Fixed-partition block sizes, edge-count matrix, and conditional
+  microcanonical likelihood.
+- [x] Native flat block-model description length, with incremental move
+  costs.
+- [x] Native multilevel agglomerative minimization and refinement.
+- [x] Football cookbook data loader and runnable fit/plot demonstration.
+- [x] Native nested block model description length and level-by-level
+  minimization, with a Netzschleuder loader, the C. elegans demo, and a
+  radial hierarchy plot.
+- [x] Native flat and nested single-node and merge-split MCMC,
+  equilibration, annealing, Hungarian label alignment, vertex marginals,
+  consensus estimates, and posterior mode clustering, with Les
+  Misérables and hierarchical sampling demos and pie-chart marginal
+  plots.
+- [x] Overlapping SBMs, posterior partition probabilities, and Bayesian
+  model class selection
+  ([`compare_model_classes()`](https://diogro.github.io/rgraphtool/reference/compare_model_classes.md),
+  [`model_evidence()`](https://diogro.github.io/rgraphtool/reference/compare_model_classes.md)).
+- [x] Weighted edge-covariate SBMs (all five Peixoto 2018 covariate
+  models, weight transformations, and Jacobian-adjusted model
+  comparison) and layered SBMs (edge-covariate and conditionally
+  independent layers).
+- [x] Assortative planted-partition SBMs and flat/nested ordered
+  (ranked) SBMs with vertical rank-ordered layouts.
+- [x] Portable C++23 `std::thread` parallelism, compact nested
+  hierarchies, strictly agglomerative search, and `simple_init` scaling
+  up to `N = 100,000`.
+- [x] Uncertain network reconstruction (measured, mixed-measured,
+  uncertain, latent Poisson multigraph, and latent triadic closure) and
+  indirect network reconstruction from all 10 Ising, epidemic, Gaussian,
+  and Potts dynamical models with L1 and quantized MDL priors.
+- [x] Native SFDP force-directed layouts, BFS traversal, standalone
+  HTML5 animations and interactive views, base-R/`grid`/`ggplot2`
+  vector/raster plotting, and offline geographic map projections.
+- [x] Public C++ extension header interface
+  (`inst/include/rgraphtool.h`), range-based iteration,
+  checked/unchecked property maps, and live
+  [`Rcpp::sourceCpp()`](https://rdrr.io/pkg/Rcpp/man/sourceCpp.html)
+  extension examples.
 
 All 14 roadmap milestones are **complete**.
 
@@ -124,24 +116,24 @@ plausible reason for the port’s slightly better optima.
 
 ### 1. First flat SBM example
 
-Port and validate the flat microcanonical SBM description length,
-including partition, edge-count, and degree-sequence priors. Support
-both degree-corrected and non-degree-corrected models, directed and
-undirected graphs, parallel edges, and self-loops.
-
-Implement scalable native description-length minimization and expose
-fitted block memberships, block sizes, edge counts, and description
-length. Document the search algorithm and its differences from upstream;
-do not promise a global optimum. The multilevel search is documented in
-[`?minimize_blockmodel_dl`](https://diogro.github.io/rgraphtool/reference/minimize_blockmodel_dl.md);
-it runs sequentially (no OpenMP pseudo-parallel moves) and uses
-graph-tool’s fast neighbour proposal.
-
-Provide a reproducible way to obtain and load the cookbook’s football
-graph, including its layout or an explicitly documented R equivalent.
-
-Provide an R example that fits the football graph, inspects memberships
-and block counts, and produces the partition and affinity-matrix plots.
+- [x] Port and validate the flat microcanonical SBM description length,
+  including partition, edge-count, and degree-sequence priors. Support
+  both degree-corrected and non-degree-corrected models, directed and
+  undirected graphs, parallel edges, and self-loops.
+- [x] Implement scalable native description-length minimization and
+  expose fitted block memberships, block sizes, edge counts, and
+  description length. Document the search algorithm and its differences
+  from upstream; do not promise a global optimum. The multilevel search
+  is documented in
+  [`?minimize_blockmodel_dl`](https://diogro.github.io/rgraphtool/reference/minimize_blockmodel_dl.md);
+  it runs sequentially (no OpenMP pseudo-parallel moves) and uses
+  graph-tool’s fast neighbour proposal.
+- [x] Provide a reproducible way to obtain and load the cookbook’s
+  football graph, including its layout or an explicitly documented R
+  equivalent.
+- [x] Provide an R example that fits the football graph, inspects
+  memberships and block counts, and produces the partition and
+  affinity-matrix plots.
 
 **Done when:** the example runs end to end; fixed-partition scores agree
 with the pinned upstream reference within stated numerical tolerances;
@@ -154,30 +146,26 @@ faster than single-threaded graph-tool 3.9.
 
 ### 2. Hierarchical partitions and refinement
 
-Implement nested block states, hierarchical description length,
-minimization, level traversal, and hierarchy summaries
-([`minimize_nested_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/minimize_nested_blockmodel_dl.md),
-[`nested_block_state()`](https://diogro.github.io/rgraphtool/reference/minimize_nested_blockmodel_dl.md),
-[`nested_summary()`](https://diogro.github.io/rgraphtool/reference/minimize_nested_blockmodel_dl.md),
-[`nested_project()`](https://diogro.github.io/rgraphtool/reference/minimize_nested_blockmodel_dl.md),
-[`nested_level_state()`](https://diogro.github.io/rgraphtool/reference/minimize_nested_blockmodel_dl.md)).
-
-Load the C. elegans neural network and produce the hierarchy
-visualization and per-level membership examples
-([`netzschleuder_network()`](https://diogro.github.io/rgraphtool/reference/netzschleuder_network.md),
-[`plot_hierarchy()`](https://diogro.github.io/rgraphtool/reference/plot_hierarchy.md),
-`demo("celegans")`). The plot is an R-native radial hierarchy with
-bundled edges, not a reproduction of graph-tool’s layout.
-
-Port the flat multilevel refinement loop (`refine=True` sweeps with
-strict merges), seeded by R’s RNG.
-
-Port the nested zero-temperature refinement loop.
-
-Port nested merge-split MCMC and annealing at finite temperature
-([`mcmc_sweep()`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md),
-[`mcmc_equilibrate()`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md),
-[`mcmc_anneal()`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md)).
+- [x] Implement nested block states, hierarchical description length,
+  minimization, level traversal, and hierarchy summaries
+  ([`minimize_nested_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/minimize_nested_blockmodel_dl.md),
+  [`nested_block_state()`](https://diogro.github.io/rgraphtool/reference/minimize_nested_blockmodel_dl.md),
+  [`nested_summary()`](https://diogro.github.io/rgraphtool/reference/minimize_nested_blockmodel_dl.md),
+  [`nested_project()`](https://diogro.github.io/rgraphtool/reference/minimize_nested_blockmodel_dl.md),
+  [`nested_level_state()`](https://diogro.github.io/rgraphtool/reference/minimize_nested_blockmodel_dl.md)).
+- [x] Load the C. elegans neural network and produce the hierarchy
+  visualization and per-level membership examples
+  ([`netzschleuder_network()`](https://diogro.github.io/rgraphtool/reference/netzschleuder_network.md),
+  [`plot_hierarchy()`](https://diogro.github.io/rgraphtool/reference/plot_hierarchy.md),
+  `demo("celegans")`). The plot is an R-native radial hierarchy with
+  bundled edges, not a reproduction of graph-tool’s layout.
+- [x] Port the flat multilevel refinement loop (`refine=True` sweeps
+  with strict merges), seeded by R’s RNG.
+- [x] Port the nested zero-temperature refinement loop.
+- [x] Port nested merge-split MCMC and annealing at finite temperature
+  ([`mcmc_sweep()`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md),
+  [`mcmc_equilibrate()`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md),
+  [`mcmc_anneal()`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md)).
 
 **Done when:** the hierarchical cookbook examples run and refinement
 tests verify that zero-temperature accepted moves do not worsen the
@@ -185,13 +173,12 @@ objective. **Complete.**
 
 ### 3. Model selection
 
-Support comparing degree-corrected and non-degree-corrected nested
-models, including description-length differences and log posterior odds
-(`compare_blockmodels(nested = TRUE)`, `log_posterior_odds` (= *{DC} -*
-{NDC} = )). `nruns` keeps the best of several fits.
-
-Run the political blogs and football model-selection examples
-(`demo("model_selection")`).
+- [x] Support comparing degree-corrected and non-degree-corrected nested
+  models, including description-length differences and log posterior
+  odds (`compare_blockmodels(nested = TRUE)`, `log_posterior_odds` (=
+  *{DC} -* {NDC} = )). `nruns` keeps the best of several fits.
+- [x] Run the political blogs and football model-selection examples
+  (`demo("model_selection")`).
 
 Over 5 seeds on political blogs (1490 vertices, 19090 directed edges),
 graph-tool 3.9 finds 63037.5-63285.8 nats (mean 63148.4) without degree
@@ -209,31 +196,29 @@ are identical. **Complete.**
 
 ### 4. Posterior sampling
 
-Implement the flat and nested MCMC moves and equilibration controls used
-by the guide, including merge-split sampling
-([`mcmc_sweep()`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md),
-[`mcmc_equilibrate()`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md),
-[`mcmc_anneal()`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md),
-[`sample_posterior()`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md)).
-
-Add partition collection, label alignment, vertex marginals, consensus
-estimates, and posterior mode characterization
-([`align_partition_labels()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
-[`partition_overlap()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
-[`align_nested_partition_labels()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
-[`nested_partition_overlap()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
-[`partition_mode_state()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
-[`mode_marginals()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
-[`mode_consensus()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
-[`mode_uncertainty()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
-[`mode_entropy()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
-[`mode_cluster_state()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
-[`mode_summary()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md)).
-
-Run the Les Misérables and hierarchical sampling examples with the
-corresponding visualizations
-([`plot_marginals()`](https://diogro.github.io/rgraphtool/reference/plot_marginals.md),
-`demo("posterior_sampling")`, `demo("hierarchical_sampling")`).
+- [x] Implement the flat and nested MCMC moves and equilibration
+  controls used by the guide, including merge-split sampling
+  ([`mcmc_sweep()`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md),
+  [`mcmc_equilibrate()`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md),
+  [`mcmc_anneal()`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md),
+  [`sample_posterior()`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md)).
+- [x] Add partition collection, label alignment, vertex marginals,
+  consensus estimates, and posterior mode characterization
+  ([`align_partition_labels()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
+  [`partition_overlap()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
+  [`align_nested_partition_labels()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
+  [`nested_partition_overlap()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
+  [`partition_mode_state()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
+  [`mode_marginals()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
+  [`mode_consensus()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
+  [`mode_uncertainty()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
+  [`mode_entropy()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
+  [`mode_cluster_state()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
+  [`mode_summary()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md)).
+- [x] Run the Les Misérables and hierarchical sampling examples with the
+  corresponding visualizations
+  ([`plot_marginals()`](https://diogro.github.io/rgraphtool/reference/plot_marginals.md),
+  `demo("posterior_sampling")`, `demo("hierarchical_sampling")`).
 
 Exact small-graph checks on 3-vertex directed and undirected graphs
 verify that proposal probabilities normalize and match post-move reverse
@@ -255,32 +240,30 @@ run with sampling uncertainty and convergence limitations documented.
 
 ### 5. Model class selection
 
-Implement the model classes and model-comparison operations required by
-the cookbook’s model-class selection examples, including flat and nested
-overlapping SBMs
-([`overlap_block_state()`](https://diogro.github.io/rgraphtool/reference/overlap_block_state.md),
-[`overlap_description_length()`](https://diogro.github.io/rgraphtool/reference/overlap_block_state.md),
-[`overlap_groups()`](https://diogro.github.io/rgraphtool/reference/overlap_block_state.md),
-[`overlap_majority_groups()`](https://diogro.github.io/rgraphtool/reference/overlap_block_state.md),
-[`minimize_overlap_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/overlap_block_state.md),
-[`nested_overlap_block_state()`](https://diogro.github.io/rgraphtool/reference/overlap_block_state.md),
-[`nested_overlap_description_length()`](https://diogro.github.io/rgraphtool/reference/overlap_block_state.md),
-[`minimize_nested_overlap_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/overlap_block_state.md),
-[`overlap_mcmc_sweep()`](https://diogro.github.io/rgraphtool/reference/overlap_block_state.md)).
-
-Add posterior partition log-probabilities
-([`mode_lprob()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
-[`cluster_lprob()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md)),
-nested and cluster posterior entropy
-([`mode_entropy()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md)),
-and callback-free marginal model evidence
-([`model_evidence()`](https://diogro.github.io/rgraphtool/reference/compare_model_classes.md))
-plus the high-level 8-class comparison workflow
-([`compare_model_classes()`](https://diogro.github.io/rgraphtool/reference/compare_model_classes.md)).
-
-Run the Les Misérables model-class selection cookbook workflow comparing
-MAP description lengths and full posterior marginal evidences across all
-model classes (`demo("model_class_selection")`).
+- [x] Implement the model classes and model-comparison operations
+  required by the cookbook’s model-class selection examples, including
+  flat and nested overlapping SBMs
+  ([`overlap_block_state()`](https://diogro.github.io/rgraphtool/reference/overlap_block_state.md),
+  [`overlap_description_length()`](https://diogro.github.io/rgraphtool/reference/overlap_block_state.md),
+  [`overlap_groups()`](https://diogro.github.io/rgraphtool/reference/overlap_block_state.md),
+  [`overlap_majority_groups()`](https://diogro.github.io/rgraphtool/reference/overlap_block_state.md),
+  [`minimize_overlap_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/overlap_block_state.md),
+  [`nested_overlap_block_state()`](https://diogro.github.io/rgraphtool/reference/overlap_block_state.md),
+  [`nested_overlap_description_length()`](https://diogro.github.io/rgraphtool/reference/overlap_block_state.md),
+  [`minimize_nested_overlap_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/overlap_block_state.md),
+  [`overlap_mcmc_sweep()`](https://diogro.github.io/rgraphtool/reference/overlap_block_state.md)).
+- [x] Add posterior partition log-probabilities
+  ([`mode_lprob()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
+  [`cluster_lprob()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md)),
+  nested and cluster posterior entropy
+  ([`mode_entropy()`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md)),
+  and callback-free marginal model evidence
+  ([`model_evidence()`](https://diogro.github.io/rgraphtool/reference/compare_model_classes.md))
+  plus the high-level 8-class comparison workflow
+  ([`compare_model_classes()`](https://diogro.github.io/rgraphtool/reference/compare_model_classes.md)).
+- [x] Run the Les Misérables model-class selection cookbook workflow
+  comparing MAP description lengths and full posterior marginal
+  evidences across all model classes (`demo("model_class_selection")`).
 
 Exact flat and nested overlapping description lengths match graph-tool
 3.9 (`OverlapBlockState` and
@@ -312,34 +295,33 @@ end. **Complete.**
 
 ### 6. Edge weights and covariates
 
-Add edge property maps (`graph_add_edges(..., properties = ...)`,
-[`graph_set_edge_property()`](https://diogro.github.io/rgraphtool/reference/graph.md),
-[`graph_edge_property()`](https://diogro.github.io/rgraphtool/reference/graph.md),
-[`graph_edge_properties()`](https://diogro.github.io/rgraphtool/reference/graph.md),
-automatic attachment of numeric edge columns in
-[`netzschleuder_network()`](https://diogro.github.io/rgraphtool/reference/netzschleuder_network.md))
-and all five discrete and continuous Peixoto (2018) covariate models
-(`real-exponential`, `real-normal`, `discrete-geometric`,
-`discrete-poisson`, `discrete-binomial`, multiple simultaneous
-covariates, microcanonical and Bayesian conjugate hyperpriors) in native
-C++ (`src/weighted.cpp`,
-[`weighted_block_state()`](https://diogro.github.io/rgraphtool/reference/weighted_block_state.md),
-[`minimize_weighted_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/weighted_block_state.md),
-[`nested_weighted_block_state()`](https://diogro.github.io/rgraphtool/reference/weighted_block_state.md),
-[`minimize_nested_weighted_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/weighted_block_state.md)).
-
-Support weight transformations with exact change-of-variables
-log-Jacobians
-([`transform_weights()`](https://diogro.github.io/rgraphtool/reference/graph.md)),
-declarative weighted-model comparison
-([`compare_weight_models()`](https://diogro.github.io/rgraphtool/reference/compare_weight_models.md)
-in both MAP and posterior marginal evidence modes), flat and nested
-weighted MCMC / posterior sampling /
-[`model_evidence()`](https://diogro.github.io/rgraphtool/reference/compare_model_classes.md)
-/
-[`plot_hierarchy()`](https://diogro.github.io/rgraphtool/reference/plot_hierarchy.md),
-and run the Les Misérables weighted cookbook workflow
-(`demo("weighted_sbm")`).
+- [x] Add edge property maps (`graph_add_edges(..., properties = ...)`,
+  [`graph_set_edge_property()`](https://diogro.github.io/rgraphtool/reference/graph.md),
+  [`graph_edge_property()`](https://diogro.github.io/rgraphtool/reference/graph.md),
+  [`graph_edge_properties()`](https://diogro.github.io/rgraphtool/reference/graph.md),
+  automatic attachment of numeric edge columns in
+  [`netzschleuder_network()`](https://diogro.github.io/rgraphtool/reference/netzschleuder_network.md))
+  and all five discrete and continuous Peixoto (2018) covariate models
+  (`real-exponential`, `real-normal`, `discrete-geometric`,
+  `discrete-poisson`, `discrete-binomial`, multiple simultaneous
+  covariates, microcanonical and Bayesian conjugate hyperpriors) in
+  native C++ (`src/weighted.cpp`,
+  [`weighted_block_state()`](https://diogro.github.io/rgraphtool/reference/weighted_block_state.md),
+  [`minimize_weighted_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/weighted_block_state.md),
+  [`nested_weighted_block_state()`](https://diogro.github.io/rgraphtool/reference/weighted_block_state.md),
+  [`minimize_nested_weighted_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/weighted_block_state.md)).
+- [x] Support weight transformations with exact change-of-variables
+  log-Jacobians
+  ([`transform_weights()`](https://diogro.github.io/rgraphtool/reference/graph.md)),
+  declarative weighted-model comparison
+  ([`compare_weight_models()`](https://diogro.github.io/rgraphtool/reference/compare_weight_models.md)
+  in both MAP and posterior marginal evidence modes), flat and nested
+  weighted MCMC / posterior sampling /
+  [`model_evidence()`](https://diogro.github.io/rgraphtool/reference/compare_model_classes.md)
+  /
+  [`plot_hierarchy()`](https://diogro.github.io/rgraphtool/reference/plot_hierarchy.md),
+  and run the Les Misérables weighted cookbook workflow
+  (`demo("weighted_sbm")`).
 
 Exact flat and nested weighted description lengths match graph-tool 3.9
 (`WeightedBlockState` and
@@ -361,30 +343,31 @@ cookbook example runs end to end. **Complete.**
 
 ### 7. Layered networks
 
-Add discrete layer assignments (edge properties,
-integer/character/factor vectors, and categorical edge-column support in
-[`netzschleuder_network()`](https://diogro.github.io/rgraphtool/reference/netzschleuder_network.md))
-and native C++ flat and nested layered block states (`src/layered.cpp`,
-[`layered_block_state()`](https://diogro.github.io/rgraphtool/reference/layered_block_state.md),
-[`layered_description_length()`](https://diogro.github.io/rgraphtool/reference/layered_block_state.md),
-[`minimize_layered_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/layered_block_state.md),
-[`nested_layered_block_state()`](https://diogro.github.io/rgraphtool/reference/layered_block_state.md),
-[`nested_layered_level_entropy()`](https://diogro.github.io/rgraphtool/reference/layered_block_state.md),
-[`nested_layered_description_length()`](https://diogro.github.io/rgraphtool/reference/layered_block_state.md),
-[`minimize_nested_layered_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/layered_block_state.md)),
-supporting both the edge-covariate (`independent = FALSE`) and
-conditionally independent layers (`independent = TRUE`) models,
-finite-temperature MCMC / posterior sampling /
-[`model_evidence()`](https://diogro.github.io/rgraphtool/reference/compare_model_classes.md)
-/
-[`plot_hierarchy()`](https://diogro.github.io/rgraphtool/reference/plot_hierarchy.md),
-and declarative model comparison
-([`compare_layered_models()`](https://diogro.github.io/rgraphtool/reference/compare_layered_models.md)
-in both MAP and posterior evidence modes).
-
-Run the layered-network cookbook workflow comparing edge-covariate vs.
-independent-layers models (MAP and full posterior marginal evidence) on
-Les Misérables (`demo("layered_sbm")`).
+- [x] Add discrete layer assignments (edge properties,
+  integer/character/factor vectors, and categorical edge-column support
+  in
+  [`netzschleuder_network()`](https://diogro.github.io/rgraphtool/reference/netzschleuder_network.md))
+  and native C++ flat and nested layered block states
+  (`src/layered.cpp`,
+  [`layered_block_state()`](https://diogro.github.io/rgraphtool/reference/layered_block_state.md),
+  [`layered_description_length()`](https://diogro.github.io/rgraphtool/reference/layered_block_state.md),
+  [`minimize_layered_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/layered_block_state.md),
+  [`nested_layered_block_state()`](https://diogro.github.io/rgraphtool/reference/layered_block_state.md),
+  [`nested_layered_level_entropy()`](https://diogro.github.io/rgraphtool/reference/layered_block_state.md),
+  [`nested_layered_description_length()`](https://diogro.github.io/rgraphtool/reference/layered_block_state.md),
+  [`minimize_nested_layered_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/layered_block_state.md)),
+  supporting both the edge-covariate (`independent = FALSE`) and
+  conditionally independent layers (`independent = TRUE`) models,
+  finite-temperature MCMC / posterior sampling /
+  [`model_evidence()`](https://diogro.github.io/rgraphtool/reference/compare_model_classes.md)
+  /
+  [`plot_hierarchy()`](https://diogro.github.io/rgraphtool/reference/plot_hierarchy.md),
+  and declarative model comparison
+  ([`compare_layered_models()`](https://diogro.github.io/rgraphtool/reference/compare_layered_models.md)
+  in both MAP and posterior evidence modes).
+- [x] Run the layered-network cookbook workflow comparing edge-covariate
+  vs. independent-layers models (MAP and full posterior marginal
+  evidence) on Les Misérables (`demo("layered_sbm")`).
 
 Exact flat and nested layered description lengths match graph-tool 3.9
 (`LayeredBlockState` and
@@ -408,42 +391,40 @@ and the cookbook example runs end to end. **Complete.**
 
 ### 8. Assortative and ordered structures
 
-Implement the microcanonical planted-partition model (Zhang & Peixoto
-
-2020. in native C++ (`src/planted_partition.cpp`,
-      [`pp_block_state()`](https://diogro.github.io/rgraphtool/reference/pp_block_state.md),
-      [`pp_description_length()`](https://diogro.github.io/rgraphtool/reference/pp_block_state.md),
-      [`pp_assortativity()`](https://diogro.github.io/rgraphtool/reference/pp_block_state.md),
-      [`minimize_pp_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/pp_block_state.md),
-      [`compare_assortative_models()`](https://diogro.github.io/rgraphtool/reference/pp_block_state.md)),
-      supporting both non-uniform (`uniform = FALSE`) and uniform
-      (`uniform = TRUE`) assortativity, DC and NDC, distributed and
-      uniform degree priors, MCMC / posterior sampling /
-      [`model_evidence()`](https://diogro.github.io/rgraphtool/reference/compare_model_classes.md),
-      and the Les Misérables assortative cookbook workflow
-      (`demo("assortative_sbm")`).
-
-Implement flat and nested ordered (ranked) stochastic block models
-(Peixoto 2022) in native C++ (`src/ranked.cpp`,
-[`ranked_block_state()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md),
-[`ranked_description_length()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md),
-[`minimize_ranked_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md),
-[`nested_ranked_block_state()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md),
-[`nested_ranked_level_entropy()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md),
-[`nested_ranked_description_length()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md),
-[`minimize_nested_ranked_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md),
-[`ranked_vertex_order()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md),
-[`ranked_edge_directions()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md),
-[`ranked_edge_counts()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md),
-[`compare_ordered_models()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md)),
-vertical rank-ordered layouts
-([`plot_ranked_hierarchy()`](https://diogro.github.io/rgraphtool/reference/plot_hierarchy.md)
-plus
-[`plot_hierarchy()`](https://diogro.github.io/rgraphtool/reference/plot_hierarchy.md)
-support), MCMC / posterior sampling /
-[`model_evidence()`](https://diogro.github.io/rgraphtool/reference/compare_model_classes.md),
-and the *C. elegans* ordered community cookbook workflow
-(`demo("ordered_sbm")`).
+- [x] Implement the microcanonical planted-partition model (Zhang &
+  Peixoto 2020) in native C++ (`src/planted_partition.cpp`,
+  [`pp_block_state()`](https://diogro.github.io/rgraphtool/reference/pp_block_state.md),
+  [`pp_description_length()`](https://diogro.github.io/rgraphtool/reference/pp_block_state.md),
+  [`pp_assortativity()`](https://diogro.github.io/rgraphtool/reference/pp_block_state.md),
+  [`minimize_pp_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/pp_block_state.md),
+  [`compare_assortative_models()`](https://diogro.github.io/rgraphtool/reference/pp_block_state.md)),
+  supporting both non-uniform (`uniform = FALSE`) and uniform
+  (`uniform = TRUE`) assortativity, DC and NDC, distributed and uniform
+  degree priors, MCMC / posterior sampling /
+  [`model_evidence()`](https://diogro.github.io/rgraphtool/reference/compare_model_classes.md),
+  and the Les Misérables assortative cookbook workflow
+  (`demo("assortative_sbm")`).
+- [x] Implement flat and nested ordered (ranked) stochastic block models
+  (Peixoto 2022) in native C++ (`src/ranked.cpp`,
+  [`ranked_block_state()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md),
+  [`ranked_description_length()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md),
+  [`minimize_ranked_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md),
+  [`nested_ranked_block_state()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md),
+  [`nested_ranked_level_entropy()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md),
+  [`nested_ranked_description_length()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md),
+  [`minimize_nested_ranked_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md),
+  [`ranked_vertex_order()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md),
+  [`ranked_edge_directions()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md),
+  [`ranked_edge_counts()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md),
+  [`compare_ordered_models()`](https://diogro.github.io/rgraphtool/reference/ranked_block_state.md)),
+  vertical rank-ordered layouts
+  ([`plot_ranked_hierarchy()`](https://diogro.github.io/rgraphtool/reference/plot_hierarchy.md)
+  plus
+  [`plot_hierarchy()`](https://diogro.github.io/rgraphtool/reference/plot_hierarchy.md)
+  support), MCMC / posterior sampling /
+  [`model_evidence()`](https://diogro.github.io/rgraphtool/reference/compare_model_classes.md),
+  and the *C. elegans* ordered community cookbook workflow
+  (`demo("ordered_sbm")`).
 
 Exact planted-partition description lengths match graph-tool 3.9
 (`PPBlockState`) to within `1.07e-14` across all 16 reference
@@ -476,36 +457,34 @@ to end. **Complete.**
 
 ### 9. Large networks
 
-Build parallel and scalable inference infrastructure for very large
-networks (`N > 10^4`, `E > 10^5`): portable header-only C++23
-`std::thread` pool (`src/parallel.h`, working identically on macOS Apple
-clang without `libomp`, Linux GCC/Clang, and Windows), thread
-configuration API
-([`rgraphtool_max_threads()`](https://diogro.github.io/rgraphtool/reference/rgraphtool_threads.md),
-[`rgraphtool_num_threads()`](https://diogro.github.io/rgraphtool/reference/rgraphtool_threads.md),
-[`rgraphtool_set_num_threads()`](https://diogro.github.io/rgraphtool/reference/rgraphtool_threads.md),
-`options(rgraphtool.nthreads = ...)`), lock-free read-only parallel
-`merge_sweep()` candidate evaluation and parallel batch `mh_sweep()`
-screening, thread-safe `LogQ` with larger `MathTables` (`2M` entries),
-dynamic-capacity upper `BlockLevel`s with sparse `CompactHierarchy`
-snapshots (eliminating `O(L * N)` upper-level overhead), and exact
-`O(deg)` incremental upper-level updates for `NestedOverlap`
-(`src/overlap.cpp`, matching full recomputation to `< 3.9e-14`).
-
-Implement the guide’s strictly agglomerative search
-(`control = list(bisection = FALSE, r = 0.5)`), hierarchy-shape
-initialization (`simple_init = TRUE`, `simple_init_reverse`,
-`base_factor`, `B_min_base`, `top_factor`, `strict`), and warm-start
-support (`init_blocks`, `init_levels`) on
-[`minimize_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/minimize_blockmodel_dl.md),
-[`refine_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/minimize_blockmodel_dl.md),
-and
-[`minimize_nested_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/minimize_nested_blockmodel_dl.md).
-
-Run and benchmark large-network examples (`demo("large_networks")`)
-across 10-core Apple Silicon and multi-core x86_64 Linux (up to 64
-threads), documenting hardware, peak memory, and practical scaling
-limits.
+- [x] Build parallel and scalable inference infrastructure for very
+  large networks (`N > 10^4`, `E > 10^5`): portable header-only C++23
+  `std::thread` pool (`src/parallel.h`, working identically on macOS
+  Apple clang without `libomp`, Linux GCC/Clang, and Windows), thread
+  configuration API
+  ([`rgraphtool_max_threads()`](https://diogro.github.io/rgraphtool/reference/rgraphtool_threads.md),
+  [`rgraphtool_num_threads()`](https://diogro.github.io/rgraphtool/reference/rgraphtool_threads.md),
+  [`rgraphtool_set_num_threads()`](https://diogro.github.io/rgraphtool/reference/rgraphtool_threads.md),
+  `options(rgraphtool.nthreads = ...)`), lock-free read-only parallel
+  `merge_sweep()` candidate evaluation and parallel batch `mh_sweep()`
+  screening, thread-safe `LogQ` with larger `MathTables` (`2M` entries),
+  dynamic-capacity upper `BlockLevel`s with sparse `CompactHierarchy`
+  snapshots (eliminating `O(L * N)` upper-level overhead), and exact
+  `O(deg)` incremental upper-level updates for `NestedOverlap`
+  (`src/overlap.cpp`, matching full recomputation to `< 3.9e-14`).
+- [x] Implement the guide’s strictly agglomerative search
+  (`control = list(bisection = FALSE, r = 0.5)`), hierarchy-shape
+  initialization (`simple_init = TRUE`, `simple_init_reverse`,
+  `base_factor`, `B_min_base`, `top_factor`, `strict`), and warm-start
+  support (`init_blocks`, `init_levels`) on
+  [`minimize_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/minimize_blockmodel_dl.md),
+  [`refine_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/minimize_blockmodel_dl.md),
+  and
+  [`minimize_nested_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/minimize_nested_blockmodel_dl.md).
+- [x] Run and benchmark large-network examples
+  (`demo("large_networks")`) across 10-core Apple Silicon and multi-core
+  x86_64 Linux (up to 64 threads), documenting hardware, peak memory,
+  and practical scaling limits.
 
 Benchmarks on modular sparse multigraphs (`<k> = 10`): - **10-core Apple
 Silicon (macOS, 32 GB RAM)**: - `N = 10,000, E = 49,794`: flat default
@@ -544,54 +523,52 @@ end. **Complete.**
 
 ### 10. Uncertain network reconstruction
 
-Implement native C++ uncertain-network reconstruction engines
-(`src/dyn_sbm.h`, `src/uncertain.cpp`, `src/closure.cpp`) with exact
-dynamic flat and nested SBM priors supporting \\O(1)\\ / \\O(L)\\ edge
-multiplicity edits and \\O(\deg(v))\\ vertex block moves:
-
-- Measured networks with unknown Beta-prior or fixed homogeneous FN/FP
-  error rates
-  ([`measured_block_state()`](https://diogro.github.io/rgraphtool/reference/uncertain_block_state.md),
-  [`measured_error_posterior()`](https://diogro.github.io/rgraphtool/reference/uncertain_block_state.md)),
-  matching `MeasuredBlockState` (Peixoto 2018).
-- Heterogeneous per-dyad Beta-Binomial error models with joint
-  hyperparameter MCMC
-  ([`mixed_measured_block_state()`](https://diogro.github.io/rgraphtool/reference/uncertain_block_state.md)),
-  matching `MixedMeasuredBlockState` (Peixoto 2018).
-- Extraneous edge probability estimates
-  ([`uncertain_block_state()`](https://diogro.github.io/rgraphtool/reference/uncertain_block_state.md)),
-  matching `UncertainBlockState` (Peixoto 2018).
-- Latent Poisson multigraphs: fast \\O(V + E)\\ EM
-  ([`latent_multigraph()`](https://diogro.github.io/rgraphtool/reference/uncertain_block_state.md))
-  and full Bayesian multigraph SBM
-  ([`latent_multigraph_block_state()`](https://diogro.github.io/rgraphtool/reference/uncertain_block_state.md)),
-  matching
-  [`latent_multigraph()`](https://diogro.github.io/rgraphtool/reference/uncertain_block_state.md)
-  and `LatentMultigraphBlockState` (Peixoto 2020).
-- Latent triadic closures
-  ([`latent_closure_block_state()`](https://diogro.github.io/rgraphtool/reference/latent_closure_block_state.md),
-  [`closure_description_length()`](https://diogro.github.io/rgraphtool/reference/latent_closure_block_state.md),
-  [`infer_triadic_closure()`](https://diogro.github.io/rgraphtool/reference/latent_closure_block_state.md)),
-  supporting \\L \ge 1\\ generations of zero-inflated triadic closures
-  over flat or nested SBM substrates and per-vertex \\(t, m, c)\\
-  transitivity statistics, matching `LatentClosureBlockState` (Peixoto
-  2022).
-
-Add exact conditional posterior edge probabilities
-([`edge_probabilities()`](https://diogro.github.io/rgraphtool/reference/uncertain_block_state.md)),
-joint Bayesian reconstruction
-([`reconstruct_network()`](https://diogro.github.io/rgraphtool/reference/uncertain_block_state.md)),
-and the declarative callback-free edge-prediction and evaluation
-workflow
-([`predict_edges()`](https://diogro.github.io/rgraphtool/reference/predict_edges.md),
-[`evaluate_edge_prediction()`](https://diogro.github.io/rgraphtool/reference/predict_edges.md)
-with tie-aware ROC-AUC, PR-AUC, Brier score, and ROC/PR curves), plus
-runnable cookbook demos (`demo("uncertain_reconstruction")`,
-`demo("triadic_closure")`).
+- [x] Implement native C++ uncertain-network reconstruction engines
+  (`src/dyn_sbm.h`, `src/uncertain.cpp`, `src/closure.cpp`) with exact
+  dynamic flat and nested SBM priors supporting \\(O(1)\\) / \\(O(L)\\)
+  edge multiplicity edits and \\(O(\deg(v))\\) vertex block moves:
+  - Measured networks with unknown Beta-prior or fixed homogeneous FN/FP
+    error rates
+    ([`measured_block_state()`](https://diogro.github.io/rgraphtool/reference/uncertain_block_state.md),
+    [`measured_error_posterior()`](https://diogro.github.io/rgraphtool/reference/uncertain_block_state.md)),
+    matching `MeasuredBlockState` (Peixoto 2018).
+  - Heterogeneous per-dyad Beta-Binomial error models with joint
+    hyperparameter MCMC
+    ([`mixed_measured_block_state()`](https://diogro.github.io/rgraphtool/reference/uncertain_block_state.md)),
+    matching `MixedMeasuredBlockState` (Peixoto 2018).
+  - Extraneous edge probability estimates
+    ([`uncertain_block_state()`](https://diogro.github.io/rgraphtool/reference/uncertain_block_state.md)),
+    matching `UncertainBlockState` (Peixoto 2018).
+  - Latent Poisson multigraphs: fast \\(O(V + E)\\) EM
+    ([`latent_multigraph()`](https://diogro.github.io/rgraphtool/reference/uncertain_block_state.md))
+    and full Bayesian multigraph SBM
+    ([`latent_multigraph_block_state()`](https://diogro.github.io/rgraphtool/reference/uncertain_block_state.md)),
+    matching
+    [`latent_multigraph()`](https://diogro.github.io/rgraphtool/reference/uncertain_block_state.md)
+    and `LatentMultigraphBlockState` (Peixoto 2020).
+  - Latent triadic closures
+    ([`latent_closure_block_state()`](https://diogro.github.io/rgraphtool/reference/latent_closure_block_state.md),
+    [`closure_description_length()`](https://diogro.github.io/rgraphtool/reference/latent_closure_block_state.md),
+    [`infer_triadic_closure()`](https://diogro.github.io/rgraphtool/reference/latent_closure_block_state.md)),
+    supporting \\(L \ge 1\\) generations of zero-inflated triadic
+    closures over flat or nested SBM substrates and per-vertex \\((t, m,
+    c)\\) transitivity statistics, matching `LatentClosureBlockState`
+    (Peixoto 2022).
+- [x] Add exact conditional posterior edge probabilities
+  ([`edge_probabilities()`](https://diogro.github.io/rgraphtool/reference/uncertain_block_state.md)),
+  joint Bayesian reconstruction
+  ([`reconstruct_network()`](https://diogro.github.io/rgraphtool/reference/uncertain_block_state.md)),
+  and the declarative callback-free edge-prediction and evaluation
+  workflow
+  ([`predict_edges()`](https://diogro.github.io/rgraphtool/reference/predict_edges.md),
+  [`evaluate_edge_prediction()`](https://diogro.github.io/rgraphtool/reference/predict_edges.md)
+  with tie-aware ROC-AUC, PR-AUC, Brier score, and ROC/PR curves), plus
+  runnable cookbook demos (`demo("uncertain_reconstruction")`,
+  `demo("triadic_closure")`).
 
 Exact description lengths, Beta error posteriors, conditional edge
-log-probabilities, and \\L = 2\\ triadic-closure layer entropies and
-\\(M, E)\\ triad counts match pinned graph-tool 3.9 to `< 2.4e-12`
+log-probabilities, and \\(L = 2\\) triadic-closure layer entropies and
+\\((M, E)\\) triad counts match pinned graph-tool 3.9 to `< 2.4e-12`
 across flat and nested, directed and undirected, degree-corrected and
 non-degree-corrected configurations; incremental edge, vertex, and
 closure moves match full recomputation to `< 3.2e-14`, and the edge MCMC
@@ -618,51 +595,51 @@ cookbook demos run cleanly. **Complete.**
 
 ### 11. Reconstruction from dynamics and behavior
 
-Implement native C++ indirect network reconstruction from dynamics and
-behavior (`src/dynamics.cpp`, `R/dynamics.R`), covering all 10
-`graph-tool` dynamical and behavioral models with exact \\O(M)\\
-incremental local-field updates, multi-cascade support, and flat/nested
-SBM priors:
-
-- Ising equilibrium & Glauber dynamics
-  ([`pseudo_ising_block_state()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md),
-  [`ising_glauber_block_state()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md),
-  including 3-state `has_zero = TRUE`) and continuous Ising
-  ([`pseudo_cising_block_state()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md),
-  [`cising_glauber_block_state()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md)).
-- Compartmental epidemic cascades
-  ([`epidemics_block_state()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md),
-  supporting SI/SIS/SIR/SIRS and `exposed = TRUE` SEI/SEIR, plus
-  [`dynamics_transmission_probs()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md)).
-- Continuous Gaussian equilibrium & dynamics
-  ([`pseudo_normal_block_state()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md)
-  with strict diagonal-dominance SPD projection and
-  [`dynamics_precision_matrix()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md),
-  [`normal_glauber_block_state()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md),
-  and
-  [`linear_normal_block_state()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md)).
-- Generalized \\q\\-state Potts / categorical behavior
-  ([`pseudo_potts_block_state()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md),
-  [`potts_glauber_block_state()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md)).
-- L1 (discretized Laplace) regularization (`xl1`, `tl1`), Gaussian
-  weight priors (`normal = TRUE`), and Peixoto (2025 PRX) quantized MDL
-  weight and node-parameter priors (`xdist = TRUE`, `tdist = TRUE`),
-  plus declarative warm-started L1 regularization paths
-  ([`reconstruct_l1_path()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md)),
-  greedy MAP
-  - finite-temperature posterior MCMC
-    ([`reconstruct_dynamics()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md)),
-    and native C++ forward simulators
-    ([`simulate_ising()`](https://diogro.github.io/rgraphtool/reference/simulate_dynamics.md),
-    [`simulate_epidemics()`](https://diogro.github.io/rgraphtool/reference/simulate_dynamics.md),
-    [`simulate_normal_dynamics()`](https://diogro.github.io/rgraphtool/reference/simulate_dynamics.md),
-    [`simulate_potts()`](https://diogro.github.io/rgraphtool/reference/simulate_dynamics.md)).
-
-Run the synthetic and empirical indirect reconstruction cookbook demos
-(`demo("dynamics_reconstruction")`, `demo("empirical_dynamics")`) and
-document per-model input and preprocessing requirements (log-returns and
-standardization for Gaussian financial time series, compartment codes
-for epidemics, spin/category ranges for Ising and Potts).
+- [x] Implement native C++ indirect network reconstruction from dynamics
+  and behavior (`src/dynamics.cpp`, `R/dynamics.R`), covering all 10
+  `graph-tool` dynamical and behavioral models with exact \\(O(M)\\)
+  incremental local-field updates, multi-cascade support, and
+  flat/nested SBM priors:
+  - Ising equilibrium & Glauber dynamics
+    ([`pseudo_ising_block_state()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md),
+    [`ising_glauber_block_state()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md),
+    including 3-state `has_zero = TRUE`) and continuous Ising
+    ([`pseudo_cising_block_state()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md),
+    [`cising_glauber_block_state()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md)).
+  - Compartmental epidemic cascades
+    ([`epidemics_block_state()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md),
+    supporting SI/SIS/SIR/SIRS and `exposed = TRUE` SEI/SEIR, plus
+    [`dynamics_transmission_probs()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md)).
+  - Continuous Gaussian equilibrium & dynamics
+    ([`pseudo_normal_block_state()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md)
+    with strict diagonal-dominance SPD projection and
+    [`dynamics_precision_matrix()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md),
+    [`normal_glauber_block_state()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md),
+    and
+    [`linear_normal_block_state()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md)).
+  - Generalized \\(q\\)-state Potts / categorical behavior
+    ([`pseudo_potts_block_state()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md),
+    [`potts_glauber_block_state()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md)).
+  - L1 (discretized Laplace) regularization (`xl1`, `tl1`), Gaussian
+    weight priors (`normal = TRUE`), and Peixoto (2025 PRX) quantized
+    MDL weight and node-parameter priors (`xdist = TRUE`,
+    `tdist = TRUE`), plus declarative warm-started L1 regularization
+    paths
+    ([`reconstruct_l1_path()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md)),
+    greedy MAP
+    - finite-temperature posterior MCMC
+      ([`reconstruct_dynamics()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md)),
+      and native C++ forward simulators
+      ([`simulate_ising()`](https://diogro.github.io/rgraphtool/reference/simulate_dynamics.md),
+      [`simulate_epidemics()`](https://diogro.github.io/rgraphtool/reference/simulate_dynamics.md),
+      [`simulate_normal_dynamics()`](https://diogro.github.io/rgraphtool/reference/simulate_dynamics.md),
+      [`simulate_potts()`](https://diogro.github.io/rgraphtool/reference/simulate_dynamics.md)).
+- [x] Run the synthetic and empirical indirect reconstruction cookbook
+  demos (`demo("dynamics_reconstruction")`,
+  `demo("empirical_dynamics")`) and document per-model input and
+  preprocessing requirements (log-returns and standardization for
+  Gaussian financial time series, compartment codes for epidemics,
+  spin/category ranges for Ising and Potts).
 
 Exact negative log-likelihoods across all 10 models and all prior
 components (geometric edge-count prior, conditioned and unconditioned
@@ -678,7 +655,7 @@ across all 10 models. Both cookbook demos execute end to end offline:
 `demo("dynamics_reconstruction")` (`7.0 s`) achieves
 `ROC-AUC = 1.000, F1 = 1.000` on equilibrium Ising (`26/26`), directed
 SIS epidemics (`20/20`, median `t_hat = 0.450` vs true `0.45`), directed
-`LinearNormal` (`36/36`), and \\q = 3\\ `PseudoPotts` (`26/26`) while
+`LinearNormal` (`36/36`), and \\(q = 3\\) `PseudoPotts` (`26/26`) while
 demonstrating how SBM+MDL eliminates pure L1’s bias-sparsity tradeoff
 (`F1 = 1.000` vs `0.26`–`0.42`); `demo("empirical_dynamics")` (`0.31 s`)
 reconstructs a strictly SPD partial correlation network on
@@ -693,51 +670,49 @@ end to end, and input preprocessing is documented. **Complete.**
 
 ### 12. Animation and interactive visualization
 
-Provide R-native equivalents for interactive animation, SIRS epidemics,
-dynamic layouts, and interactive visualizations (`src/layout.cpp`,
-`R/animation.R`), running simulation and layout loops natively in C++
-with zero external R package, GTK+, or Cairo dependencies:
-
-- Native Hu (2005) / graph-tool SFDP force-directed layout
-  ([`sfdp_layout()`](https://diogro.github.io/rgraphtool/reference/sfdp_layout.md))
-  with Barnes-Hut quadtree acceleration (\\N \> 128\\), warm-starting
-  (`pos`, `max_iter = 1L`), vertex pinning (`pin`), and
-  inter-/intra-group forces (`groups`, `gamma`, `mu`).
-- Exact directed/undirected breadth-first search traversal and
-  spanning-tree extraction
-  ([`graph_bfs()`](https://diogro.github.io/rgraphtool/reference/sfdp_layout.md)).
-- Base-R graph rendering
-  ([`plot_graph()`](https://diogro.github.io/rgraphtool/reference/plot_graph.md))
-  supporting vertex/edge visibility filtering, highlight halos, directed
-  arrowheads, labels, and vector/raster R graphics devices.
-- Declarative SIRS epidemic animation
-  ([`animate_sirs()`](https://diogro.github.io/rgraphtool/reference/animate_sirs.md),
-  matching `animation_sirs.py` and `animation_zombies.py` via
-  `hide_recovered = TRUE`, newly-infected halos, and
-  `fear_state = TRUE`), dynamic spatial-segregation layout animation
-  ([`animate_dynamic_layout()`](https://diogro.github.io/rgraphtool/reference/animate_sirs.md),
-  matching `animation_dancing.py` with incremental SFDP +
-  distance-shortening rewiring), and interactive BFS shortest-path tree
-  explorer
-  ([`interactive_bfs()`](https://diogro.github.io/rgraphtool/reference/interactive_bfs.md),
-  matching `interactive_bst.py`).
-
-Run all three cookbook demos end to end offline
-(`demo("animation_sirs")`, `demo("animation_dynamic_layout")`,
-`demo("interactive_bfs")`) and document platform and display
-requirements in Rd help pages:
-
-- `mode = "html"` generates zero-dependency standalone HTML5 Canvas
-  viewers that run headless during creation and interactively offline in
-  any modern browser or RStudio Viewer (play/pause, frame scrubber, FPS
-  control, live sparklines, and hover/click BFS inspection).
-- `mode = "frames"` exports numbered PNG frames via
-  [`grDevices::png()`](https://rdrr.io/r/grDevices/png.html) (standard
-  macOS/Windows/Cairo-enabled Linux R builds) for external video or GIF
-  encoding.
-- `mode = "device"` and `mode = "locator"` require an interactive R
-  graphics device (Quartz, X11, Windows, or RStudioGD); `locator` errors
-  cleanly in non-interactive sessions.
+- [x] Provide R-native equivalents for interactive animation, SIRS
+  epidemics, dynamic layouts, and interactive visualizations
+  (`src/layout.cpp`, `R/animation.R`), running simulation and layout
+  loops natively in C++ with zero external R package, GTK+, or Cairo
+  dependencies:
+  - Native Hu (2005) / graph-tool SFDP force-directed layout
+    ([`sfdp_layout()`](https://diogro.github.io/rgraphtool/reference/sfdp_layout.md))
+    with Barnes-Hut quadtree acceleration (\\(N \> 128\\)),
+    warm-starting (`pos`, `max_iter = 1L`), vertex pinning (`pin`), and
+    inter-/intra-group forces (`groups`, `gamma`, `mu`).
+  - Exact directed/undirected breadth-first search traversal and
+    spanning-tree extraction
+    ([`graph_bfs()`](https://diogro.github.io/rgraphtool/reference/sfdp_layout.md)).
+  - Base-R graph rendering
+    ([`plot_graph()`](https://diogro.github.io/rgraphtool/reference/plot_graph.md))
+    supporting vertex/edge visibility filtering, highlight halos,
+    directed arrowheads, labels, and vector/raster R graphics devices.
+  - Declarative SIRS epidemic animation
+    ([`animate_sirs()`](https://diogro.github.io/rgraphtool/reference/animate_sirs.md),
+    matching `animation_sirs.py` and `animation_zombies.py` via
+    `hide_recovered = TRUE`, newly-infected halos, and
+    `fear_state = TRUE`), dynamic spatial-segregation layout animation
+    ([`animate_dynamic_layout()`](https://diogro.github.io/rgraphtool/reference/animate_sirs.md),
+    matching `animation_dancing.py` with incremental SFDP +
+    distance-shortening rewiring), and interactive BFS shortest-path
+    tree explorer
+    ([`interactive_bfs()`](https://diogro.github.io/rgraphtool/reference/interactive_bfs.md),
+    matching `interactive_bst.py`).
+- [x] Run all three cookbook demos end to end offline
+  (`demo("animation_sirs")`, `demo("animation_dynamic_layout")`,
+  `demo("interactive_bfs")`) and document platform and display
+  requirements in Rd help pages:
+  - `mode = "html"` generates zero-dependency standalone HTML5 Canvas
+    viewers that run headless during creation and interactively offline
+    in any modern browser or RStudio Viewer (play/pause, frame scrubber,
+    FPS control, live sparklines, and hover/click BFS inspection).
+  - `mode = "frames"` exports numbered PNG frames via
+    [`grDevices::png()`](https://rdrr.io/r/grDevices/png.html) (standard
+    macOS/Windows/Cairo-enabled Linux R builds) for external video or
+    GIF encoding.
+  - `mode = "device"` and `mode = "locator"` require an interactive R
+    graphics device (Quartz, X11, Windows, or RStudioGD); `locator`
+    errors cleanly in non-interactive sessions.
 
 [`graph_bfs()`](https://diogro.github.io/rgraphtool/reference/sfdp_layout.md)
 matches pinned graph-tool 3.9 `shortest_distance(..., max_dist=3)`
@@ -759,45 +734,44 @@ display requirements. **Complete.**
 
 ### 13. Plotting integration
 
-Provide R plotting and map-integration equivalents for the matplotlib
-and basemap examples (`R/plot-integration.R`, `R/plot-map.R`, enhanced
-[`plot_graph()`](https://diogro.github.io/rgraphtool/reference/plot_graph.md)),
-supporting both vector (`pdf`, `svg`, `ps`, `eps`) and raster (`png`,
-`jpeg`, `tiff`) output without requiring Python:
-
-- Property-to-size scaling
-  ([`prop_to_size()`](https://diogro.github.io/rgraphtool/reference/plotting_integration.md)),
-  HCL colour mapping and standalone colorbars
-  ([`map_colors()`](https://diogro.github.io/rgraphtool/reference/plotting_integration.md),
-  [`plot_colorbar()`](https://diogro.github.io/rgraphtool/reference/plotting_integration.md)),
-  curved edges, vertex/edge z-ordering, axes/coordinate grids, and
-  unified multi-format export
-  ([`save_graph_plot()`](https://diogro.github.io/rgraphtool/reference/plotting_integration.md),
-  using `svglite` when installed for SVG without XQuartz/Cairo
-  dependencies and falling back to
-  [`grDevices::svg()`](https://rdrr.io/r/grDevices/cairo.html)).
-- Embeddable base-R `grid` grobs
-  ([`graph_grob()`](https://diogro.github.io/rgraphtool/reference/plotting_integration.md)),
-  tidy vertex/edge data frames
-  ([`graph_to_data_frames()`](https://diogro.github.io/rgraphtool/reference/plotting_integration.md)),
-  and optional `ggplot2` integration
-  ([`ggplot_graph()`](https://diogro.github.io/rgraphtool/reference/plotting_integration.md)).
-- Pure-R cartographic projections
-  ([`project_coords()`](https://diogro.github.io/rgraphtool/reference/plot_graph_map.md):
-  Robinson, Mercator, equirectangular, Mollweide, and orthographic
-  hemisphere clipping), spherical great-circle geodesic edges
-  ([`great_circle_arc()`](https://diogro.github.io/rgraphtool/reference/plot_graph_map.md),
-  splitting cleanly across the antimeridian), built-in offline world
-  coastlines
-  ([`world_coastlines()`](https://diogro.github.io/rgraphtool/reference/plot_graph_map.md),
-  plus custom polygon support), and geographic network plotting
-  ([`plot_graph_map()`](https://diogro.github.io/rgraphtool/reference/plot_graph_map.md)).
-
-Run both cookbook demos end to end offline without Python
-(`demo("plotting_integration")` in `0.91 s` exporting multi-panel
-PDF/PNG, vector SVG, `grid`-composed PDF, and `ggplot2` PNG;
-`demo("plotting_map")` in `0.31 s` exporting Robinson PDF/PNG,
-Orthographic globe PNG, and regional Mercator PDF).
+- [x] Provide R plotting and map-integration equivalents for the
+  matplotlib and basemap examples (`R/plot-integration.R`,
+  `R/plot-map.R`, enhanced
+  [`plot_graph()`](https://diogro.github.io/rgraphtool/reference/plot_graph.md)),
+  supporting both vector (`pdf`, `svg`, `ps`, `eps`) and raster (`png`,
+  `jpeg`, `tiff`) output without requiring Python:
+  - Property-to-size scaling
+    ([`prop_to_size()`](https://diogro.github.io/rgraphtool/reference/plotting_integration.md)),
+    HCL colour mapping and standalone colorbars
+    ([`map_colors()`](https://diogro.github.io/rgraphtool/reference/plotting_integration.md),
+    [`plot_colorbar()`](https://diogro.github.io/rgraphtool/reference/plotting_integration.md)),
+    curved edges, vertex/edge z-ordering, axes/coordinate grids, and
+    unified multi-format export
+    ([`save_graph_plot()`](https://diogro.github.io/rgraphtool/reference/plotting_integration.md),
+    using `svglite` when installed for SVG without XQuartz/Cairo
+    dependencies and falling back to
+    [`grDevices::svg()`](https://rdrr.io/r/grDevices/cairo.html)).
+  - Embeddable base-R `grid` grobs
+    ([`graph_grob()`](https://diogro.github.io/rgraphtool/reference/plotting_integration.md)),
+    tidy vertex/edge data frames
+    ([`graph_to_data_frames()`](https://diogro.github.io/rgraphtool/reference/plotting_integration.md)),
+    and optional `ggplot2` integration
+    ([`ggplot_graph()`](https://diogro.github.io/rgraphtool/reference/plotting_integration.md)).
+  - Pure-R cartographic projections
+    ([`project_coords()`](https://diogro.github.io/rgraphtool/reference/plot_graph_map.md):
+    Robinson, Mercator, equirectangular, Mollweide, and orthographic
+    hemisphere clipping), spherical great-circle geodesic edges
+    ([`great_circle_arc()`](https://diogro.github.io/rgraphtool/reference/plot_graph_map.md),
+    splitting cleanly across the antimeridian), built-in offline world
+    coastlines
+    ([`world_coastlines()`](https://diogro.github.io/rgraphtool/reference/plot_graph_map.md),
+    plus custom polygon support), and geographic network plotting
+    ([`plot_graph_map()`](https://diogro.github.io/rgraphtool/reference/plot_graph_map.md)).
+- [x] Run both cookbook demos end to end offline without Python
+  (`demo("plotting_integration")` in `0.91 s` exporting multi-panel
+  PDF/PNG, vector SVG, `grid`-composed PDF, and `ggplot2` PNG;
+  `demo("plotting_map")` in `0.31 s` exporting Robinson PDF/PNG,
+  Orthographic globe PNG, and regional Mercator PDF).
 
 All 75 plotting-integration and map tests pass (`0` failures, `0`
 warnings), verifying exact
@@ -813,50 +787,47 @@ vector and raster formats without Python. **Complete.**
 
 ### 14. C++ extensions
 
-Document and test a public R/C++ extension interface
-(`inst/include/rgraphtool.h`, moving vendored `boost::adj_list` headers
-to `inst/include/rgraphtool/vendor/` so `src/graph_types.h` and external
-C++ extensions share a single ABI definition via
-`LinkingTo: rgraphtool, Rcpp, BH` or
-[`Rcpp::sourceCpp()`](https://rdrr.io/pkg/Rcpp/man/sourceCpp.html)):
-
-- Zero-copy graph extraction (`rgraphtool::get_graph(SEXP)` accepting
-  either an `rgraphtool_graph` R object or its external pointer) and
-  inspection helpers (`num_vertices`, `num_edges`, `is_directed`,
-  `source`, `target`, `edge_index`, `out_degree`, `in_degree`,
-  `total_degree`, `checked_vertex`).
-- Range-based graph iteration (`vertices_range`, `edges_range`,
-  `out_edges_range`, `in_edges_range`, `all_edges_range`,
-  `out_neighbors_range`, `in_neighbors_range`, `all_neighbors_range`).
-- Vertex and edge property maps (`vertex_property_view`,
-  `edge_property_view`, `make_vertex_property`, `make_edge_property`)
-  with per-access bounds-checked defaults (`VertexPropertyMap<T>`,
-  `EdgePropertyMap<T>`, `ConstEdgePropertyMap<T>`) and upfront-validated
-  zero-overhead unchecked views via `.get_unchecked()`
-  (`UncheckedVertexPropertyMap<T>`, `UncheckedEdgePropertyMap<T>`,
-  `UncheckedConstEdgePropertyMap<T>`).
-
-Provide native R and standalone C++ extension equivalents of the
-cookbook examples (`src/extensions.cpp`, `R/extensions.R`,
-`man/cpp_extensions.Rd`):
-
-- Built-in
-  [`kcore_decomposition()`](https://diogro.github.io/rgraphtool/reference/cpp_extensions.md)
-  (exact \\O(N + E)\\ Batagelj-Zaversnik algorithm matching pinned
-  graph-tool 3.9
-  [`kcore_decomposition()`](https://diogro.github.io/rgraphtool/reference/cpp_extensions.md)
-  identically on directed/undirected graphs, self-loops, parallel edges,
-  and isolated vertices) and
-  [`vertex_strength()`](https://diogro.github.io/rgraphtool/reference/cpp_extensions.md),
-  each supporting `checked = TRUE/FALSE`.
-- Extension discovery and compilation helpers
-  ([`rgraphtool_include_dir()`](https://diogro.github.io/rgraphtool/reference/cpp_extensions.md),
-  [`rgraphtool_extension_example()`](https://diogro.github.io/rgraphtool/reference/cpp_extensions.md),
-  [`compile_cpp_extension()`](https://diogro.github.io/rgraphtool/reference/cpp_extensions.md))
-  plus bundled standalone `.cpp` examples
-  (`inst/examples/extensions/kcore_extension.cpp`,
-  `inst/examples/extensions/weighted_degree_extension.cpp`) and
-  end-to-end demo (`demo("cpp_extensions")`).
+- [x] Document and test a public R/C++ extension interface
+  (`inst/include/rgraphtool.h`, moving vendored `boost::adj_list`
+  headers to `inst/include/rgraphtool/vendor/` so `src/graph_types.h`
+  and external C++ extensions share a single ABI definition via
+  `LinkingTo: rgraphtool, Rcpp, BH` or
+  [`Rcpp::sourceCpp()`](https://rdrr.io/pkg/Rcpp/man/sourceCpp.html)):
+  - Zero-copy graph extraction (`rgraphtool::get_graph(SEXP)` accepting
+    either an `rgraphtool_graph` R object or its external pointer) and
+    inspection helpers (`num_vertices`, `num_edges`, `is_directed`,
+    `source`, `target`, `edge_index`, `out_degree`, `in_degree`,
+    `total_degree`, `checked_vertex`).
+  - Range-based graph iteration (`vertices_range`, `edges_range`,
+    `out_edges_range`, `in_edges_range`, `all_edges_range`,
+    `out_neighbors_range`, `in_neighbors_range`, `all_neighbors_range`).
+  - Vertex and edge property maps (`vertex_property_view`,
+    `edge_property_view`, `make_vertex_property`, `make_edge_property`)
+    with per-access bounds-checked defaults (`VertexPropertyMap<T>`,
+    `EdgePropertyMap<T>`, `ConstEdgePropertyMap<T>`) and
+    upfront-validated zero-overhead unchecked views via
+    `.get_unchecked()` (`UncheckedVertexPropertyMap<T>`,
+    `UncheckedEdgePropertyMap<T>`, `UncheckedConstEdgePropertyMap<T>`).
+- [x] Provide native R and standalone C++ extension equivalents of the
+  cookbook examples (`src/extensions.cpp`, `R/extensions.R`,
+  `man/cpp_extensions.Rd`):
+  - Built-in
+    [`kcore_decomposition()`](https://diogro.github.io/rgraphtool/reference/cpp_extensions.md)
+    (exact \\(O(N + E)\\) Batagelj-Zaversnik algorithm matching pinned
+    graph-tool 3.9
+    [`kcore_decomposition()`](https://diogro.github.io/rgraphtool/reference/cpp_extensions.md)
+    identically on directed/undirected graphs, self-loops, parallel
+    edges, and isolated vertices) and
+    [`vertex_strength()`](https://diogro.github.io/rgraphtool/reference/cpp_extensions.md),
+    each supporting `checked = TRUE/FALSE`.
+  - Extension discovery and compilation helpers
+    ([`rgraphtool_include_dir()`](https://diogro.github.io/rgraphtool/reference/cpp_extensions.md),
+    [`rgraphtool_extension_example()`](https://diogro.github.io/rgraphtool/reference/cpp_extensions.md),
+    [`compile_cpp_extension()`](https://diogro.github.io/rgraphtool/reference/cpp_extensions.md))
+    plus bundled standalone `.cpp` examples
+    (`inst/examples/extensions/kcore_extension.cpp`,
+    `inst/examples/extensions/weighted_degree_extension.cpp`) and
+    end-to-end demo (`demo("cpp_extensions")`).
 
 All 34 C++ extension tests (`tests/testthat/test-extensions.R`) pass
 (`0` failures, `0` warnings), including live compilation and execution
@@ -867,7 +838,7 @@ verification of `std::out_of_range` bounds checks on checked views and
 upfront capacity checks on `.get_unchecked()`. `demo("cpp_extensions")`
 compiles and executes all three extensions offline in `~6.9 s`,
 measuring `0.005 s` unchecked vs. `0.013 s` checked (`2.6x` faster)
-across 50 \\k\\-core passes on a 2,000-vertex, 9,996-edge weighted
+across 50 \\(k\\)-core passes on a 2,000-vertex, 9,996-edge weighted
 network.
 
 **Done when:** the public `inst/include/rgraphtool.h` interface is

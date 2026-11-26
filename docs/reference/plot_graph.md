@@ -31,13 +31,13 @@ plot_graph(graph, pos = NULL, vertex_color = "#4C72B0",
 
 - pos:
 
-  Optional \\N \times 2\\ coordinate matrix; computed via
+  Optional \\(N \times 2\\) coordinate matrix; computed via
   [`sfdp_layout`](https://diogro.github.io/rgraphtool/reference/sfdp_layout.md)
   if `NULL`.
 
 - vertex_color:
 
-  Vertex fill colour(s), recycled to length \\N\\.
+  Vertex fill colour(s), recycled to length \\(N\\).
 
 - vertex_border:
 
@@ -166,7 +166,7 @@ plot_graph(graph, pos = NULL, vertex_color = "#4C72B0",
 
 ## Value
 
-Invisibly, the \\N \times 2\\ vertex coordinate matrix used for
+Invisibly, the \\(N \times 2\\) vertex coordinate matrix used for
 plotting.
 
 ## Examples

@@ -9,18 +9,24 @@ discrete edge-covariate model (`independent = FALSE`).
 
 ``` r
 layered_block_state(graph, layers, independent = TRUE, blocks = NULL,
-  degree_corrected = TRUE, degree_prior = c("distributed", "uniform"))
+  degree_corrected = TRUE, degree_prior = c("distributed", "uniform"),
+  weights = NULL, types = NULL, params = "microcanonical")
 layered_description_length(state, lmemb = TRUE, degree_prior = NULL)
 minimize_layered_blockmodel_dl(graph, layers, independent = TRUE,
   degree_corrected = TRUE, degree_prior = c("distributed", "uniform"),
-  B_min = 1L, B_max = Inf, refine = TRUE, epsilon = 1e-3)
+  B_min = 1L, B_max = Inf, refine = TRUE, epsilon = 1e-3,
+  weights = NULL, types = NULL, params = "microcanonical",
+  nthreads = NULL)
 nested_layered_block_state(graph, layers, independent = TRUE, levels = NULL,
-  degree_corrected = TRUE, degree_prior = c("distributed", "uniform"))
+  degree_corrected = TRUE, degree_prior = c("distributed", "uniform"),
+  weights = NULL, types = NULL, params = "microcanonical")
 nested_layered_level_entropy(state, degree_prior = NULL)
 nested_layered_description_length(state, degree_prior = NULL)
 minimize_nested_layered_blockmodel_dl(graph, layers, independent = TRUE,
   degree_corrected = TRUE, degree_prior = c("distributed", "uniform"),
-  B_min = 1L, B_max = Inf, refine = TRUE, epsilon = 1e-3)
+  B_min = 1L, B_max = Inf, refine = TRUE, epsilon = 1e-3,
+  weights = NULL, types = NULL, params = "microcanonical",
+  nthreads = NULL)
 ```
 
 ## Arguments
@@ -84,6 +90,27 @@ minimize_nested_layered_blockmodel_dl(graph, layers, independent = TRUE,
 - epsilon:
 
   Convergence tolerance in nats.
+
+- weights:
+
+  Optional edge covariate values (same formats accepted by
+  [`weighted_block_state`](https://diogro.github.io/rgraphtool/reference/weighted_block_state.md))
+  for combined layered-weighted SBMs.
+
+- types:
+
+  Optional character vector of covariate distribution types (required
+  when `weights` is supplied).
+
+- params:
+
+  Optional covariate hyperprior specification (default
+  `"microcanonical"`).
+
+- nthreads:
+
+  Optional thread count override (defaults to
+  [`rgraphtool_num_threads()`](https://diogro.github.io/rgraphtool/reference/rgraphtool_threads.md)).
 
 ## Details
 

@@ -102,8 +102,8 @@ nested_summary(state)
 
   Named list of search settings, as in
   [`minimize_blockmodel_dl`](https://diogro.github.io/rgraphtool/reference/minimize_blockmodel_dl.md).
-  Here `c` defaults to 1 and is scaled by \\2^l\\ at level \\l\\, as in
-  graph-tool.
+  Here `c` defaults to 1 and is scaled by \\(2^l\\) at level \\(l\\), as
+  in graph-tool.
 
 - levels:
 
@@ -127,14 +127,14 @@ The description length is that of graph-tool 3.9's
 `NestedBlockState.entropy()` with default arguments. Level 0 is the flat
 SBM of
 [`block_state`](https://diogro.github.io/rgraphtool/reference/block_state.md)
-without the edge-count prior. Level \\l \ge 1\\ adds the partition prior
-of its \\B\_{l-1}\\ nodes and the dense multigraph likelihood \\\sum\_{r
-\le s} \log \left(\\\binom{n_r n_s}{e\_{rs}}\\\right)\\ of the
-group-pair counts. The top level adds the edge-count prior.
+without the edge-count prior. Level \\(l \ge 1\\) adds the partition
+prior of its \\(B\_{l-1}\\) nodes and the dense multigraph likelihood
+\\(\sum\_{r \le s} \log \left(\\!\binom{n_r n_s}{e\_{rs}}\\!\right)\\)
+of the group-pair counts. The top level adds the edge-count prior.
 
 `minimize_nested_blockmodel_dl()` follows graph-tool's algorithm. It
-starts with one group at every level and \\\lceil \log_2 N \rceil + 1\\
-levels. It then runs the multilevel search of
+starts with one group at every level and \\(\lceil \log_2 N \rceil +
+1\\) levels. It then runs the multilevel search of
 [`minimize_blockmodel_dl`](https://diogro.github.io/rgraphtool/reference/minimize_blockmodel_dl.md)
 on one level at a time, starting at level 0. Every move accounts for the
 change in description length at all higher levels. A result is kept only
@@ -155,9 +155,9 @@ groups at a given level. `nested_level_state()` returns that projection
 as a flat
 [`block_state`](https://diogro.github.io/rgraphtool/reference/block_state.md).
 `nested_summary()` lists, for each level up to the first single-node
-level, the number of nodes \\N\\, the number of groups \\B\\, and its
-contribution to the description length. Printing a state shows the same
-summary as graph-tool's `print_summary()`.
+level, the number of nodes \\(N\\), the number of groups \\(B\\), and
+its contribution to the description length. Printing a state shows the
+same summary as graph-tool's `print_summary()`.
 
 Nested states keep a reference to the graph and fail with an error if
 the graph gains edges or vertices afterwards.

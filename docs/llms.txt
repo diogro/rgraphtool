@@ -20,14 +20,12 @@ and `svglite` enable `igraph` conversion,
 [`ggplot_graph()`](https://diogro.github.io/rgraphtool/reference/plotting_integration.md),
 and dependency-free SVG export.
 
-``` r
-
-# From a local checkout:
-install.packages(".", repos = NULL, type = "source")
-
-# Or from GitHub using remotes / pak:
-# remotes::install_github("diogro/rgraphtool")
-```
+\
+`# From a local checkout:`\
+[`install.packages`](https://rdrr.io/r/utils/install.packages.html)`(``"."``, repos ``=`` ``NULL``, type ``=`` ``"source"``)`\
+\
+`# Or from GitHub using remotes / pak:`\
+`# remotes::install_github("diogro/rgraphtool")`
 
 > **Note:** `rgraphtool` uses portable C++23 `std::thread` parallelism
 > (no `libomp` required on macOS) and requires a C++23-capable
@@ -37,23 +35,21 @@ install.packages(".", repos = NULL, type = "source")
 
 ### 1. Creating graphs & property maps
 
-``` r
-
-library(rgraphtool)
-
-g <- graph_create(4L, directed = TRUE)
-graph_add_edges(
-  g,
-  rbind(c(1, 2), c(2, 3), c(3, 1), c(2, 4)),
-  properties = list(weight = c(1.2, 0.8, 2.5, 1.0), label = c("a", "b", "c", "d"))
-)
-graph_set_vertex_property(g, "name", c("v1", "v2", "v3", "v4"))
-graph_set_graph_property(g, "title", "toy network")
-
-g                              # summary header + compact ASCII adjacency for small graphs
-graph_degree(g, "out")         # 1 2 1 0
-graph_edge_property(g, "weight")
-```
+\
+[`library`](https://rdrr.io/r/base/library.html)`(`[`rgraphtool`](https://github.com/diogro/rgraphtool)`)`\
+\
+`g`` ``<-`` `[`graph_create`](https://diogro.github.io/rgraphtool/reference/graph.md)`(``4L``, directed ``=`` ``TRUE``)`\
+[`graph_add_edges`](https://diogro.github.io/rgraphtool/reference/graph.md)`(`\
+`  ``g``,`\
+`  `[`rbind`](https://rdrr.io/r/base/cbind.html)`(`[`c`](https://rdrr.io/r/base/c.html)`(``1``, ``2``)``, `[`c`](https://rdrr.io/r/base/c.html)`(``2``, ``3``)``, `[`c`](https://rdrr.io/r/base/c.html)`(``3``, ``1``)``, `[`c`](https://rdrr.io/r/base/c.html)`(``2``, ``4``)``)``,`\
+`  properties ``=`` `[`list`](https://rdrr.io/r/base/list.html)`(``weight ``=`` `[`c`](https://rdrr.io/r/base/c.html)`(``1.2``, ``0.8``, ``2.5``, ``1.0``)``, label ``=`` `[`c`](https://rdrr.io/r/base/c.html)`(``"a"``, ``"b"``, ``"c"``, ``"d"``)``)`\
+`)`\
+[`graph_set_vertex_property`](https://diogro.github.io/rgraphtool/reference/graph.md)`(``g``, ``"name"``, `[`c`](https://rdrr.io/r/base/c.html)`(``"v1"``, ``"v2"``, ``"v3"``, ``"v4"``)``)`\
+[`graph_set_graph_property`](https://diogro.github.io/rgraphtool/reference/graph.md)`(``g``, ``"title"``, ``"toy network"``)`\
+\
+`g``                              ``# summary header + compact ASCII adjacency for small graphs`\
+[`graph_degree`](https://diogro.github.io/rgraphtool/reference/graph.md)`(``g``, ``"out"``)``         ``# 1 2 1 0`\
+[`graph_edge_property`](https://diogro.github.io/rgraphtool/reference/graph.md)`(``g``, ``"weight"``)`
 
 Vertex IDs are 1-based. Parallel edges and self-loops are supported.
 Graphs are mutable external-pointer objects; persist graphs across
@@ -74,74 +70,66 @@ Python dependency, as well as lossless bidirectional conversion with
 /
 [`graph_save()`](https://diogro.github.io/rgraphtool/reference/graph_io.md)):
 
-``` r
-
-# Native C++ graph-tool .gt binary read/write (interoperable with Python graph-tool)
-write_gt(g, "network.gt.gz")
-g2 <- read_gt("network.gt.gz")
-
-# Bidirectional conversion with igraph (preserving graph, vertex, and edge attributes)
-if (requireNamespace("igraph", quietly = TRUE)) {
-  ig <- as_igraph(g)
-  g_from_ig <- from_igraph(ig)
-}
-
-# Format-detecting load/save (.gt, .gt.gz, .graphml, .gml, .edgelist)
-graph_save(g, "network.graphml")
-g3 <- graph_load("network.graphml")
-```
+\
+`# Native C++ graph-tool .gt binary read/write (interoperable with Python graph-tool)`\
+[`write_gt`](https://diogro.github.io/rgraphtool/reference/graph_io.md)`(``g``, ``"network.gt.gz"``)`\
+`g2`` ``<-`` `[`read_gt`](https://diogro.github.io/rgraphtool/reference/graph_io.md)`(``"network.gt.gz"``)`\
+\
+`# Bidirectional conversion with igraph (preserving graph, vertex, and edge attributes)`\
+`if`` ``(`[`requireNamespace`](https://rdrr.io/r/base/ns-load.html)`(``"igraph"``, quietly ``=`` ``TRUE``)``)`` ``{`\
+`  ``ig`` ``<-`` `[`as_igraph`](https://diogro.github.io/rgraphtool/reference/graph_io.md)`(``g``)`\
+`  ``g_from_ig`` ``<-`` `[`from_igraph`](https://diogro.github.io/rgraphtool/reference/graph_io.md)`(``ig``)`\
+`}`\
+\
+`# Format-detecting load/save (.gt, .gt.gz, .graphml, .gml, .edgelist)`\
+[`graph_save`](https://diogro.github.io/rgraphtool/reference/graph_io.md)`(``g``, ``"network.graphml"``)`\
+`g3`` ``<-`` `[`graph_load`](https://diogro.github.io/rgraphtool/reference/graph_io.md)`(``"network.graphml"``)`
 
 ### 3. Hierarchical & bipartite SBM inference + posterior sampling
 
-``` r
-
-# Hierarchical SBM on C. elegans from Netzschleuder (https://networks.skewed.de)
-celegans <- netzschleuder_network("celegansneural")
-
-set.seed(42)
-fit <- minimize_nested_blockmodel_dl(celegans$graph)
-fit
-plot_hierarchy(fit)
-
-# Bipartite SBM directly from an ecological incidence matrix (154 fungi x 51 trees)
-ft <- fungus_tree_network()
-fit_bip <- minimize_bipartite_blockmodel_dl(ft$fungus_tree, dim_labels = c("fungus", "tree"))
-plot_bipartite(fit_bip, type = "matrix")
-
-# Posterior MCMC sampling and partition mode clustering
-samples <- sample_posterior(fit, nsamples = 100L, burnin = 50L, thin = 5L)
-modes <- mode_cluster_state(samples)
-mode_summary(modes)
-```
+\
+`# Hierarchical SBM on C. elegans from Netzschleuder (https://networks.skewed.de)`\
+`celegans`` ``<-`` `[`netzschleuder_network`](https://diogro.github.io/rgraphtool/reference/netzschleuder_network.md)`(``"celegansneural"``)`\
+\
+[`set.seed`](https://rdrr.io/r/base/Random.html)`(``42``)`\
+`fit`` ``<-`` `[`minimize_nested_blockmodel_dl`](https://diogro.github.io/rgraphtool/reference/minimize_nested_blockmodel_dl.md)`(``celegans``$``graph``)`\
+`fit`\
+[`plot_hierarchy`](https://diogro.github.io/rgraphtool/reference/plot_hierarchy.md)`(``fit``)`\
+\
+`# Bipartite SBM directly from an ecological incidence matrix (154 fungi x 51 trees)`\
+`ft`` ``<-`` `[`fungus_tree_network`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)`(``)`\
+`fit_bip`` ``<-`` `[`minimize_bipartite_blockmodel_dl`](https://diogro.github.io/rgraphtool/reference/bipartite_block_state.md)`(``ft``$``fungus_tree``, dim_labels ``=`` `[`c`](https://rdrr.io/r/base/c.html)`(``"fungus"``, ``"tree"``)``)`\
+[`plot_bipartite`](https://diogro.github.io/rgraphtool/reference/plot_bipartite.md)`(``fit_bip``, type ``=`` ``"matrix"``)`\
+\
+`# Posterior MCMC sampling and partition mode clustering`\
+`samples`` ``<-`` `[`sample_posterior`](https://diogro.github.io/rgraphtool/reference/mcmc_sweep.md)`(``fit``, nsamples ``=`` ``100L``, burnin ``=`` ``50L``, thin ``=`` ``5L``)`\
+`modes`` ``<-`` `[`mode_cluster_state`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md)`(``samples``)`\
+[`mode_summary`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md)`(``modes``)`
 
 ### 4. Network reconstruction from dynamics
 
-``` r
-
-# Reconstruct an interaction graph directly from equilibrium Ising spins
-g_true <- graph_create(20L, directed = FALSE)
-graph_add_edges(g_true, rbind(cbind(1:19, 2:20), c(20L, 1L)))
-
-set.seed(1)
-spins <- simulate_ising(g_true, weights = 0.6, n_samples = 400L)
-st <- pseudo_ising_block_state(spins, nested = TRUE)
-rec <- reconstruct_dynamics(st, niter = 20L)
-rec
-```
+\
+`# Reconstruct an interaction graph directly from equilibrium Ising spins`\
+`g_true`` ``<-`` `[`graph_create`](https://diogro.github.io/rgraphtool/reference/graph.md)`(``20L``, directed ``=`` ``FALSE``)`\
+[`graph_add_edges`](https://diogro.github.io/rgraphtool/reference/graph.md)`(``g_true``, `[`rbind`](https://rdrr.io/r/base/cbind.html)`(`[`cbind`](https://rdrr.io/r/base/cbind.html)`(``1``:``19``, ``2``:``20``)``, `[`c`](https://rdrr.io/r/base/c.html)`(``20L``, ``1L``)``)``)`\
+\
+[`set.seed`](https://rdrr.io/r/base/Random.html)`(``1``)`\
+`spins`` ``<-`` `[`simulate_ising`](https://diogro.github.io/rgraphtool/reference/simulate_dynamics.md)`(``g_true``, weights ``=`` ``0.6``, n_samples ``=`` ``400L``)`\
+`st`` ``<-`` `[`pseudo_ising_block_state`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md)`(``spins``, nested ``=`` ``TRUE``)`\
+`rec`` ``<-`` `[`reconstruct_dynamics`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md)`(``st``, niter ``=`` ``20L``)`\
+`rec`
 
 ### 5. Layouts, animations, interactive views & maps
 
-``` r
-
-set.seed(7)
-pos <- sfdp_layout(g_true)
-plot_graph(g_true, pos = pos, edge_curve = 0.12, axes = TRUE,
-           output = tempfile(fileext = ".pdf"))
-
-# Standalone zero-dependency HTML5 Canvas animations & interactive BFS explorer
-animate_sirs(g_true, pos = pos, n_steps = 60L, mode = "html", open = TRUE)
-interactive_bfs(g_true, pos = pos, max_dist = 3L, mode = "html", open = TRUE)
-```
+\
+[`set.seed`](https://rdrr.io/r/base/Random.html)`(``7``)`\
+`pos`` ``<-`` `[`sfdp_layout`](https://diogro.github.io/rgraphtool/reference/sfdp_layout.md)`(``g_true``)`\
+[`plot_graph`](https://diogro.github.io/rgraphtool/reference/plot_graph.md)`(``g_true``, pos ``=`` ``pos``, edge_curve ``=`` ``0.12``, axes ``=`` ``TRUE``,`\
+`           output ``=`` `[`tempfile`](https://rdrr.io/r/base/tempfile.html)`(``fileext ``=`` ``".pdf"``)``)`\
+\
+`# Standalone zero-dependency HTML5 Canvas animations & interactive BFS explorer`\
+[`animate_sirs`](https://diogro.github.io/rgraphtool/reference/animate_sirs.md)`(``g_true``, pos ``=`` ``pos``, n_steps ``=`` ``60L``, mode ``=`` ``"html"``, open ``=`` ``TRUE``)`\
+[`interactive_bfs`](https://diogro.github.io/rgraphtool/reference/interactive_bfs.md)`(``g_true``, pos ``=`` ``pos``, max_dist ``=`` ``3L``, mode ``=`` ``"html"``, open ``=`` ``TRUE``)`
 
 ## Capabilities & articles
 
@@ -173,13 +161,11 @@ All 22 underlying cookbook scripts remain runnable interactively via
 (`src/parallel.h`) that works across macOS, Linux, and Windows without
 requiring OpenMP:
 
-``` r
-
-rgraphtool_max_threads()
-rgraphtool_set_num_threads(4L)
-# Or via global option:
-options(rgraphtool.nthreads = 4L)
-```
+\
+[`rgraphtool_max_threads`](https://diogro.github.io/rgraphtool/reference/rgraphtool_threads.md)`(``)`\
+[`rgraphtool_set_num_threads`](https://diogro.github.io/rgraphtool/reference/rgraphtool_threads.md)`(``4L``)`\
+`# Or via global option:`\
+[`options`](https://rdrr.io/r/base/options.html)`(``rgraphtool.nthreads ``=`` ``4L``)`
 
 ## Writing C++ extensions
 
@@ -192,12 +178,10 @@ zero-copy access to `rgraphtool::Graph`, range-based graph iteration
 bounds-checked defaults and upfront-validated zero-overhead unchecked
 access (`.get_unchecked()`):
 
-``` r
-
-# Compile and run a bundled standalone C++ extension via Rcpp::sourceCpp()
-compile_cpp_extension(rgraphtool_extension_example("kcore"))
-ext_kcore_decomposition(g, checked = FALSE)
-```
+\
+`# Compile and run a bundled standalone C++ extension via Rcpp::sourceCpp()`\
+[`compile_cpp_extension`](https://diogro.github.io/rgraphtool/reference/cpp_extensions.md)`(`[`rgraphtool_extension_example`](https://diogro.github.io/rgraphtool/reference/cpp_extensions.md)`(``"kcore"``)``)`\
+`ext_kcore_decomposition``(``g``, checked ``=`` ``FALSE``)`
 
 See
 [`?cpp_extensions`](https://diogro.github.io/rgraphtool/reference/cpp_extensions.md)
@@ -421,6 +405,15 @@ under the GNU Lesser General Public License, version 3 or later
 - [`predict_edges()`](https://diogro.github.io/rgraphtool/reference/predict_edges.md)
   [`evaluate_edge_prediction()`](https://diogro.github.io/rgraphtool/reference/predict_edges.md)
   : Bayesian missing and spurious edge prediction and evaluation
+
+## Expression & preprocessing
+
+- [`project_fixed_effects()`](https://diogro.github.io/rgraphtool/reference/expression_utils.md)
+  [`filter_expression_genes()`](https://diogro.github.io/rgraphtool/reference/expression_utils.md)
+  [`module_eigengenes()`](https://diogro.github.io/rgraphtool/reference/expression_utils.md)
+  [`shrinkage_covariance()`](https://diogro.github.io/rgraphtool/reference/expression_utils.md)
+  : Gene-Expression Fixed-Effects Projection, Filtering, Shrinkage
+  Covariance, and Module Eigengenes
 
 ## Model selection
 

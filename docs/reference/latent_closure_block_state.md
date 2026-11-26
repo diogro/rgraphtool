@@ -1,7 +1,7 @@
 # Latent triadic closure stochastic block model
 
 Native C++ implementation of Peixoto's (2022) joint stochastic block
-model with \\L \ge 1\\ generations of zero-inflated triadic closures,
+model with \\(L \ge 1\\) generations of zero-inflated triadic closures,
 matching graph-tool's `LatentClosureBlockState`. Disentangles observed
 edges into homophily/community substrate edges versus triadic-closure
 edges and estimates per-vertex open/closed triad counts and
@@ -33,7 +33,7 @@ infer_triadic_closure(state, nsamples = 200L, burnin = 100L, thin = 1L,
 
 - L:
 
-  Maximum number of triadic closure generations (\\L \ge 1\\).
+  Maximum number of triadic closure generations (\\(L \ge 1\\)).
 
 - nested:
 
@@ -56,7 +56,7 @@ infer_triadic_closure(state, nsamples = 200L, burnin = 100L, thin = 1L,
 
 - loops:
 
-  Optional length-\\N\\ integer vector of initial substrate self-loop
+  Optional length-\\(N\\) integer vector of initial substrate self-loop
   multiplicities.
 
 - ex:

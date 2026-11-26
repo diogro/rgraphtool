@@ -31,7 +31,7 @@ animate_dynamic_layout(graph, pos = NULL, n_steps = 80L, K = 0.5, C = 0.2,
 
 - pos:
 
-  Optional \\N \times 2\\ initial vertex layout matrix. Computed with
+  Optional \\(N \times 2\\) initial vertex layout matrix. Computed with
   [`sfdp_layout`](https://diogro.github.io/rgraphtool/reference/sfdp_layout.md)
   if `NULL`.
 
@@ -54,7 +54,7 @@ animate_dynamic_layout(graph, pos = NULL, n_steps = 80L, K = 0.5, C = 0.2,
 
 - init_state:
 
-  Optional integer vector of length \\N\\ with values in `{0, 1, 2}`
+  Optional integer vector of length \\(N\\) with values in `{0, 1, 2}`
   (`0 = S`, `1 = I`, `2 = R`). Defaults to all susceptible.
 
 - directed:
@@ -164,12 +164,12 @@ print(sirs)
 #> rgraphtool SIRS epidemic animation
 #>   vertices: 20 | frames: 11 (steps = 10)
 #>   rates: x = 0.001, r = 0.1, s = 0.01 | hide_recovered = TRUE | fear_state = FALSE
-#>   peak infected: 7 | total new infections: 10
+#>   peak infected: 8 | total new infections: 10
 #>   mode: none
 dyn <- animate_dynamic_layout(g, n_steps = 10L, n_rewire = 5L, mode = "none")
 print(dyn)
 #> rgraphtool dynamic layout animation
 #>   vertices: 20 | edges: 20 | frames: 11
-#>   mean edge length: 0.4440 -> 0.4440 | total rewirings: 0
+#>   mean edge length: 0.4603 -> 0.4532 | total rewirings: 1
 #>   mode: none
 ```

@@ -56,16 +56,16 @@ sequence. It does not include priors or description length.
 degree-corrected states, degree-sequence priors, matching graph-tool's
 `BlockState.entropy()` with its default arguments (`dense = FALSE`,
 `multigraph = TRUE`, `exact = TRUE`). The partition prior includes the
-uniform prior on the number of groups, \\\log N\\.
+uniform prior on the number of groups, \\(\log N\\).
 
 The distributed degree prior needs the number of integer partitions
-\\q(m, n)\\. As in graph-tool, exact values are tabulated up to
-\\\min(\max(2E, 100), 10000)\\ and an asymptotic approximation is used
-above that. The exact table needs about \\4 n^2\\ bytes, so this package
-caps it at `getOption("rgraphtool.q_cache_max", 5000)` (about 100 MB);
-raise the option to 10000 for exact agreement with graph-tool whenever a
-group's degree sum lies between 5000 and 10000. The table is kept for
-the session.
+\\(q(m, n)\\). As in graph-tool, exact values are tabulated up to
+\\(\min(\max(2E, 100), 10000)\\) and an asymptotic approximation is used
+above that. The exact table needs about \\(4 n^2\\) bytes, so this
+package caps it at `getOption("rgraphtool.q_cache_max", 5000)` (about
+100 MB); raise the option to 10000 for exact agreement with graph-tool
+whenever a group's degree sum lies between 5000 and 10000. The table is
+kept for the session.
 
 States are snapshots: later graph changes do not change their
 statistics. If the graph has grown since the state was created, the

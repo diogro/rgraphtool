@@ -65,6 +65,9 @@ reference:
   - mcmc_sweep
   - partition_mode_state
   - predict_edges
+- title: Expression & preprocessing
+  contents:
+  - expression_utils
 - title: Model selection
   contents:
   - compare_layered_models

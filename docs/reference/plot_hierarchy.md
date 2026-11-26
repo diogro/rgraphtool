@@ -8,8 +8,8 @@ ancestors (hierarchical edge bundling, Holten 2006).
 
 `plot_ranked_hierarchy()` draws a vertical rank-ordered layout for flat
 and nested ranked stochastic block models, placing vertices at vertical
-positions determined by their inferred group rank \\u_r\\ and colouring
-curved directed arcs by flow direction (upstream, lateral, and
+positions determined by their inferred group rank \\(u_r\\) and
+colouring curved directed arcs by flow direction (upstream, lateral, and
 downstream).
 
 ## Usage
@@ -62,8 +62,8 @@ plot_ranked_hierarchy(state,
 
 - upstream_col, downstream_col, lateral_col:
 
-  Colours for upstream (\\u_i \< u_j\\), downstream (\\u_i \> u_j\\),
-  and lateral (\\u_i = u_j\\) directed edges in
+  Colours for upstream (\\(u_i \< u_j\\)), downstream (\\(u_i \>
+  u_j\\)), and lateral (\\(u_i = u_j\\)) directed edges in
   `plot_ranked_hierarchy()`.
 
 - curve:

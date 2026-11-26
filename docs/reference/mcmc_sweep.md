@@ -2,10 +2,10 @@
 
 Native C++ Metropolis-Hastings and merge-split Markov chain Monte Carlo
 samplers for flat and nested microcanonical stochastic block models,
-targeting the exact posterior \\P(\mathbf{b} \mid A) \propto \exp(-\beta
-\Sigma(\mathbf{b}))\\. These are the R counterparts of graph-tool's
-`mcmc_sweep()`, `multiflip_mcmc_sweep()`, `mcmc_equilibrate()`, and
-`mcmc_anneal()`.
+targeting the exact posterior \\(P(\mathbf{b} \mid A) \propto
+\exp(-\beta \Sigma(\mathbf{b}))\\). These are the R counterparts of
+graph-tool's `mcmc_sweep()`, `multiflip_mcmc_sweep()`,
+`mcmc_equilibrate()`, and `mcmc_anneal()`.
 
 ## Usage
 
@@ -54,7 +54,7 @@ sample_posterior(state, nsamples = 1000L, thin = 10L, burnin = NULL,
 
 - beta:
 
-  Inverse temperature (\\\beta \ge 0\\, or `Inf` for greedy
+  Inverse temperature (\\(\beta \ge 0\\), or `Inf` for greedy
   zero-temperature moves). Posterior sampling uses `beta = 1`.
 
 - niter:
@@ -64,14 +64,14 @@ sample_posterior(state, nsamples = 1000L, thin = 10L, burnin = NULL,
 
 - c:
 
-  Ergodic proposal smoothing parameter (\\c \ge 0\\; `Inf` gives uniform
-  proposals). Defaults to `0.5` for flat states and `1` (scaled by
-  \\2^l\\ at level \\l\\) for nested states. Nested states also accept a
-  numeric vector of per-level values.
+  Ergodic proposal smoothing parameter (\\(c \ge 0\\); `Inf` gives
+  uniform proposals). Defaults to `0.5` for flat states and `1` (scaled
+  by \\(2^l\\) at level \\(l\\)) for nested states. Nested states also
+  accept a numeric vector of per-level values.
 
 - d:
 
-  Probability in \\\[0, 1)\\ of proposing a new (empty) group during a
+  Probability in \\(\[0, 1)\\) of proposing a new (empty) group during a
   single-node move.
 
 - multiflip:
@@ -164,14 +164,15 @@ exact forward and reverse Hastings probabilities. Merge-split sweeps
 combine single-node moves with group splits, group merges, and
 merge-split moves refined by `gibbs_sweeps` conditional Gibbs sweeps
 using an auxiliary-variable Hastings ratio that preserves exact detailed
-balance for any `gibbs_sweeps >= 1` and any finite \\\beta \ge 0\\.
+balance for any `gibbs_sweeps >= 1` and any finite \\(\beta \ge 0\\).
 
-For nested states at level \\l \< L - 1\\, new groups created by
-single-node moves or splits inherit the parent label at level \\l + 1\\;
-correspondingly, emptying a singleton group or merging two groups at
-level \\l\\ is restricted to groups sharing the same parent, while moves
-at level \\l + 1\\ reassign groups across parents. This maintains
-ergodicity and exact detailed balance over unlabelled hierarchies.
+For nested states at level \\(l \< L - 1\\), new groups created by
+single-node moves or splits inherit the parent label at level \\(l +
+1\\); correspondingly, emptying a singleton group or merging two groups
+at level \\(l\\) is restricted to groups sharing the same parent, while
+moves at level \\(l + 1\\) reassign groups across parents. This
+maintains ergodicity and exact detailed balance over unlabelled
+hierarchies.
 
 Unlike Python's mutating methods, these R functions treat states as
 immutable and return the updated state in the `$state` element of the

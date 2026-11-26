@@ -15,7 +15,8 @@ compare_layered_models(graph, layers,
   method = c("map", "posterior"),
   evidence_method = c("variational", "importance"), nruns = 1L,
   nsamples = 200L, thin = 5L, burnin = NULL, mle = TRUE, B_min = 1L,
-  B_max = Inf, refine = TRUE)
+  B_max = Inf, refine = TRUE, weights = NULL, types = NULL,
+  params = "microcanonical", nthreads = NULL)
 ```
 
 ## Arguments
@@ -34,9 +35,14 @@ compare_layered_models(graph, layers,
 
   Character vector naming a subset of `"edge_covariates"`,
   `"independent_layers"`, `"edge_covariates_dc"`,
-  `"edge_covariates_ndc"`, `"independent_layers_dc"`, and
-  `"independent_layers_ndc"`. The unqualified names use
-  `degree_corrected`.
+  `"edge_covariates_ndc"`, `"independent_layers_dc"`,
+  `"independent_layers_ndc"`, `"pp_edge_covariates"`,
+  `"pp_independent_layers"`, `"pp_edge_covariates_uniform"`, and
+  `"pp_independent_layers_uniform"`. The unqualified and `pp_*` names
+  use `degree_corrected`; `pp_*` variants fit flat layered
+  planted-partition states via
+  [`minimize_pp_blockmodel_dl`](https://diogro.github.io/rgraphtool/reference/pp_block_state.md)
+  even when `nested = TRUE`.
 
 - nested:
 
@@ -78,6 +84,23 @@ compare_layered_models(graph, layers,
 - refine:
 
   Whether to run local refinement sweeps during minimization.
+
+- weights:
+
+  Optional edge covariates (edge property name(s), vector, matrix, or
+  list) for testing differential co-expression across layers.
+
+- types:
+
+  Optional covariate type(s) required when `weights` is supplied.
+
+- params:
+
+  Covariate hyperprior specification (default `"microcanonical"`).
+
+- nthreads:
+
+  Optional thread count override.
 
 ## Value
 

@@ -5,17 +5,21 @@
       fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
     }
   };
-</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Assortative planted-partition stochastic block model — pp_block_state"><meta name="description" content="Native C++ implementation of the microcanonical Bayesian planted-partition
+</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Assortative planted-partition stochastic block model — pp_block_state"><meta name="description" content="Native C++ implementation of the microcanonical Bayesian planted-partition
 stochastic block model (Zhang and Peixoto 2020), matching graph-tool's
 PPBlockState. Constrains community structure to assortative (or
 disassortative) block patterns parameterized only by within-community edges
-\(E_{\mathrm{in}}\) and between-community edges \(E_{\mathrm{out}}\), and
-provides declarative model comparison against the general flat and nested SBMs."><meta property="og:description" content="Native C++ implementation of the microcanonical Bayesian planted-partition
+\(E_{\mathrm{in}}\) and between-community edges \(E_{\mathrm{out}}\),
+optionally paired with exponential-family or microcanonical edge-weight
+covariate distributions, and provides declarative model comparison against the
+general flat and nested SBMs."><meta property="og:description" content="Native C++ implementation of the microcanonical Bayesian planted-partition
 stochastic block model (Zhang and Peixoto 2020), matching graph-tool's
 PPBlockState. Constrains community structure to assortative (or
 disassortative) block patterns parameterized only by within-community edges
-\(E_{\mathrm{in}}\) and between-community edges \(E_{\mathrm{out}}\), and
-provides declarative model comparison against the general flat and nested SBMs."></head><body>
+\(E_{\mathrm{in}}\) and between-community edges \(E_{\mathrm{out}}\),
+optionally paired with exponential-family or microcanonical edge-weight
+covariate distributions, and provides declarative model comparison against the
+general flat and nested SBMs."></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
 
 
@@ -23,7 +27,7 @@ provides declarative model comparison against the general flat and nested SBMs."
 
     <a class="navbar-brand me-2" href="../index.html">rgraphtool</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -78,26 +82,33 @@ provides declarative model comparison against the general flat and nested SBMs."
 stochastic block model (Zhang and Peixoto 2020), matching graph-tool's
 <code>PPBlockState</code>. Constrains community structure to assortative (or
 disassortative) block patterns parameterized only by within-community edges
-\(E_{\mathrm{in}}\) and between-community edges \(E_{\mathrm{out}}\), and
-provides declarative model comparison against the general flat and nested SBMs.</p>
+\(E_{\mathrm{in}}\) and between-community edges \(E_{\mathrm{out}}\),
+optionally paired with exponential-family or microcanonical edge-weight
+covariate distributions, and provides declarative model comparison against the
+general flat and nested SBMs.</p>
     </div>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">pp_block_state</span><span class="op">(</span><span class="va">graph</span>, blocks <span class="op">=</span> <span class="cn">NULL</span>, uniform <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  degree_corrected <span class="op">=</span> <span class="cn">TRUE</span>, degree_prior <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"distributed"</span>, <span class="st">"uniform"</span><span class="op">)</span><span class="op">)</span></span>
+<span>  degree_corrected <span class="op">=</span> <span class="cn">TRUE</span>, degree_prior <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"distributed"</span>, <span class="st">"uniform"</span><span class="op">)</span>,</span>
+<span>  weights <span class="op">=</span> <span class="cn">NULL</span>, types <span class="op">=</span> <span class="cn">NULL</span>, params <span class="op">=</span> <span class="st">"microcanonical"</span>,</span>
+<span>  layers <span class="op">=</span> <span class="cn">NULL</span>, independent <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="fu">pp_description_length</span><span class="op">(</span><span class="va">state</span>, degree_prior <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span><span class="fu">pp_assortativity</span><span class="op">(</span><span class="va">state</span><span class="op">)</span></span>
 <span><span class="fu">minimize_pp_blockmodel_dl</span><span class="op">(</span><span class="va">graph</span>, uniform <span class="op">=</span> <span class="cn">FALSE</span>, degree_corrected <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  degree_prior <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"distributed"</span>, <span class="st">"uniform"</span><span class="op">)</span>, B_min <span class="op">=</span> <span class="fl">1L</span>, B_max <span class="op">=</span> <span class="cn">Inf</span>,</span>
-<span>  refine <span class="op">=</span> <span class="cn">TRUE</span>, epsilon <span class="op">=</span> <span class="fl">1e-3</span><span class="op">)</span></span>
+<span>  refine <span class="op">=</span> <span class="cn">TRUE</span>, epsilon <span class="op">=</span> <span class="fl">1e-3</span>,</span>
+<span>  weights <span class="op">=</span> <span class="cn">NULL</span>, types <span class="op">=</span> <span class="cn">NULL</span>, params <span class="op">=</span> <span class="st">"microcanonical"</span>,</span>
+<span>  layers <span class="op">=</span> <span class="cn">NULL</span>, independent <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="fu">compare_assortative_models</span><span class="op">(</span><span class="va">graph</span>,</span>
 <span>  models <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"pp"</span>, <span class="st">"pp_uniform"</span>, <span class="st">"sbm_flat"</span>, <span class="st">"sbm_nested"</span><span class="op">)</span>,</span>
 <span>  degree_corrected <span class="op">=</span> <span class="cn">TRUE</span>, degree_prior <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"distributed"</span>, <span class="st">"uniform"</span><span class="op">)</span>,</span>
 <span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"map"</span>, <span class="st">"posterior"</span><span class="op">)</span>,</span>
 <span>  evidence_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"variational"</span>, <span class="st">"importance"</span><span class="op">)</span>,</span>
 <span>  nruns <span class="op">=</span> <span class="fl">1L</span>, nsamples <span class="op">=</span> <span class="fl">200L</span>, thin <span class="op">=</span> <span class="fl">5L</span>, burnin <span class="op">=</span> <span class="cn">NULL</span>, mle <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  B_min <span class="op">=</span> <span class="fl">1L</span>, B_max <span class="op">=</span> <span class="cn">Inf</span>, refine <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<span>  B_min <span class="op">=</span> <span class="fl">1L</span>, B_max <span class="op">=</span> <span class="cn">Inf</span>, refine <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  weights <span class="op">=</span> <span class="cn">NULL</span>, types <span class="op">=</span> <span class="cn">NULL</span>, params <span class="op">=</span> <span class="st">"microcanonical"</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -157,6 +168,39 @@ provides declarative model comparison against the general flat and nested SBMs.<
 <dd><p>Posterior sampling and entropy estimation
   controls forwarded to <code><a href="compare_model_classes.html">model_evidence</a></code>.</p></dd>
 
+  <dt id="arg-weights">weights<a class="anchor" aria-label="anchor" href="#arg-weights"></a></dt>
+<dd><p>Optional edge covariate specification (edge property name(s),
+  vector of length <code>graph_num_edges(graph)</code>, or matrix/data.frame with one
+  column per covariate) using the same distributions and conventions as
+  <code><a href="weighted_block_state.html">weighted_block_state</a></code>. When provided, <code>compare_assortative_models()</code>
+  compares weighted planted-partition models against weighted flat and nested
+  SBMs (<code><a href="weighted_block_state.html">minimize_weighted_blockmodel_dl</a></code> and
+  <code><a href="weighted_block_state.html">minimize_nested_weighted_blockmodel_dl</a></code>).</p></dd>
+
+  <dt id="arg-types">types<a class="anchor" aria-label="anchor" href="#arg-types"></a></dt>
+<dd><p>Optional character vector of covariate families corresponding to
+  <code>weights</code> (<code>"real-normal"</code>, <code>"real-exponential"</code>,
+  <code>"discrete-poisson"</code>, <code>"discrete-geometric"</code>, or
+  <code>"discrete-binomial"</code>). Required when <code>weights</code> is supplied.</p></dd>
+
+  <dt id="arg-params">params<a class="anchor" aria-label="anchor" href="#arg-params"></a></dt>
+<dd><p>Hyperprior specification for <code>weights</code>: <code>"microcanonical"</code>
+  (default) or explicit Bayesian prior hyperparameters as in
+  <code><a href="weighted_block_state.html">weighted_block_state</a></code>.</p></dd>
+
+  <dt id="arg-layers">layers<a class="anchor" aria-label="anchor" href="#arg-layers"></a></dt>
+<dd><p>Optional discrete edge layer labels: an edge property name or a
+  vector of length <code>graph_num_edges(graph)</code> (as in
+  <code><a href="layered_block_state.html">layered_block_state</a></code>). Enables flat multi-layer planted-partition
+  inference, optionally combined with <code>weights</code>.</p></dd>
+
+  <dt id="arg-independent">independent<a class="anchor" aria-label="anchor" href="#arg-independent"></a></dt>
+<dd><p>Used when <code>layers</code> is provided: if <code>FALSE</code>
+  (default), fit the discrete edge-covariate PP model with pooled degrees and
+  pooled covariate buckets across layers; if <code>TRUE</code>, fit conditionally
+  independent PP layers with layer-specific degrees, active group sizes, and
+  (when weighted) per-layer covariate distributions.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -166,7 +210,35 @@ to a single global rate while modeling internal edges either per-community
 (<code>uniform = FALSE</code>) or uniformly (<code>uniform = TRUE</code>). This gives
 \(O(B)\) state memory and zero-allocation incremental moves while remaining
 free of modularity's resolution limit and overfitting on random graphs.</p>
-<p>Planted-partition states work directly with <code><a href="block_state.html">block_membership</a></code>,
+<p><strong>Weighted planted-partition models and caveats:</strong>
+When <code>weights</code> and <code>types</code> are supplied, each active edge bucket
+receives its own weight distribution under the exact conjugate/microcanonical
+likelihoods of <code><a href="weighted_block_state.html">weighted_block_state</a></code> (2 buckets <code>in</code>/<code>out</code>
+when <code>uniform = TRUE</code>; \(B + 1\) buckets \(\{rr\}\) and <code>out</code> when
+<code>uniform = FALSE</code>):</p><ul><li><p><em>Pooled inter-module background:</em> All between-community edge
+  weights are pooled into a single <code>out</code> distribution rather than
+  modeling pair-specific \((r, s)\) block weight differences. If specific
+  pairs of modules have distinct positive vs. negative weight patterns (e.g.,
+  inter-module antagonism in a gene regulatory network), use
+  <code>compare_assortative_models(..., weights = ..., types = ...)</code> to test
+  whether <code>"sbm_flat"</code> or <code>"sbm_nested"</code> has higher Bayesian evidence.</p></li>
+<li><p><em>Mean-ordering / sign symmetry (especially at \(B = 2\)):</em>
+  With signed covariates such as <code>"real-normal"</code>, the covariate likelihood
+  tests whether the within-community and between-community weight distributions
+  <em>differ</em>, without enforcing \(\mu_{\mathrm{in}} &gt; \mu_{\mathrm{out}}\).
+  On strongly anti-correlated bipartitions (particularly at \(B = 2\)), inspect
+  <code>pp_assortativity()</code> (<code>fraction_in</code>, <code>weight_in_mean</code>,
+  <code>weight_out_mean</code>) to confirm whether a recovered partition is assortative
+  or disassortative.</p></li>
+<li><p><em>Extension beyond upstream graph-tool 3.9:</em> Upstream
+  <code>graph-tool</code> 3.9 <code>PPBlockState</code> does not support edge covariates
+  (<code>recs</code>) or edge layers; <code>rgraphtool</code> extends PP to both
+  (flat, single-level) layers and covariates using the exact <code>graph-tool</code>
+  microcanonical/conjugate likelihoods. At \(B = 1\), the weighted/layered
+  PP description length matches <code><a href="weighted_block_state.html">weighted_block_state</a></code> or
+  <code><a href="layered_block_state.html">layered_block_state</a></code> identically, and <code><a href="compare_layered_models.html">compare_layered_models()</a></code>
+  supports direct comparison against general layered SBMs.</p></li>
+</ul><p>Planted-partition states work directly with <code><a href="block_state.html">block_membership</a></code>,
 <code><a href="block_state.html">block_sizes</a></code>, <code><a href="mcmc_sweep.html">mcmc_sweep</a></code>,
 <code><a href="mcmc_sweep.html">mcmc_equilibrate</a></code>, <code><a href="mcmc_sweep.html">mcmc_anneal</a></code>,
 <code><a href="mcmc_sweep.html">sample_posterior</a></code>, and <code><a href="compare_model_classes.html">model_evidence</a></code>.</p>
@@ -176,12 +248,18 @@ free of modularity's resolution limit and overfitting on random graphs.</p>
     <p><code>pp_block_state()</code> and <code>minimize_pp_blockmodel_dl()</code> return a
 <code>rgraphtool_pp_block_state</code> list with <code>blocks</code>, <code>graph</code>,
 <code>uniform</code>, <code>degree_corrected</code>, <code>degree_prior</code>, <code>B</code>, and
-optional <code>fit</code>.</p>
+optional <code>fit</code> (plus <code>weights</code>, <code>types</code>, <code>params</code>,
+<code>weighted</code>, <code>layers</code>, <code>layer_levels</code>, <code>C</code>,
+<code>independent</code>, and <code>layered</code>).</p>
 <p><code>pp_description_length()</code> returns the exact microcanonical description
 length in nats.</p>
 <p><code>pp_assortativity()</code> returns a list with <code>E_in</code>, <code>E_out</code>,
 <code>E_total</code>, <code>fraction_in</code>, <code>B</code>, effective group count <code>Be</code>,
-and per-group internal edge counts <code>err</code>.</p>
+and per-group internal edge counts <code>err</code> (plus <code>weight_in_mean</code> and
+<code>weight_out_mean</code> when <code>state</code> is weighted, and per-layer fields
+<code>E_in_layer</code>, <code>E_out_layer</code>, <code>E_total_layer</code>,
+<code>fraction_in_layer</code>, <code>err_layer</code>, <code>weight_in_mean_layer</code>, and
+<code>weight_out_mean_layer</code> when <code>state</code> is layered).</p>
 <p><code>compare_assortative_models()</code> returns a
 <code>rgraphtool_assortative_model_comparison</code> list with ranked <code>summary</code>,
 <code>best_model</code>, <code>best_state</code>, <code>states</code>, optional <code>evidences</code>,

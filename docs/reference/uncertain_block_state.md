@@ -66,8 +66,8 @@ latent_multigraph(graph, epsilon = 1e-8, max_niter = 0L)
 
 - n, x:
 
-  Total measurement trials \\n\_{ij}\\ and positive observations
-  \\x\_{ij}\\ for each observed edge of `graph`, supplied as a numeric
+  Total measurement trials \\(n\_{ij}\\) and positive observations
+  \\(x\_{ij}\\) for each observed edge of `graph`, supplied as a numeric
   vector of length `graph_num_edges(graph)`, an edge property name, or
   `NULL` (defaulting to 1).
 
@@ -78,28 +78,28 @@ latent_multigraph(graph, epsilon = 1e-8, max_niter = 0L)
 - fn_params:
 
   Named list `list(alpha, beta)` giving Beta prior parameters for the
-  false-negative error rate \\p\\.
+  false-negative error rate \\(p\\).
 
 - fp_params:
 
   Named list `list(mu, nu)` giving Beta prior parameters for the
-  false-positive error rate \\q\\.
+  false-positive error rate \\(q\\).
 
 - lp, lq:
 
-  Optional fixed log error rates \\\ln p\\ and \\\ln q\\ (\\\le 0\\).
-  Leave as `NA_real_` to integrate out unknown error rates under their
-  Beta priors.
+  Optional fixed log error rates \\(\ln p\\) and \\(\ln q\\) (\\(\le
+  0\\)). Leave as `NA_real_` to integrate out unknown error rates under
+  their Beta priors.
 
 - q:
 
-  Extraneous edge probability estimates \\q\_{ij} \in \[0, 1\]\\ for
+  Extraneous edge probability estimates \\(q\_{ij} \in \[0, 1\]\\) for
   observed edges of `graph`, given as a numeric vector, edge property
   name, or `NULL`.
 
 - q_default:
 
-  Default probability in \\\[0, 1\]\\ for unobserved dyads.
+  Default probability in \\(\[0, 1\]\\) for unobserved dyads.
 
 - nested:
 
@@ -108,7 +108,7 @@ latent_multigraph(graph, epsilon = 1e-8, max_niter = 0L)
 
 - blocks:
 
-  Optional initial partition: `NULL`, a length-\\N\\ integer vector, a
+  Optional initial partition: `NULL`, a length-\\(N\\) integer vector, a
   hierarchy list, or a fitted block state.
 
 - latent_edges, latent_weights:
@@ -215,22 +215,22 @@ latent_multigraph(graph, epsilon = 1e-8, max_niter = 0L)
 All four reconstruction models combine an exact dynamic-edge flat or
 nested SBM prior with a measurement likelihood over observed dyads:
 
-- `measured_block_state()`: repeated binary observations \\(n\_{ij},
-  x\_{ij})\\ with unknown Beta-prior or fixed homogeneous false-negative
-  (\\p\\) and false-positive (\\q\\) rates.
+- `measured_block_state()`: repeated binary observations \\((n\_{ij},
+  x\_{ij})\\) with unknown Beta-prior or fixed homogeneous
+  false-negative (\\(p\\)) and false-positive (\\(q\\)) rates.
 
 - `mixed_measured_block_state()`: heterogeneous per-dyad Beta-Binomial
-  error rates with joint hyperparameter MCMC over \\(\alpha, \beta, \mu,
-  \nu)\\.
+  error rates with joint hyperparameter MCMC over \\((\alpha, \beta,
+  \mu, \nu)\\).
 
 - `uncertain_block_state()`: extraneous per-edge probability estimates
-  \\q\_{ij}\\ and default non-edge probability
-  \\q\_{\mathrm{default}}\\.
+  \\(q\_{ij}\\) and default non-edge probability
+  \\(q\_{\mathrm{default}}\\).
 
 - `latent_multigraph_block_state()`: Bayesian posterior over latent edge
   multiplicities and self-loops conditioned on an erased simple graph.
 
-`latent_multigraph()` implements the fast \\O(V + E)\\
+`latent_multigraph()` implements the fast \\(O(V + E)\\)
 Expectation-Maximization algorithm of Peixoto (2020) for
 maximum-likelihood expected edge and self-loop multiplicities.
 
@@ -239,7 +239,7 @@ maximum-likelihood expected edge and self-loop multiplicities.
 Constructors return a `rgraphtool_uncertain_block_state`.
 `uncertain_description_length()` returns a numeric scalar (or breakdown
 list). `measured_error_posterior()` returns Beta posterior parameters,
-means, and standard deviations for \\p\\ and \\q\\.
+means, and standard deviations for \\(p\\) and \\(q\\).
 `edge_probabilities()` returns a numeric vector of conditional (log-)
 probabilities. `reconstruct_network()` returns a
 `rgraphtool_reconstruction` containing posterior marginal edge

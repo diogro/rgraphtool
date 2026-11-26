@@ -27,7 +27,7 @@ hits_centrality(graph, weights = NULL, tol = 1e-6, max_iter = 1000L)
 
 - damping:
 
-  PageRank damping factor in \\\[0, 1\]\\ (default `0.85`).
+  PageRank damping factor in \\(\[0, 1\]\\) (default `0.85`).
 
 - pers:
 
@@ -55,24 +55,24 @@ hits_centrality(graph, weights = NULL, tol = 1e-6, max_iter = 1000L)
 
 - harmonic:
 
-  Logical; if `TRUE`, computes harmonic closeness \\\sum\_{v \neq u} 1 /
-  d(u, v)\\ (divided by \\N - 1\\ when `normalized = TRUE`).
+  Logical; if `TRUE`, computes harmonic closeness \\(\sum\_{v \neq u} 1
+  / d(u, v)\\) (divided by \\(N - 1\\) when `normalized = TRUE`).
 
 - alpha:
 
-  Katz attenuation factor (should be smaller than \\1 /
-  \lambda\_{\max}\\).
+  Katz attenuation factor (should be smaller than \\(1 /
+  \lambda\_{\max}\\)).
 
 - beta:
 
-  Optional exogenous vertex weight vector of length \\N\\ for
+  Optional exogenous vertex weight vector of length \\(N\\) for
   `katz_centrality()`.
 
 ## Value
 
 `pagerank()`, `closeness()`, and `katz_centrality()` return numeric
-vectors of length \\N\\. `betweenness()` returns a list with elements
-`vertex` (length \\N\\) and `edge` (length \\E\\).
+vectors of length \\(N\\). `betweenness()` returns a list with elements
+`vertex` (length \\(N\\)) and `edge` (length \\(E\\)).
 `eigenvector_centrality()` returns `list(eigenvalue, vector)`, and
 `hits_centrality()` returns `list(eigenvalue, authority, hub)`.
 

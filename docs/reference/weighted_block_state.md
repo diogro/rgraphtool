@@ -18,7 +18,7 @@ weighted_description_length(state, rec = TRUE, rec_dl = TRUE,
 minimize_weighted_blockmodel_dl(graph, weights, types,
   params = "microcanonical", degree_corrected = TRUE,
   degree_prior = c("distributed", "uniform"), B_min = 1L, B_max = Inf,
-  refine = TRUE, epsilon = 1e-3)
+  refine = TRUE, epsilon = 1e-3, nthreads = NULL)
 nested_weighted_block_state(graph, weights, types, params = "microcanonical",
   levels = NULL, degree_corrected = TRUE,
   degree_prior = c("distributed", "uniform"))
@@ -27,7 +27,7 @@ nested_weighted_description_length(state, degree_prior = NULL)
 minimize_nested_weighted_blockmodel_dl(graph, weights, types,
   params = "microcanonical", degree_corrected = TRUE,
   degree_prior = c("distributed", "uniform"), B_min = 1L, B_max = Inf,
-  refine = TRUE, epsilon = 1e-3)
+  refine = TRUE, epsilon = 1e-3, nthreads = NULL)
 ```
 
 ## Arguments
@@ -41,12 +41,12 @@ minimize_nested_weighted_blockmodel_dl(graph, weights, types,
 
   Edge covariate values: either a character vector naming one or more
   edge properties stored on `graph`, a numeric vector of length
-  `graph_num_edges(graph)`, an \\E \times K\\ numeric matrix, or a list
-  mixing property names and numeric vectors.
+  `graph_num_edges(graph)`, an \\(E \times K\\) numeric matrix, or a
+  list mixing property names and numeric vectors.
 
 - types:
 
-  Character vector of length \\K\\ naming the covariate model for each
+  Character vector of length \\(K\\) naming the covariate model for each
   column of `weights`: `"real-exponential"`, `"real-normal"`,
   `"discrete-geometric"`, `"discrete-poisson"`, or
   `"discrete-binomial"`.
@@ -58,7 +58,7 @@ minimize_nested_weighted_blockmodel_dl(graph, weights, types,
   (empirical-Bayes conjugate hyperpriors matching graph-tool), a named
   list of hyperparameters (e.g. `list(alpha = 1, beta = 2)` or
   `list(N = 10, alpha = 1, beta = 1)` or
-  `list(m0 = 0, k0 = 1, v0 = 1, nu0 = 3)`), or a list of length \\K\\
+  `list(m0 = 0, k0 = 1, v0 = 1, nu0 = 3)`), or a list of length \\(K\\)
   specifying one entry per covariate.
 
 - blocks:
@@ -106,12 +106,17 @@ minimize_nested_weighted_blockmodel_dl(graph, weights, types,
 
   Convergence tolerance in nats.
 
+- nthreads:
+
+  Optional thread count override (defaults to
+  [`rgraphtool_num_threads()`](https://diogro.github.io/rgraphtool/reference/rgraphtool_threads.md)).
+
 ## Details
 
 All description lengths match graph-tool 3.9's `WeightedBlockState` and
 `NestedBlockState(base_state=WeightedBlockState)` to machine precision
-(including the exact continuous quantization scale \\\epsilon = 0.1
-\min\_{w_e \neq 0} \|w_e\|\\ and the nested `real-normal` variance
+(including the exact continuous quantization scale \\(\epsilon = 0.1
+\min\_{w_e \neq 0} \|w_e\|\\) and the nested `real-normal` variance
 hyperprior).
 
 Weighted states integrate directly with

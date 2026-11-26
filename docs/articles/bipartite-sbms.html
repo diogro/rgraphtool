@@ -13,8 +13,8 @@
     }
   };
 </script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Bipartite &amp; Ecological Networks: The Fungus-Tree Case Study">
 </head>
@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">rgraphtool</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -155,27 +155,27 @@ penalties from impossible intra-type edges:</p>
 <span><span class="co">#&gt; &lt;bipartite block state (degree-corrected, unweighted, edge_prior = bipartite)&gt;</span></span>
 <span><span class="co">#&gt;   fungus: 154 vertices -&gt; 4 blocks</span></span>
 <span><span class="co">#&gt;   tree: 51 vertices -&gt; 3 blocks</span></span>
-<span><span class="co">#&gt;   edges: 543 | description length: 1694.3719 nats</span></span>
+<span><span class="co">#&gt;   edges: 543 | description length: 1691.3277 nats</span></span>
 <span></span>
 <span><span class="co"># Separate 1-based block memberships for fungi and trees (with species names)</span></span>
 <span><span class="va">mem</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/bipartite_block_state.html">bipartite_membership</a></span><span class="op">(</span><span class="va">fit_bip</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span>fungus_block <span class="op">=</span> <span class="va">mem</span><span class="op">$</span><span class="va">fungus</span><span class="op">)</span></span>
 <span><span class="co">#&gt; fungus_block</span></span>
 <span><span class="co">#&gt;  1  2  3  4 </span></span>
-<span><span class="co">#&gt; 17  5 41 91</span></span>
+<span><span class="co">#&gt; 92 29  9 24</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/table.html" class="external-link">table</a></span><span class="op">(</span>tree_block <span class="op">=</span> <span class="va">mem</span><span class="op">$</span><span class="va">tree</span><span class="op">)</span></span>
 <span><span class="co">#&gt; tree_block</span></span>
 <span><span class="co">#&gt;  1  2  3 </span></span>
-<span><span class="co">#&gt; 24 19  8</span></span>
+<span><span class="co">#&gt;  9 30 12</span></span>
 <span></span>
 <span><span class="co"># Rectangular B_fungus x B_tree interaction density matrix</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="fu"><a href="../reference/bipartite_block_state.html">bipartite_block_matrix</a></span><span class="op">(</span><span class="va">fit_bip</span>, normalize <span class="op">=</span> <span class="st">"density"</span><span class="op">)</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;           tree</span></span>
 <span><span class="co">#&gt; fungus     tree_1 tree_2 tree_3</span></span>
-<span><span class="co">#&gt;   fungus_1  0.000  0.019  0.404</span></span>
-<span><span class="co">#&gt;   fungus_2  0.442  0.179  0.200</span></span>
-<span><span class="co">#&gt;   fungus_3  0.195  0.003  0.000</span></span>
-<span><span class="co">#&gt;   fungus_4  0.018  0.075  0.058</span></span>
+<span><span class="co">#&gt;   fungus_1  0.008  0.074  0.001</span></span>
+<span><span class="co">#&gt;   fungus_2  0.295  0.002  0.063</span></span>
+<span><span class="co">#&gt;   fungus_3  0.481  0.222  0.296</span></span>
+<span><span class="co">#&gt;   fungus_4  0.056  0.000  0.306</span></span>
 <span></span>
 <span><span class="co"># Reordered incidence matrix ("data" view) and mesoscale block diagram ("meso" view)</span></span>
 <span><span class="va">old_par</span> <span class="op">&lt;-</span> <span class="fu">graphics</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1L</span>, <span class="fl">2L</span><span class="op">)</span>, mar <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">4</span>, <span class="fl">4</span>, <span class="fl">3</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
@@ -204,18 +204,18 @@ bipartite SBMs by exact description length:</p>
 <span><span class="va">cmp</span></span>
 <span><span class="co">#&gt; &lt;bipartite block model comparison&gt;</span></span>
 <span><span class="co">#&gt;       model nested degree_corrected B_row B_col description_length  delta_dl</span></span>
-<span><span class="co">#&gt;   nested_dc   TRUE             TRUE     4     3           1692.717  0.000000</span></span>
-<span><span class="co">#&gt;     flat_dc  FALSE             TRUE     4     3           1694.543  1.825824</span></span>
-<span><span class="co">#&gt;    flat_ndc  FALSE            FALSE     6     6           1712.970 20.252526</span></span>
-<span><span class="co">#&gt;  nested_ndc   TRUE            FALSE     3     3           1781.155 88.437387</span></span>
-<span><span class="co">#&gt; Best model: nested_dc</span></span>
+<span><span class="co">#&gt;     flat_dc  FALSE             TRUE     4     3           1691.328  0.000000</span></span>
+<span><span class="co">#&gt;   nested_dc   TRUE             TRUE     4     3           1692.454  1.126002</span></span>
+<span><span class="co">#&gt;    flat_ndc  FALSE            FALSE     4     4           1736.366 45.038276</span></span>
+<span><span class="co">#&gt;  nested_ndc   TRUE            FALSE     4     3           1768.932 77.604165</span></span>
+<span><span class="co">#&gt; Best model: flat_dc</span></span>
 <span></span>
 <span><span class="co"># Finite-temperature MCMC posterior sampling around the MAP bipartite state</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">42</span><span class="op">)</span></span>
 <span><span class="va">post</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/mcmc_sweep.html">sample_posterior</a></span><span class="op">(</span><span class="va">fit_bip</span>, nsamples <span class="op">=</span> <span class="fl">50L</span>, burnin <span class="op">=</span> <span class="fl">25L</span>, thin <span class="op">=</span> <span class="fl">2L</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/summary.html" class="external-link">summary</a></span><span class="op">(</span><span class="va">post</span><span class="op">$</span><span class="va">entropies</span><span class="op">)</span></span>
 <span><span class="co">#&gt;    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. </span></span>
-<span><span class="co">#&gt;    1697    1712    1721    1725    1740    1763</span></span></code></pre></div>
+<span><span class="co">#&gt;    1697    1712    1728    1727    1735    1782</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="simple-covariate-weighted-sbms-on-the-treetree-network">4. Simple &amp; covariate-weighted SBMs on the tree–tree
@@ -270,9 +270,9 @@ multi-covariate SBM incorporating taxonomic distance
 <span>            <span class="fu"><a href="../reference/block_state.html">block_description_length</a></span><span class="op">(</span><span class="va">fit_tree_bin</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; Binary tree SBM: 1 blocks (DL = 1001.38 nats)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">fit_tree_poi</span><span class="op">)</span></span>
-<span><span class="co">#&gt; &lt;weighted block state: degree-corrected, discrete-poisson, B = 5, description length 2214.4126 nats&gt;</span></span>
+<span><span class="co">#&gt; &lt;weighted block state: degree-corrected, discrete-poisson, B = 5, description length 2213.8415 nats&gt;</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">fit_tree_cov</span><span class="op">)</span></span>
-<span><span class="co">#&gt; &lt;weighted block state: degree-corrected, discrete-poisson+real-exponential, B = 6, description length 2629.5117 nats&gt;</span></span></code></pre></div>
+<span><span class="co">#&gt; &lt;weighted block state: degree-corrected, discrete-poisson+real-exponential, B = 6, description length 2633.0294 nats&gt;</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="exporting-round-tripping-with-graph-tool--gt-and-igraph">5. Exporting &amp; round-tripping with <code>graph-tool</code>

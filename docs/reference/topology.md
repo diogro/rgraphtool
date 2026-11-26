@@ -53,7 +53,7 @@ assortativity(graph, values = "total", categorical = FALSE, weights = NULL)
 - values:
 
   For `assortativity()`, `"total"`, `"in"`, or `"out"` for degree
-  assortativity, a vertex property name, or a length-\\N\\ vector.
+  assortativity, a vertex property name, or a length-\\(N\\) vector.
 
 - categorical:
 
@@ -70,7 +70,7 @@ or matrix. `shortest_path()` returns `list(vertices, edges, distance)`.
 `label_biconnected_components()` returns
 `list(edge_component, num_components, articulation_points, bridges)`.
 `topological_sort()` returns an integer vertex ordering and `is_dag()`
-returns a logical scalar. `local_clustering()` returns a length-\\N\\
+returns a logical scalar. `local_clustering()` returns a length-\\(N\\)
 vector, `global_clustering()` returns a named length-2 vector
 `c(clustering, std_err)`, and `assortativity()` returns a numeric
 correlation coefficient.

@@ -45,8 +45,8 @@ simulate_potts(graph, weights = 0.5, f = diag(3), theta = NULL,
 
 - theta:
 
-  Node external field(s) (scalar, length-\\N\\ vector, or \\N \times q\\
-  matrix for Potts).
+  Node external field(s) (scalar, length-\\(N\\) vector, or \\(N \times
+  q\\) matrix for Potts).
 
 - n_samples, n_steps:
 
@@ -93,7 +93,7 @@ simulate_potts(graph, weights = 0.5, f = diag(3), theta = NULL,
 - n_cascades:
 
   Number of independent epidemic cascades to simulate; if `> 1`, returns
-  a list of \\N \times \mathrm{n\\steps}\\ matrices.
+  a list of \\(N \times \mathrm{n\\\_steps}\\) matrices.
 
 - exposed, expose_rate:
 
@@ -106,13 +106,13 @@ simulate_potts(graph, weights = 0.5, f = diag(3), theta = NULL,
 
 - f:
 
-  Square \\q \times q\\ interaction matrix for Potts dynamics.
+  Square \\(q \times q\\) interaction matrix for Potts dynamics.
 
 ## Value
 
-An \\N \times M\\ integer or numeric matrix of simulated node states (or
-a list of `n_cascades` matrices when `simulate_epidemics()` is called
-with `n_cascades > 1`).
+An \\(N \times M\\) integer or numeric matrix of simulated node states
+(or a list of `n_cascades` matrices when `simulate_epidemics()` is
+called with `n_cascades > 1`).
 
 ## See also
 

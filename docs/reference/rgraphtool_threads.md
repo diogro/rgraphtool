@@ -39,10 +39,10 @@ systems are never oversubscribed unexpectedly. Opt in globally via
 or per call via the `nthreads` argument.
 
 In practice, 4–16 threads typically provide the best speedups (roughly
-3x–4.3x on networks with \\N = 10^4\\–\\10^5\\ vertices), after which
-sequential priority-queue merge commits limit further scaling; 32–64
-threads still give incremental gains on \\N \ge 10^5\\ networks. To
-reduce peak RAM on very large networks, lower
+3x–4.3x on networks with \\(N = 10^4\\)–\\(10^5\\) vertices), after
+which sequential priority-queue merge commits limit further scaling;
+32–64 threads still give incremental gains on \\(N \ge 10^5\\) networks.
+To reduce peak RAM on very large networks, lower
 `options(rgraphtool.q_cache_max = 1000)` (the default `5000` uses ~100
 MB for the exact partition-count table) and pair multithreading with
 strictly agglomerative search
@@ -69,7 +69,7 @@ thread count.
 
 ``` r
 rgraphtool_max_threads()
-#> [1] 10
+#> [1] 448
 old <- rgraphtool_num_threads()
 rgraphtool_set_num_threads(min(2L, rgraphtool_max_threads()))
 rgraphtool_num_threads()

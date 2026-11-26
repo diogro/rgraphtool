@@ -23,7 +23,7 @@ interactive_bfs(graph, pos = NULL, source = 1L, max_dist = 3L,
 
 - pos:
 
-  Optional \\N \times 2\\ vertex layout matrix; computed via
+  Optional \\(N \times 2\\) vertex layout matrix; computed via
   [`sfdp_layout`](https://diogro.github.io/rgraphtool/reference/sfdp_layout.md)
   if `NULL`.
 
@@ -110,7 +110,7 @@ res <- interactive_bfs(g, pos = pos, source = 1L, max_dist = 3L,
                        mode = "html", output = tempfile(fileext = ".html"))
 print(res)
 #> rgraphtool interactive BFS visualization
-#>   mode: html -> /var/folders/ph/fmqmjzln2h15bm5bstsgpng80000gn/T//RtmprWlJpb/file1715668cf8255.html
+#>   mode: html -> /tmp/RtmpTIoacd/filedc83a21b5f4af.html
 #> rgraphtool BFS traversal
 #>   source: 1 (undirected, max_dist = 3)
 #>   reached: 8 / 10 vertices (max distance = 3, tree edges = 7)

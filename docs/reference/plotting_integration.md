@@ -143,7 +143,7 @@ ggplot_graph(graph, pos = NULL, vertex_color = "#4C72B0", vertex_size = 2.6,
 
 - pos:
 
-  Optional \\N \times 2\\ vertex layout matrix.
+  Optional \\(N \times 2\\) vertex layout matrix.
 
 - vertex_color, vertex_border, vertex_size, vertex_halo,
   vertex_halo_color, vertex_halo_size, vertex_visible, vertex_label,

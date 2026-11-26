@@ -90,13 +90,13 @@ compare_weight_models(graph, weights, candidates = NULL, nested = TRUE,
 
 ## Details
 
-For an invertible continuous weight transformation \\y_e = f(w_e)\\, the
-induced density on the original weights is \\p_W(w) = p_Y(f(w)) \prod_e
-\|f'(w_e)\|\\, so the adjusted description length and negative
+For an invertible continuous weight transformation \\(y_e = f(w_e)\\),
+the induced density on the original weights is \\(p_W(w) = p_Y(f(w))
+\prod_e \|f'(w_e)\|\\), so the adjusted description length and negative
 log-evidence are \$\$-\ln p_W(w) = -\ln p_Y(f(w)) - \sum_e \ln
-\|f'(w_e)\|.\$\$ For `log-normal` (\\f(w) = \ln w\\), the Jacobian
-adjustment added to the transformed description length is \\+\sum_e \ln
-w_e\\.
+\|f'(w_e)\|.\$\$ For `log-normal` (\\(f(w) = \ln w\\)), the Jacobian
+adjustment added to the transformed description length is \\(+\sum_e \ln
+w_e\\).
 
 Note that discrete probability mass functions and continuous probability
 density functions live on different reference measures; by default

@@ -102,7 +102,7 @@ transform_weights(x, transform = c("identity", "log", "log1p", "sqrt",
 
   Weight transformation to apply. Invertible continuous transformations
   (`"identity"`, `"log"`, `"log1p"`, `"sqrt"`, `"zscore"`) attach the
-  exact log-Jacobian \\\sum_e \ln \|f'(x_e)\|\\ as attribute
+  exact log-Jacobian \\(\sum_e \ln \|f'(x_e)\|\\) as attribute
   `"log_jacobian"` for change-of-variables model comparison.
 
 - shift:

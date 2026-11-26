@@ -5,7 +5,7 @@
       fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
     }
   };
-</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Compare edge-covariate and independent-layers SBM variants — compare_layered_models"><meta name="description" content="Declarative, callback-free model selection between the discrete edge-covariate
+</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Compare edge-covariate and independent-layers SBM variants — compare_layered_models"><meta name="description" content="Declarative, callback-free model selection between the discrete edge-covariate
 layered SBM (independent = FALSE) and the conditionally independent
 layers SBM (independent = TRUE), optionally across degree-corrected and
 non-degree-corrected variants and using either MAP description lengths or full
@@ -21,7 +21,7 @@ Bayesian posterior marginal evidence."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">rgraphtool</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -87,7 +87,8 @@ Bayesian posterior marginal evidence.</p>
 <span>  method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"map"</span>, <span class="st">"posterior"</span><span class="op">)</span>,</span>
 <span>  evidence_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"variational"</span>, <span class="st">"importance"</span><span class="op">)</span>, nruns <span class="op">=</span> <span class="fl">1L</span>,</span>
 <span>  nsamples <span class="op">=</span> <span class="fl">200L</span>, thin <span class="op">=</span> <span class="fl">5L</span>, burnin <span class="op">=</span> <span class="cn">NULL</span>, mle <span class="op">=</span> <span class="cn">TRUE</span>, B_min <span class="op">=</span> <span class="fl">1L</span>,</span>
-<span>  B_max <span class="op">=</span> <span class="cn">Inf</span>, refine <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
+<span>  B_max <span class="op">=</span> <span class="cn">Inf</span>, refine <span class="op">=</span> <span class="cn">TRUE</span>, weights <span class="op">=</span> <span class="cn">NULL</span>, types <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  params <span class="op">=</span> <span class="st">"microcanonical"</span>, nthreads <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -103,9 +104,13 @@ Bayesian posterior marginal evidence.</p>
   <dt id="arg-models">models<a class="anchor" aria-label="anchor" href="#arg-models"></a></dt>
 <dd><p>Character vector naming a subset of <code>"edge_covariates"</code>,
   <code>"independent_layers"</code>, <code>"edge_covariates_dc"</code>,
-  <code>"edge_covariates_ndc"</code>, <code>"independent_layers_dc"</code>, and
-  <code>"independent_layers_ndc"</code>. The unqualified names use
-  <code>degree_corrected</code>.</p></dd>
+  <code>"edge_covariates_ndc"</code>, <code>"independent_layers_dc"</code>,
+  <code>"independent_layers_ndc"</code>, <code>"pp_edge_covariates"</code>,
+  <code>"pp_independent_layers"</code>, <code>"pp_edge_covariates_uniform"</code>, and
+  <code>"pp_independent_layers_uniform"</code>. The unqualified and <code>pp_*</code> names
+  use <code>degree_corrected</code>; <code>pp_*</code> variants fit flat layered
+  planted-partition states via <code><a href="pp_block_state.html">minimize_pp_blockmodel_dl</a></code> even when
+  <code>nested = TRUE</code>.</p></dd>
 
   <dt id="arg-nested">nested<a class="anchor" aria-label="anchor" href="#arg-nested"></a></dt>
 <dd><p>Whether to fit nested (<code>TRUE</code>, default) or flat
@@ -139,6 +144,19 @@ Bayesian posterior marginal evidence.</p>
 
   <dt id="arg-refine">refine<a class="anchor" aria-label="anchor" href="#arg-refine"></a></dt>
 <dd><p>Whether to run local refinement sweeps during minimization.</p></dd>
+
+  <dt id="arg-weights">weights<a class="anchor" aria-label="anchor" href="#arg-weights"></a></dt>
+<dd><p>Optional edge covariates (edge property name(s), vector,
+  matrix, or list) for testing differential co-expression across layers.</p></dd>
+
+  <dt id="arg-types">types<a class="anchor" aria-label="anchor" href="#arg-types"></a></dt>
+<dd><p>Optional covariate type(s) required when <code>weights</code> is supplied.</p></dd>
+
+  <dt id="arg-params">params<a class="anchor" aria-label="anchor" href="#arg-params"></a></dt>
+<dd><p>Covariate hyperprior specification (default <code>"microcanonical"</code>).</p></dd>
+
+  <dt id="arg-nthreads">nthreads<a class="anchor" aria-label="anchor" href="#arg-nthreads"></a></dt>
+<dd><p>Optional thread count override.</p></dd>
 
 </dl></div>
     <div class="section level2">

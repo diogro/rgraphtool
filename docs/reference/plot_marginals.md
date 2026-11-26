@@ -26,12 +26,12 @@ plot_marginals(graph, mode, positions = NULL, radius = 0.04,
   [`partition_mode_state`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md)
   or
   [`mode_cluster_state`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md),
-  or an \\N \times B\\ numeric matrix of marginal counts or
+  or an \\(N \times B\\) numeric matrix of marginal counts or
   probabilities.
 
 - positions:
 
-  Optional \\N \times 2\\ matrix of vertex coordinates. When `NULL`,
+  Optional \\(N \times 2\\) matrix of vertex coordinates. When `NULL`,
   computes a deterministic spring layout initialized from the consensus
   partition.
 

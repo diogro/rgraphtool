@@ -13,8 +13,8 @@
     }
   };
 </script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Network Reconstruction: Uncertain Edges, Triadic Closure &amp; Dynamics">
 </head>
@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">rgraphtool</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -140,9 +140,9 @@ multigraph inference (<code><a href="../reference/uncertain_block_state.html">la
 <span><span class="va">rec_meas</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/uncertain_block_state.html">reconstruct_network</a></span><span class="op">(</span><span class="va">st_meas</span>, nsamples <span class="op">=</span> <span class="fl">120L</span>, burnin <span class="op">=</span> <span class="fl">100L</span>, thin <span class="op">=</span> <span class="fl">2L</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">rec_meas</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;rgraphtool_reconstruction (measured)&gt;</span></span>
-<span><span class="co">#&gt;   Marginal edges observed: 384 | Consensus edges (p &gt;= 0.50): 197</span></span>
-<span><span class="co">#&gt;   Final description length: 1186.7550 | Moves: 13245 / 108951</span></span>
-<span><span class="co">#&gt;   Posterior mean FN rate (p): 0.1959 | FP rate (q): 0.0501</span></span>
+<span><span class="co">#&gt;   Marginal edges observed: 385 | Consensus edges (p &gt;= 0.50): 197</span></span>
+<span><span class="co">#&gt;   Final description length: 1130.5609 | Moves: 13647 / 117197</span></span>
+<span><span class="co">#&gt;   Posterior mean FN rate (p): 0.1933 | FP rate (q): 0.0506</span></span>
 <span></span>
 <span><span class="va">ek</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">u</span>, <span class="va">v</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/paste.html" class="external-link">paste0</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">pmin</a></span><span class="op">(</span><span class="va">u</span>, <span class="va">v</span><span class="op">)</span>, <span class="st">":"</span>, <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">pmax</a></span><span class="op">(</span><span class="va">u</span>, <span class="va">v</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">idx</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/match.html" class="external-link">match</a></span><span class="op">(</span><span class="fu">ek</span><span class="op">(</span><span class="va">all_pairs</span><span class="op">[</span>, <span class="fl">1L</span><span class="op">]</span>, <span class="va">all_pairs</span><span class="op">[</span>, <span class="fl">2L</span><span class="op">]</span><span class="op">)</span>,</span>
@@ -221,7 +221,7 @@ PRX).</p>
 <span>  <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">res_tc</span><span class="op">$</span><span class="va">edges</span><span class="op">$</span><span class="va">closure_prob</span><span class="op">[</span><span class="op">!</span><span class="va">is_closure</span><span class="op">]</span><span class="op">)</span>,</span>
 <span>  <span class="va">ev_tc</span><span class="op">$</span><span class="va">roc_auc</span></span>
 <span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Mean closure_prob: true closures = 0.912 vs. substrate = 0.016 | ROC-AUC = 1.0000</span></span></code></pre></div>
+<span><span class="co">#&gt; Mean closure_prob: true closures = 0.942 vs. substrate = 0.009 | ROC-AUC = 1.0000</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="reconstruction-from-synthetic-dynamics-ising-epidemics-gaussian-potts">3. Reconstruction from synthetic dynamics (Ising, epidemics,
@@ -279,10 +279,10 @@ simulators.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">l1_path</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;rgraphtool_l1_path (4 lambda values, best BIC at xl1 = 20)&gt;</span></span>
 <span><span class="co">#&gt;  xl1 n_edges      nll  entropy       bic  l1_norm precision recall        f1</span></span>
-<span><span class="co">#&gt;   20      99 4516.546 6397.560  9794.327 15.92459 0.2626263      1 0.4160000</span></span>
-<span><span class="co">#&gt;   10     134 4463.823 6353.781  9912.772 19.55828 0.1940299      1 0.3250000</span></span>
-<span><span class="co">#&gt;    5     154 4442.849 6380.869  9998.765 22.36982 0.1688312      1 0.2888889</span></span>
-<span><span class="co">#&gt;    1     176 4434.599 6591.818 10122.997 25.14198 0.1477273      1 0.2574257</span></span>
+<span><span class="co">#&gt;   20      98 4516.665 6397.560  9788.167 15.91890 0.2653061      1 0.4193548</span></span>
+<span><span class="co">#&gt;   10     135 4463.694 6353.779  9918.912 19.57039 0.1925926      1 0.3229814</span></span>
+<span><span class="co">#&gt;    5     155 4442.808 6380.866 10005.078 22.37655 0.1677419      1 0.2872928</span></span>
+<span><span class="co">#&gt;    1     176 4434.585 6591.817 10122.968 25.15472 0.1477273      1 0.2574257</span></span>
 <span><span class="co">#&gt;  roc_auc</span></span>
 <span><span class="co">#&gt;        1</span></span>
 <span><span class="co">#&gt;        1</span></span>
@@ -302,7 +302,7 @@ simulators.</p>
 <span><span class="va">tp_ep</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/dynamics_block_state.html">dynamics_transmission_probs</a></span><span class="op">(</span><span class="va">rec_ep</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fu">eval_graph</span><span class="op">(</span><span class="va">rec_ep</span>, <span class="va">g_d</span><span class="op">)</span>, median_t_hat <span class="op">=</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/median.html" class="external-link">median</a></span><span class="op">(</span><span class="va">tp_ep</span><span class="op">$</span><span class="va">edges</span><span class="op">$</span><span class="va">transmission_prob</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;      roc_auc           f1       n_pred       n_true median_t_hat </span></span>
-<span><span class="co">#&gt;    1.0000000    1.0000000   20.0000000   20.0000000    0.4495854</span></span></code></pre></div>
+<span><span class="co">#&gt;    1.0000000    1.0000000   20.0000000   20.0000000    0.4464316</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="empirical-financial-partial-correlation-network">4. Empirical financial partial-correlation network<a class="anchor" aria-label="anchor" href="#empirical-financial-partial-correlation-network"></a>
@@ -332,13 +332,13 @@ standardize each series to zero mean and unit variance, and set
 <span><span class="fu"><a href="https://rdrr.io/r/base/dimnames.html" class="external-link">dimnames</a></span><span class="op">(</span><span class="va">pcor_eu</span><span class="op">)</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="va">idx_names</span>, <span class="va">idx_names</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Round.html" class="external-link">round</a></span><span class="op">(</span><span class="va">pcor_eu</span>, <span class="fl">3</span><span class="op">)</span></span>
 <span><span class="co">#&gt;        DAX   SMI   CAC  FTSE</span></span>
-<span><span class="co">#&gt; DAX  1.000 0.390 0.421 0.214</span></span>
-<span><span class="co">#&gt; SMI  0.390 1.000 0.155 0.249</span></span>
-<span><span class="co">#&gt; CAC  0.421 0.155 1.000 0.367</span></span>
-<span><span class="co">#&gt; FTSE 0.214 0.249 0.367 1.000</span></span>
+<span><span class="co">#&gt; DAX  1.000 0.390 0.420 0.214</span></span>
+<span><span class="co">#&gt; SMI  0.390 1.000 0.155 0.250</span></span>
+<span><span class="co">#&gt; CAC  0.420 0.155 1.000 0.367</span></span>
+<span><span class="co">#&gt; FTSE 0.214 0.250 0.367 1.000</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/cat.html" class="external-link">cat</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/sprintf.html" class="external-link">sprintf</a></span><span class="op">(</span><span class="st">"Minimum eigenvalue of precision matrix: %.4f (strictly SPD)\n"</span>,</span>
 <span>            <span class="fu"><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">min</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/eigen.html" class="external-link">eigen</a></span><span class="op">(</span><span class="va">prec_eu</span><span class="op">$</span><span class="va">precision</span>, symmetric <span class="op">=</span> <span class="cn">TRUE</span>, only.values <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">$</span><span class="va">values</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Minimum eigenvalue of precision matrix: 0.2242 (strictly SPD)</span></span></code></pre></div>
+<span><span class="co">#&gt; Minimum eigenvalue of precision matrix: 0.2244 (strictly SPD)</span></span></code></pre></div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

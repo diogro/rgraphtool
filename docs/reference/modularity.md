@@ -1,8 +1,8 @@
 # Newman modularity and modularity maximization (use with extreme caution)
 
 Computes generalized Newman–Girvan / Reichardt–Bornholdt modularity
-\\Q(\gamma)\\ and maximizes it via fast native C++23 multilevel Louvain
-coarsening and fine-grained refinement.
+\\(Q(\gamma)\\) and maximizes it via fast native C++23 multilevel
+Louvain coarsening and fine-grained refinement.
 
 ## Usage
 
@@ -27,7 +27,7 @@ print(x, ...)
 
 - gamma:
 
-  Resolution parameter \\\gamma\\ (default `1.0`).
+  Resolution parameter \\(\gamma\\) (default `1.0`).
 
 - weights:
 
@@ -66,12 +66,12 @@ pedagogical purposes* and emits an explicit warning by default:
   regularization or prior penalty on the number of groups. On completely
   structureless Erdos–Renyi or configuration-model random graphs,
   `maximize_modularity()` routinely fabricates spurious partitions with
-  high modularity (\\Q \> 0.3\\–\\0.8\\), whereas
+  high modularity (\\(Q \> 0.3\\)–\\(0.8\\)), whereas
   [`minimize_blockmodel_dl()`](https://diogro.github.io/rgraphtool/reference/minimize_blockmodel_dl.md)
-  rightly infers \\B = 1\\.
+  rightly infers \\(B = 1\\).
 
 - **Resolution limit (underfitting)**: Simultaneously, modularity cannot
-  resolve genuine communities smaller than \\\sim \sqrt{2E}\\ edges
+  resolve genuine communities smaller than \\(\sim \sqrt{2E}\\) edges
   (Fortunato & Barthelemy 2007), merging distinct small modules in large
   networks.
 
@@ -89,7 +89,7 @@ University Press) and <https://skewed.de/tiago/blog/modularity-harmful>.
 
 ## Value
 
-`modularity()` returns the scalar modularity \\Q(\gamma)\\.
+`modularity()` returns the scalar modularity \\(Q(\gamma)\\).
 `maximize_modularity()` returns an `rgraphtool_modularity_state` list
 containing `blocks`, `modularity`, `B`, `gamma`, and `graph`.
 

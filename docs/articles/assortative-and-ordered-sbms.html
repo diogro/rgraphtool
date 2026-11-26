@@ -13,8 +13,8 @@
     }
   };
 </script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet">
-<script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
+<link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
+<script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
 <script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Assortative &amp; Ordered (Ranked) Communities">
 </head>
@@ -26,7 +26,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">rgraphtool</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -151,15 +151,15 @@ SBMs.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">cmp_pp</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;assortative vs. general SBM comparison (DC, posterior/variational)&gt;</span></span>
 <span><span class="co">#&gt;       model B description_length posterior_entropy neg_log_evidence  delta</span></span>
-<span><span class="co">#&gt;  sbm_nested 7            705.959            38.531          683.363  0.000</span></span>
-<span><span class="co">#&gt;    sbm_flat 6            706.720            23.132          690.033  6.669</span></span>
-<span><span class="co">#&gt;          pp 5            719.422            36.175          702.923 19.560</span></span>
-<span><span class="co">#&gt;  pp_uniform 4            725.074            16.638          712.270 28.907</span></span>
+<span><span class="co">#&gt;  sbm_nested 6            702.924            29.843          688.607  0.000</span></span>
+<span><span class="co">#&gt;    sbm_flat 6            700.726            18.937          691.990  3.383</span></span>
+<span><span class="co">#&gt;          pp 5            719.422            36.175          702.923 14.316</span></span>
+<span><span class="co">#&gt;  pp_uniform 4            725.074            16.638          712.270 23.664</span></span>
 <span><span class="co">#&gt;  posterior_weight</span></span>
-<span><span class="co">#&gt;          9.99e-01</span></span>
-<span><span class="co">#&gt;          1.27e-03</span></span>
-<span><span class="co">#&gt;          3.20e-09</span></span>
-<span><span class="co">#&gt;          2.79e-13</span></span>
+<span><span class="co">#&gt;          9.67e-01</span></span>
+<span><span class="co">#&gt;          3.28e-02</span></span>
+<span><span class="co">#&gt;          5.86e-07</span></span>
+<span><span class="co">#&gt;          5.11e-11</span></span>
 <span><span class="co">#&gt; Best model: sbm_nested</span></span>
 <span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">42</span><span class="op">)</span></span>
@@ -207,10 +207,10 @@ memberships and a latent rank ordering <span class="math inline">\(u_r\)</span> 
 <span><span class="fu"><a href="https://rdrr.io/r/base/print.html" class="external-link">print</a></span><span class="op">(</span><span class="va">cmp_ord</span><span class="op">)</span></span>
 <span><span class="co">#&gt; &lt;ordered (ranked) vs. unordered SBM comparison (DC, MAP)&gt;</span></span>
 <span><span class="co">#&gt;             model  B description_length   delta posterior_weight</span></span>
-<span><span class="co">#&gt;  unordered_nested 22           8531.236   0.000         1.00e+00</span></span>
-<span><span class="co">#&gt;     ranked_nested 20           8583.880  52.644         1.37e-23</span></span>
-<span><span class="co">#&gt;       ranked_flat 15           8650.186 118.950         2.19e-52</span></span>
-<span><span class="co">#&gt;    unordered_flat 12           8715.276 184.040         1.18e-80</span></span>
+<span><span class="co">#&gt;  unordered_nested 25           8540.092   0.000         1.00e+00</span></span>
+<span><span class="co">#&gt;     ranked_nested 20           8548.436   8.344         2.38e-04</span></span>
+<span><span class="co">#&gt;       ranked_flat 13           8661.216 121.125         2.49e-53</span></span>
+<span><span class="co">#&gt;    unordered_flat  9           8718.870 178.779         2.28e-78</span></span>
 <span><span class="co">#&gt; Best model: unordered_nested</span></span>
 <span></span>
 <span><span class="va">rk_nest</span> <span class="op">&lt;-</span> <span class="va">cmp_ord</span><span class="op">$</span><span class="va">states</span><span class="op">$</span><span class="va">ranked_nested</span></span>
@@ -222,7 +222,7 @@ memberships and a latent rank ordering <span class="math inline">\(u_r\)</span> 
 <span>  <span class="va">ec</span><span class="op">$</span><span class="va">lateral</span>, <span class="fl">100</span> <span class="op">*</span> <span class="va">ec</span><span class="op">$</span><span class="va">lateral</span> <span class="op">/</span> <span class="va">ec_tot</span>,</span>
 <span>  <span class="va">ec</span><span class="op">$</span><span class="va">downstream</span>, <span class="fl">100</span> <span class="op">*</span> <span class="va">ec</span><span class="op">$</span><span class="va">downstream</span> <span class="op">/</span> <span class="va">ec_tot</span></span>
 <span><span class="op">)</span><span class="op">)</span></span>
-<span><span class="co">#&gt; Nested ranked SBM flow: 1275 upstream (54.0%), 921 lateral (39.0%), 163 downstream (6.9%)</span></span>
+<span><span class="co">#&gt; Nested ranked SBM flow: 1153 upstream (48.9%), 1125 lateral (47.7%), 81 downstream (3.4%)</span></span>
 <span></span>
 <span><span class="va">old_par</span> <span class="op">&lt;-</span> <span class="fu">graphics</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/graphics/par.html" class="external-link">par</a></span><span class="op">(</span>mfrow <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1L</span>, <span class="fl">2L</span><span class="op">)</span>, mar <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">8</span>, <span class="fl">4</span>, <span class="fl">3</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="va">tab_o</span> <span class="op">&lt;-</span> <span class="va">cmp_ord</span><span class="op">$</span><span class="va">summary</span></span>

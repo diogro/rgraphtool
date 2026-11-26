@@ -4,7 +4,7 @@ Exposes rgraphtool's public C++ extension header (`<rgraphtool.h>`) for
 writing high-performance custom network algorithms in C++ via
 [`sourceCpp`](https://rdrr.io/pkg/Rcpp/man/sourceCpp.html) or downstream
 R packages declaring `LinkingTo: rgraphtool, Rcpp, BH`, together with
-built-in reference implementations of \\k\\-core decomposition
+built-in reference implementations of \\(k\\)-core decomposition
 (`kcore_decomposition()`) and weighted vertex strength
 (`vertex_strength()`).
 
@@ -125,9 +125,9 @@ Downstream R packages can add `LinkingTo: rgraphtool, Rcpp, BH` and
 
 ## Value
 
-`kcore_decomposition()` returns an integer vector of length \\N\\
+`kcore_decomposition()` returns an integer vector of length \\(N\\)
 containing each vertex's core number. `vertex_strength()` returns a
-numeric vector of length \\N\\. `rgraphtool_include_dir()` and
+numeric vector of length \\(N\\). `rgraphtool_include_dir()` and
 `rgraphtool_extension_example()` return normalized file paths.
 `compile_cpp_extension()` returns the result of
 [`sourceCpp`](https://rdrr.io/pkg/Rcpp/man/sourceCpp.html) invisibly.
@@ -143,7 +143,7 @@ kcore_decomposition(g)
 vertex_strength(g, "w")
 #> [1] 4 3 9 9 5 0
 rgraphtool_include_dir()
-#> [1] "/private/var/folders/ph/fmqmjzln2h15bm5bstsgpng80000gn/T/Rtmpv0qKtT/temp_libpath170fa7373304a/rgraphtool/include"
+#> [1] "/tmp/RtmpoEurwN/temp_libpathdc56e3bf35757/rgraphtool/include"
 rgraphtool_extension_example("kcore")
-#> [1] "/private/var/folders/ph/fmqmjzln2h15bm5bstsgpng80000gn/T/Rtmpv0qKtT/temp_libpath170fa7373304a/rgraphtool/examples/extensions/kcore_extension.cpp"
+#> [1] "/tmp/RtmpoEurwN/temp_libpathdc56e3bf35757/rgraphtool/examples/extensions/kcore_extension.cpp"
 ```

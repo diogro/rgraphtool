@@ -1,8 +1,8 @@
 # Classic random graph generators
 
-Fast native C++23 random network generators: Erdos–Renyi \\G(n, p)\\
-(using Batagelj–Brandes \\O(n + m)\\ geometric skipping) and \\G(n, m)\\
-(Floyd sampling), Barabasi–Albert / Price preferential attachment,
+Fast native C++23 random network generators: Erdos–Renyi \\(G(n, p)\\)
+(using Batagelj–Brandes \\(O(n + m)\\) geometric skipping) and \\(G(n,
+m)\\) (Floyd sampling), Barabasi–Albert / Price preferential attachment,
 Watts–Strogatz small-world lattices, stub-matching configuration models,
 and planted Stochastic Block Models.
 
@@ -25,12 +25,12 @@ random_graph_sbm(blocks, probs, directed = FALSE, self_loops = FALSE)
 
 - p:
 
-  Edge probability in \\\[0, 1\]\\ for \\G(n, p)\\ or shortcut rewiring
-  probability for `random_graph_watts_strogatz()`.
+  Edge probability in \\(\[0, 1\]\\) for \\(G(n, p)\\) or shortcut
+  rewiring probability for `random_graph_watts_strogatz()`.
 
 - m:
 
-  Exact number of edges for \\G(n, m)\\, or edges added per new vertex
+  Exact number of edges for \\(G(n, m)\\), or edges added per new vertex
   in `random_graph_barabasi_albert()`.
 
 - directed:
@@ -43,8 +43,8 @@ random_graph_sbm(blocks, probs, directed = FALSE, self_loops = FALSE)
 
 - gamma:
 
-  Preferential-attachment degree exponent \\w_v \propto k_v^\gamma + 1\\
-  (default `1.0` gives linear Barabasi–Albert / Price attachment).
+  Preferential-attachment degree exponent \\(w_v \propto k_v^\gamma +
+  1\\) (default `1.0` gives linear Barabasi–Albert / Price attachment).
 
 - k:
 
@@ -62,12 +62,12 @@ random_graph_sbm(blocks, probs, directed = FALSE, self_loops = FALSE)
 
 - blocks:
 
-  Positive integer group membership vector of length \\N\\.
+  Positive integer group membership vector of length \\(N\\).
 
 - probs:
 
-  \\B \times B\\ matrix of inter-/intra-block edge probabilities in
-  \\\[0, 1\]\\.
+  \\(B \times B\\) matrix of inter-/intra-block edge probabilities in
+  \\(\[0, 1\]\\).
 
 ## Value
 

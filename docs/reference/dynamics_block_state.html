@@ -5,7 +5,7 @@
       fontURL: "https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/output/chtml/fonts/woff-v2"
     }
   };
-</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.1/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.1/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Network reconstruction from dynamics and behavior — dynamics_block_state"><meta name="description" content="Native C++ implementations of indirect network reconstruction from dynamical
+</script><script src="../lightswitch.js"></script><script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"><link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet"><script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet"><link href="../deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet"><script src="../deps/headroom-0.11.0/headroom.min.js"></script><script src="../deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="../deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="../deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="../deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="../deps/search-1.0.0/fuse.min.js"></script><script src="../deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="../pkgdown.js"></script><meta property="og:title" content="Network reconstruction from dynamics and behavior — dynamics_block_state"><meta name="description" content="Native C++ implementations of indirect network reconstruction from dynamical
 time series and equilibrium behavioral snapshots (Peixoto 2019, 2024, 2025),
 supporting all 10 graph-tool dynamical/behavioral models, L1 (Laplace),
 Gaussian, and quantized MDL weight/node priors, joint flat/nested SBM community
@@ -21,7 +21,7 @@ detection, and declarative L1 regularization path sweeps."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">rgraphtool</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -164,7 +164,8 @@ detection, and declarative L1 regularization path sweeps.</p>
 <span><span class="fu">reconstruct_dynamics</span><span class="op">(</span><span class="va">state</span>, niter <span class="op">=</span> <span class="fl">25L</span>, nsamples <span class="op">=</span> <span class="fl">0L</span>, burnin <span class="op">=</span> <span class="fl">50L</span>,</span>
 <span>  thin <span class="op">=</span> <span class="fl">2L</span>, beta <span class="op">=</span> <span class="cn">Inf</span>, k_cand <span class="op">=</span> <span class="fl">20L</span>, w_step <span class="op">=</span> <span class="fl">0.25</span>, t_step <span class="op">=</span> <span class="fl">0.25</span>,</span>
 <span>  tol <span class="op">=</span> <span class="fl">1e-4</span>, threshold <span class="op">=</span> <span class="fl">0.5</span>, sbm <span class="op">=</span> <span class="cn">NULL</span>, xdist <span class="op">=</span> <span class="cn">NULL</span>, tdist <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  xl1 <span class="op">=</span> <span class="cn">NULL</span>, tl1 <span class="op">=</span> <span class="cn">NULL</span>, normal <span class="op">=</span> <span class="cn">FALSE</span>, mu <span class="op">=</span> <span class="fl">0</span>, sigma <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span>
+<span>  xl1 <span class="op">=</span> <span class="cn">NULL</span>, tl1 <span class="op">=</span> <span class="cn">NULL</span>, normal <span class="op">=</span> <span class="cn">FALSE</span>, mu <span class="op">=</span> <span class="fl">0</span>, sigma <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  refresh_every <span class="op">=</span> <span class="fl">3L</span>, merge_split <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">reconstruct_l1_path</span><span class="op">(</span><span class="va">state</span>, xl1_values <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.25</span>, <span class="fl">0.5</span>, <span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">5</span>, <span class="fl">10</span><span class="op">)</span>,</span>
 <span>  tl1 <span class="op">=</span> <span class="fl">0.1</span>, sbm <span class="op">=</span> <span class="cn">FALSE</span>, niter <span class="op">=</span> <span class="fl">20L</span>, truth <span class="op">=</span> <span class="cn">NULL</span>, k_cand <span class="op">=</span> <span class="fl">20L</span>,</span>
@@ -276,6 +277,12 @@ detection, and declarative L1 regularization path sweeps.</p>
   <dt id="arg-tol">tol<a class="anchor" aria-label="anchor" href="#arg-tol"></a></dt>
 <dd><p>Stopping tolerance in nats for greedy MAP optimization.</p></dd>
 
+  <dt id="arg-refresh-every">refresh_every<a class="anchor" aria-label="anchor" href="#arg-refresh-every"></a></dt>
+<dd><p>Active-set candidate refresh period (in greedy MAP iterations) using residual correlations, 2-hop neighbors, and SBM block proposals; set <code>0L</code> to keep initial candidates fixed.</p></dd>
+
+  <dt id="arg-merge-split">merge_split<a class="anchor" aria-label="anchor" href="#arg-merge-split"></a></dt>
+<dd><p>If <code>TRUE</code> and <code>sbm = TRUE</code>, perform multilevel merge-split sweeps inside <code>DynBlockPrior</code> during greedy MAP optimization.</p></dd>
+
   <dt id="arg-threshold">threshold<a class="anchor" aria-label="anchor" href="#arg-threshold"></a></dt>
 <dd><p>Marginal edge-probability threshold for the returned
   <code>graph</code>.</p></dd>
@@ -353,8 +360,8 @@ doi:10.1103/PhysRevX.15.011065</p>
 <span class="r-in"><span><span class="va">rec</span> <span class="op">&lt;-</span> <span class="fu">reconstruct_dynamics</span><span class="op">(</span><span class="va">st</span>, niter <span class="op">=</span> <span class="fl">10L</span>, xdist <span class="op">=</span> <span class="cn">FALSE</span>, tdist <span class="op">=</span> <span class="cn">FALSE</span>, sbm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">rec</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;rgraphtool_dynamics_reconstruction (pseudo_ising)&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   Inferred edges: 8 | Final DL: 867.7359 (NLL: 683.7816)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   Moves: 68 / 220 | Prior: sbm=TRUE, xdist=FALSE, xl1=1</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   Inferred edges: 8 | Final DL: 867.7359 (NLL: 683.7808)</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   Moves: 69 / 268 | Prior: sbm=TRUE, xdist=FALSE, xl1=1</span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

@@ -93,7 +93,8 @@ dynamics_description_length(state, sbm = NULL, latent_edges = TRUE,
 reconstruct_dynamics(state, niter = 25L, nsamples = 0L, burnin = 50L,
   thin = 2L, beta = Inf, k_cand = 20L, w_step = 0.25, t_step = 0.25,
   tol = 1e-4, threshold = 0.5, sbm = NULL, xdist = NULL, tdist = NULL,
-  xl1 = NULL, tl1 = NULL, normal = FALSE, mu = 0, sigma = 1)
+  xl1 = NULL, tl1 = NULL, normal = FALSE, mu = 0, sigma = 1,
+  refresh_every = 3L, merge_split = TRUE)
 
 reconstruct_l1_path(state, xl1_values = c(0.25, 0.5, 1, 2, 5, 10),
   tl1 = 0.1, sbm = FALSE, niter = 20L, truth = NULL, k_cand = 20L,
@@ -108,14 +109,14 @@ dynamics_transmission_probs(state)
 
 - s:
 
-  An \\N \times M\\ numeric/integer matrix of node observations (or a
-  list of \\N \times M_c\\ matrices representing independent time-series
-  cascades or restarts). See Details for per-model value and
+  An \\(N \times M\\) numeric/integer matrix of node observations (or a
+  list of \\(N \times M_c\\) matrices representing independent
+  time-series cascades or restarts). See Details for per-model value and
   preprocessing requirements.
 
 - graph:
 
-  Optional initial `rgraphtool_graph` with \\N\\ vertices. If `NULL`,
+  Optional initial `rgraphtool_graph` with \\(N\\) vertices. If `NULL`,
   reconstruction starts from an empty graph.
 
 - directed:
@@ -146,9 +147,9 @@ dynamics_transmission_probs(state)
 
 - f, q:
 
-  For Potts models, the \\q \times q\\ spin interaction matrix
-  (defaulting to the \\q \times q\\ identity) and number of discrete
-  spin states \\q \ge 2\\.
+  For Potts models, the \\(q \times q\\) spin interaction matrix
+  (defaulting to the \\(q \times q\\) identity) and number of discrete
+  spin states \\(q \ge 2\\).
 
 - x, x_range:
 
@@ -157,13 +158,13 @@ dynamics_transmission_probs(state)
 
 - theta, theta_range:
 
-  Initial node parameters (scalar, length-`q_t` vector, or \\N \times
-  q_t\\ matrix) and allowed bounds.
+  Initial node parameters (scalar, length-`q_t` vector, or \\(N \times
+  q_t\\) matrix) and allowed bounds.
 
 - xdelta, tdelta:
 
-  Quantization precision parameters \\\Delta\\ for edge weights and node
-  parameters.
+  Quantization precision parameters \\(\Delta\\) for edge weights and
+  node parameters.
 
 - disable_xdist, disable_tdist:
 
@@ -172,8 +173,8 @@ dynamics_transmission_probs(state)
 
 - xl1, tl1:
 
-  L1 / Laplace scale parameter(s) \\\lambda\\ for edge weights and node
-  parameters.
+  L1 / Laplace scale parameter(s) \\(\lambda\\) for edge weights and
+  node parameters.
 
 - sbm:
 
@@ -225,14 +226,25 @@ dynamics_transmission_probs(state)
 
   Stopping tolerance in nats for greedy MAP optimization.
 
+- refresh_every:
+
+  Active-set candidate refresh period (in greedy MAP iterations) using
+  residual correlations, 2-hop neighbors, and SBM block proposals; set
+  `0L` to keep initial candidates fixed.
+
+- merge_split:
+
+  If `TRUE` and `sbm = TRUE`, perform multilevel merge-split sweeps
+  inside `DynBlockPrior` during greedy MAP optimization.
+
 - threshold:
 
   Marginal edge-probability threshold for the returned `graph`.
 
 - xl1_values:
 
-  Grid of L1 regularization strengths \\\lambda\\ swept with warm starts
-  in `reconstruct_l1_path()`.
+  Grid of L1 regularization strengths \\(\lambda\\) swept with warm
+  starts in `reconstruct_l1_path()`.
 
 - truth:
 
@@ -250,10 +262,10 @@ Input and preprocessing conventions by model family:
 - **Epidemics** (`epidemics_block_state`): integer states with `0` =
   susceptible, `1` = infectious (and `-1` = exposed when
   `exposed = TRUE`; recovered states such as `2` are handled
-  automatically). Edge weights \\x\_{ji} \le 0\\ encode transmission
-  probabilities \\t\_{ji} = 1 - e^{x\_{ji}}\\ and node parameters
-  \\\theta_i \le 0\\ encode spontaneous infection probabilities \\r_i =
-  e^{\theta_i}\\.
+  automatically). Edge weights \\(x\_{ji} \le 0\\) encode transmission
+  probabilities \\(t\_{ji} = 1 - e^{x\_{ji}}\\) and node parameters
+  \\(\theta_i \le 0\\) encode spontaneous infection probabilities \\(r_i
+  = e^{\theta_i}\\).
 
 - **Continuous Gaussian** (`pseudo_normal_block_state`,
   `normal_glauber_block_state`, `linear_normal_block_state`): real
@@ -308,6 +320,6 @@ st <- pseudo_ising_block_state(s, nested = FALSE, xdelta = 1e-4, tdelta = 1e-4)
 rec <- reconstruct_dynamics(st, niter = 10L, xdist = FALSE, tdist = FALSE, sbm = TRUE)
 rec
 #> <rgraphtool_dynamics_reconstruction (pseudo_ising)>
-#>   Inferred edges: 8 | Final DL: 867.7359 (NLL: 683.7816)
-#>   Moves: 68 / 220 | Prior: sbm=TRUE, xdist=FALSE, xl1=1
+#>   Inferred edges: 8 | Final DL: 867.7359 (NLL: 683.7808)
+#>   Moves: 69 / 268 | Prior: sbm=TRUE, xdist=FALSE, xl1=1
 ```

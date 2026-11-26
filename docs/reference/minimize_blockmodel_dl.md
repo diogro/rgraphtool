@@ -89,21 +89,21 @@ compare_blockmodels(graph, degree_prior = c("distributed", "uniform"),
 ## Details
 
 The search follows graph-tool 3.9's `multilevel_mcmc_sweep()` at zero
-temperature (\\\beta = \infty\\) over all groups:
+temperature (\\(\beta = \infty\\)) over all groups:
 
 1.  Every vertex starts in its own group. Single-vertex sweeps then move
-    vertices into neighbouring groups, starting at \\\beta =\\
+    vertices into neighbouring groups, starting at \\(\beta =\\)
     `init_beta` for `init_min_iter_beta` sweeps and continuing at zero
     temperature for at least `init_min_iter` sweeps, until a sweep
     reduces the number of groups by less than a factor of `init_r`.
 
 2.  A bisection search with random midpoints looks for the number of
-    groups \\B\\ that minimizes the description length. To reach a
-    smaller \\B\\ from a cached partition, the search alternates merges
-    (each group tries `merge_sweeps` neighbour-proposed merge partners,
-    and the best merges are applied until \\B\\ falls by a factor of
-    `r`) with up to `mh_sweeps` zero-temperature single-vertex sweeps.
-    Every partition visited is cached by \\B\\.
+    groups \\(B\\) that minimizes the description length. To reach a
+    smaller \\(B\\) from a cached partition, the search alternates
+    merges (each group tries `merge_sweeps` neighbour-proposed merge
+    partners, and the best merges are applied until \\(B\\) falls by a
+    factor of `r`) with up to `mh_sweeps` zero-temperature single-vertex
+    sweeps. Every partition visited is cached by \\(B\\).
 
 3.  Refinement repeatedly merges groups when that lowers the description
     length and sweeps vertices among the existing groups. It stops after
@@ -128,19 +128,19 @@ When `nthreads > 1`, candidate merge evaluations in `merge_sweep()` and
 zero-temperature vertex proposal screening in `mh_sweep()` run in
 parallel across a portable C++23 thread pool, while all state mutations
 and priority-queue merge commits execute deterministically on the main
-thread. For very large networks (\\N \ge 10^4\\), combining `nthreads`
+thread. For very large networks (\\(N \ge 10^4\\)), combining `nthreads`
 with strictly agglomerative search
 (`control = list(bisection = FALSE, r = 0.5)`) keeps only a single
 snapshot in memory and reduces runtime by an order of magnitude.
 
 `compare_blockmodels()` fits the non-degree-corrected (NDC) and
 degree-corrected (DC) models and reports which has the smaller
-description length \\\Sigma\\. Both description lengths include all
+description length \\(\Sigma\\). Both description lengths include all
 priors, so with equal prior probabilities for the two models the
 posterior odds ratio is \$\$\Lambda = \frac{P(b, H\_{NDC} \mid A)}{P(b,
 H\_{DC} \mid A)} = e^{-(\Sigma\_{NDC} - \Sigma\_{DC})},\$\$ as in the
-graph-tool cookbook. `log_posterior_odds` is \\\ln \Lambda =
-\Sigma\_{DC} - \Sigma\_{NDC}\\, so negative values favour the
+graph-tool cookbook. `log_posterior_odds` is \\(\ln \Lambda =
+\Sigma\_{DC} - \Sigma\_{NDC}\\), so negative values favour the
 degree-corrected model. (The cookbook prints this difference with the
 opposite sign for the football network.) Because the fits are stochastic
 local optima, increase `nruns` before relying on small differences.
@@ -153,14 +153,14 @@ state (see
 with labels `1, ..., B`. Its `fit` element holds `description_length`.
 For `minimize_blockmodel_dl()` it also holds
 `multilevel_description_length`, the score before refinement, and
-`trace`, a data frame of every cached \\(B, \mathrm{DL})\\ pair in the
+`trace`, a data frame of every cached \\((B, \mathrm{DL})\\) pair in the
 order visited. The description length of `refine_blockmodel_dl()`'s
 result is never higher than that of the input state.
 
 `compare_blockmodels()` returns a list with `comparison`, a data frame
 of models and description lengths; `log_posterior_odds`; `best_model`;
 `best_state`; `states`, both fitted states; and `nested`. Printing it
-shows the description lengths and \\\ln \Lambda\\.
+shows the description lengths and \\(\ln \Lambda\\).
 
 ## References
 

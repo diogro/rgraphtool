@@ -2,8 +2,8 @@
 
 `sfdp_layout()` computes a two-dimensional spring-electrical
 force-directed layout in native C++ following Hu (2005) and graph-tool's
-`sfdp_layout()`, using exact pairwise repulsion for small graphs (\\N
-\le 128\\) and a Barnes-Hut quadtree for larger graphs.
+`sfdp_layout()`, using exact pairwise repulsion for small graphs (\\(N
+\le 128\\)) and a Barnes-Hut quadtree for larger graphs.
 
 `graph_bfs()` computes a breadth-first search traversal and
 shortest-path spanning tree from `source` up to depth `max_dist`.
@@ -28,8 +28,8 @@ graph_bfs(graph, source, max_dist = Inf, directed = NULL)
 
 - pos:
 
-  Optional \\N \times 2\\ numeric matrix of initial vertex coordinates.
-  Useful for warm-starting or incremental layout updates
+  Optional \\(N \times 2\\) numeric matrix of initial vertex
+  coordinates. Useful for warm-starting or incremental layout updates
   (`max_iter = 1L`).
 
 - C:
@@ -46,7 +46,7 @@ graph_bfs(graph, source, max_dist = Inf, directed = NULL)
 
 - theta:
 
-  Barnes-Hut quadtree opening angle parameter (used when \\N \> 128\\
+  Barnes-Hut quadtree opening angle parameter (used when \\(N \> 128\\)
   and `max_level > 0`).
 
 - gamma:
@@ -91,12 +91,12 @@ graph_bfs(graph, source, max_dist = Inf, directed = NULL)
 
 - groups:
 
-  Optional vector of length \\N\\ assigning vertices to groups for
+  Optional vector of length \\(N\\) assigning vertices to groups for
   inter- and intra-group layout forces.
 
 - pin:
 
-  Optional logical vector of length \\N\\; vertices with `TRUE` remain
+  Optional logical vector of length \\(N\\); vertices with `TRUE` remain
   fixed at their initial `pos` coordinates.
 
 - source:
@@ -122,13 +122,13 @@ single tree edge in `graph_bfs()`.
 
 ## Value
 
-`sfdp_layout()` returns an \\N \times 2\\ numeric matrix with column
+`sfdp_layout()` returns an \\(N \times 2\\) numeric matrix with column
 names `"x"` and `"y"`.
 
 `graph_bfs()` returns an object of class `"rgraphtool_bfs"` with
 elements `source`, `max_dist`, `directed`, `distance` (numeric vector of
-length \\N\\, `Inf` for unreached vertices), `parent` (integer vector of
-1-based predecessors, `NA_integer_` for the source and unreached
+length \\(N\\), `Inf` for unreached vertices), `parent` (integer vector
+of 1-based predecessors, `NA_integer_` for the source and unreached
 vertices), `order` (1-based discovery order), and `tree_edges` (logical
 vector aligned with
 [`graph_edges`](https://diogro.github.io/rgraphtool/reference/graph.md)).
