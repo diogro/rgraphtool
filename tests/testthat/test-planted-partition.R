@@ -133,3 +133,131 @@ test_that("PPBlockState supports MCMC, posterior sampling, model_evidence, and v
   graph_add_edges(g, rbind(c(2L, 12L)))
   expect_error(pp_description_length(st), "changed")
 })
+
+test_that("weighted PPBlockState matches B=1 WeightedBlockState and exact incremental moves", {
+  set.seed(501L)
+  edges <- rbind(
+    c(1L, 2L), c(1L, 2L), c(1L, 3L), c(1L, 1L), c(2L, 3L),
+    c(3L, 4L), c(4L, 5L), c(4L, 5L), c(5L, 6L), c(6L, 4L), c(5L, 5L)
+  )
+  m <- nrow(edges)
+  b1 <- rep(1L, 7L)
+  b3 <- c(1L, 1L, 1L, 2L, 2L, 3L, 3L)
+  w_norm <- stats::rnorm(m, 0.4, 1.1)
+  w_exp <- exp(0.3 * w_norm)
+  w_pois <- stats::rpois(m, lambda = 4.0)
+
+  specs <- list(
+    list(w = w_norm, tp = "real-normal", pr = "microcanonical"),
+    list(w = w_norm, tp = "real-normal", pr = "bayesian"),
+    list(w = w_exp,  tp = "real-exponential", pr = "microcanonical"),
+    list(w = w_pois, tp = "discrete-poisson", pr = "microcanonical")
+  )
+
+  for (dir in c(FALSE, TRUE)) {
+    g <- graph_add_edges(graph_create(7L, directed = dir), edges)
+    for (sp in specs) {
+      for (dc in c(TRUE, FALSE)) {
+        ws <- weighted_block_state(g, weights = sp$w, types = sp$tp, params = sp$pr,
+                                   blocks = b1, degree_corrected = dc)
+        dl_w <- weighted_description_length(ws)
+        for (unif in c(FALSE, TRUE)) {
+          ps <- pp_block_state(g, blocks = b1, uniform = unif,
+                               degree_corrected = dc,
+                               weights = sp$w, types = sp$tp, params = sp$pr)
+          expect_equal(pp_description_length(ps), dl_w, tolerance = 1e-10)
+        }
+      }
+    }
+
+    w_multi <- cbind(w_norm, w_pois)
+    tp_multi <- c("real-normal", "discrete-poisson")
+    pr_multi <- list(c(NaN, NaN, NaN, NaN), c(NaN, NaN))
+    for (unif in c(FALSE, TRUE)) {
+      for (dc in c(TRUE, FALSE)) {
+        err <- rgraphtool:::cpp_pp_check_moves(
+          rgraphtool:::graph_pointer(g), b3, unif, dc, TRUE, 40L, 1000,
+          w_multi, tp_multi, pr_multi
+        )
+        expect_lt(max(err), 1e-8)
+      }
+    }
+  }
+})
+
+test_that("weighted PP recovers dense weight-only communities and supports compare_assortative_models", {
+  set.seed(502L)
+  # 1. Uniform dense topology (p = 0.6 everywhere): signal is purely in edge weights
+  n <- 30L
+  truth <- rep(1:3, each = 10L)
+  ed <- list()
+  w <- numeric(0)
+  for (i in 1:(n - 1L)) {
+    for (j in (i + 1L):n) {
+      if (stats::runif(1) < 0.6) {
+        ed[[length(ed) + 1L]] <- c(i, j)
+        same <- (truth[i] == truth[j])
+        w <- c(w, stats::rnorm(1, mean = if (same) 2.2 else -0.6, sd = 0.45))
+      }
+    }
+  }
+  g_dense <- graph_add_edges(
+    graph_create(n, directed = FALSE),
+    do.call(rbind, ed),
+    properties = list(w = w)
+  )
+
+  st_w <- minimize_pp_blockmodel_dl(g_dense, weights = "w", types = "real-normal")
+  expect_true(isTRUE(st_w$weighted))
+  expect_equal(st_w$B, 3L)
+  expect_gt(partition_overlap(block_membership(st_w), truth, norm = TRUE), 0.90)
+  asrt <- pp_assortativity(st_w)
+  expect_gt(asrt$weight_in_mean, 1.5)
+  expect_lt(asrt$weight_out_mean, 0.0)
+  expect_output(print(st_w), "weighted \\(real-normal\\)")
+
+  cmp_dense <- compare_assortative_models(
+    g_dense, weights = "w", types = "real-normal",
+    method = "posterior", nsamples = 25L, burnin = 15L, thin = 2L
+  )
+  expect_true(cmp_dense$best_model %in% c("pp", "pp_uniform"))
+  expect_output(print(cmp_dense), "weighted \\(real-normal\\)")
+
+  # MCMC / posterior / model_evidence preserve weights
+  sw <- mcmc_sweep(st_w, beta = 1.0, niter = 8L)
+  expect_true(isTRUE(sw$state$weighted))
+  expect_equal(sw$entropy, pp_description_length(sw$state), tolerance = 1e-8)
+  post <- sample_posterior(st_w, nsamples = 15L, burnin = 10L, thin = 2L)
+  expect_equal(length(post$samples), 15L)
+  ev <- model_evidence(st_w, nsamples = 15L, burnin = 10L, thin = 2L)
+  expect_true(is.finite(ev$log_evidence))
+
+  # 2. Structured inter-module antagonism vs background: general weighted SBM beats PP
+  n4 <- 32L
+  truth4 <- rep(1:4, each = 8L)
+  mu_mat <- rbind(
+    c( 2.0, -2.5,  0.0,  0.0),
+    c(-2.5,  2.0,  0.0,  0.0),
+    c( 0.0,  0.0,  2.0, -2.5),
+    c( 0.0,  0.0, -2.5,  2.0)
+  )
+  ed4 <- list()
+  w4 <- numeric(0)
+  for (i in 1:(n4 - 1L)) {
+    for (j in (i + 1L):n4) {
+      if (stats::runif(1) < 0.7) {
+        ed4[[length(ed4) + 1L]] <- c(i, j)
+        w4 <- c(w4, stats::rnorm(1, mean = mu_mat[truth4[i], truth4[j]], sd = 0.35))
+      }
+    }
+  }
+  g_antag <- graph_add_edges(
+    graph_create(n4, directed = FALSE),
+    do.call(rbind, ed4),
+    properties = list(w = w4)
+  )
+  cmp_antag <- compare_assortative_models(
+    g_antag, weights = "w", types = "real-normal", method = "map"
+  )
+  expect_true(cmp_antag$best_model %in% c("sbm_flat", "sbm_nested"))
+})

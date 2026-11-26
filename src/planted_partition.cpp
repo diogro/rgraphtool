@@ -20,8 +20,26 @@
 #include <vector>
 
 #include "graph_types.h"
+#include "weight_cov.h"
 
 namespace {
+
+using namespace rgt_cov;
+
+struct PPAdj {
+    int nbr;
+    int eidx;
+};
+
+inline Rcpp::NumericMatrix unwrap_pp_weights(Rcpp::Nullable<Rcpp::NumericMatrix> weights) {
+    return weights.isNotNull() ? Rcpp::NumericMatrix(weights.get()) : Rcpp::NumericMatrix(0, 0);
+}
+inline Rcpp::CharacterVector unwrap_pp_types(Rcpp::Nullable<Rcpp::CharacterVector> types) {
+    return types.isNotNull() ? Rcpp::CharacterVector(types.get()) : Rcpp::CharacterVector();
+}
+inline Rcpp::List unwrap_pp_params(Rcpp::Nullable<Rcpp::List> params) {
+    return params.isNotNull() ? Rcpp::List(params.get()) : Rcpp::List();
+}
 
 constexpr double PP_INF = std::numeric_limits<double>::infinity();
 constexpr double PP_LOG2 = 0.693147180559945309417232121458176568;
@@ -148,9 +166,12 @@ inline uint64_t pp_canon(int a, int b, bool directed) {
 
 class PPState {
 public:
-    PPState(const Graph& graph, bool uniform, bool dc, bool dist)
+    PPState(const Graph& graph, bool uniform, bool dc, bool dist,
+            const Rcpp::NumericMatrix& weights = Rcpp::NumericMatrix(0, 0),
+            const std::vector<CovSpec>& covs = {})
         : _N(static_cast<int>(boost::num_vertices(graph.adjacency))),
           _directed(graph.directed), _uniform(uniform), _dc(dc), _dist(dist),
+          _covs(covs), _K(static_cast<int>(covs.size())),
           _cap(std::max(2, _N)),
           _adj(_N), _kout(_N, 0), _kin(graph.directed ? _N : 0, 0),
           _self_loops(_N, 0),
@@ -163,13 +184,54 @@ public:
         _empty.reserve(_cap);
         for (int r = _cap - 1; r >= 0; --r) push_empty(r);
 
+        long E_total = static_cast<long>(boost::num_edges(graph.adjacency));
+        if (_K > 0) {
+            if (weights.nrow() != E_total || weights.ncol() != _K)
+                Rcpp::stop("weights dimensions do not match graph edges and types");
+            for (int k = 0; k < _K; ++k) {
+                if (_covs[k].type == CovType::REAL_NORMAL) _normal_idx.push_back(k);
+            }
+            _ew_x.assign(static_cast<size_t>(E_total) * _K, 0.0);
+            _ew_x2.assign(static_cast<size_t>(E_total) * _K, 0.0);
+            _self_w.assign(_N, WVec(_K));
+            _w_in.zero(_K);
+            _w_out.zero(_K);
+            if (!_uniform) _w_rr.assign(_cap, WVec(_K));
+            _recsum.assign(_K, 0.0);
+            _recx2.assign(_K, 0.0);
+            _recdx.assign(_K, 0.0);
+            _w_mr.zero(_K);
+            _w_ms.zero(_K);
+            _last_dw_r.zero(_K);
+            _last_dw_s.zero(_K);
+            _last_dw_in.zero(_K);
+            _last_dw_out.zero(_K);
+            _last_d_recx2.assign(_K, 0.0);
+            _last_d_recdx.assign(_K, 0.0);
+        }
+
         _E = 0;
         pp_hash_map<uint64_t, long> emult;
-        for (auto [it, end] = boost::edges(graph.adjacency); it != end; ++it) {
+        int ei = 0;
+        for (auto [it, end] = boost::edges(graph.adjacency); it != end; ++it, ++ei) {
             int u = static_cast<int>(boost::source(*it, graph.adjacency));
             int v = static_cast<int>(boost::target(*it, graph.adjacency));
             ++_E;
             emult[pp_canon(u, v, _directed)]++;
+            if (_K > 0) {
+                for (int k = 0; k < _K; ++k) {
+                    double val = weights(static_cast<R_xlen_t>(ei), k);
+                    _recsum[k] += val;
+                    if (u == v) {
+                        _self_w[u].x(k) += val;
+                        _self_w[u].x2(k) += val * val;
+                    } else {
+                        size_t slot = static_cast<size_t>(ei) * _K + k;
+                        _ew_x[slot] = val;
+                        _ew_x2[slot] = val * val;
+                    }
+                }
+            }
             if (u == v) {
                 _self_loops[u]++;
                 if (_directed) {
@@ -179,8 +241,8 @@ public:
                     _kout[u] += 2;
                 }
             } else {
-                _adj[u].push_back(v);
-                _adj[v].push_back(u);
+                _adj[u].push_back({v, ei});
+                _adj[v].push_back({u, ei});
                 if (_directed) {
                     _kout[u]++;
                     _kin[v]++;
@@ -209,11 +271,13 @@ public:
                 if (_directed) _base_const -= M.lgam1(_kin[v]);
             }
         }
+        for (int k = 0; k < _K; ++k) _base_const += _covs[k].const_term;
     }
 
     int N() const { return _N; }
     long E() const { return _E; }
     int B() const { return static_cast<int>(_occupied.size()); }
+    int K() const { return _K; }
     long E_in() const { return _e_in; }
     long E_out() const { return _e_out; }
     int group(int v) const { return _b[v]; }
@@ -231,6 +295,7 @@ public:
             _ep[r] = 0;
             if (_directed) _em[r] = 0;
             _err[r] = 0;
+            if (_K > 0 && !_uniform) _w_rr[r].zero(_K);
             _members[r].clear();
             _occ_pos[r] = -1;
             if (_dc && _dist) {
@@ -244,6 +309,10 @@ public:
         for (int r = _cap - 1; r >= 0; --r) push_empty(r);
         _e_in = 0;
         _e_out = 0;
+        if (_K > 0) {
+            _w_in.zero(_K);
+            _w_out.zero(_K);
+        }
 
         for (int v = 0; v < _N; ++v) {
             int r = b[v];
@@ -254,6 +323,10 @@ public:
             if (_self_loops[v] > 0) {
                 _err[r] += _self_loops[v];
                 _e_in += _self_loops[v];
+                if (_K > 0) {
+                    add_w(_w_in, _self_w[v]);
+                    if (!_uniform) add_w(_w_rr[r], _self_w[v]);
+                }
             }
             if (_dc && _dist) {
                 _h_out[r][_kout[v]]++;
@@ -264,19 +337,91 @@ public:
         long in_twice = 0, out_twice = 0;
         for (int v = 0; v < _N; ++v) {
             int rv = _b[v];
-            for (int u : _adj[v]) {
-                if (_b[u] == rv) {
-                    if (v < u) {
+            for (const auto& a : _adj[v]) {
+                if (_b[a.nbr] == rv) {
+                    if (v < a.nbr) {
                         _err[rv]++;
                         in_twice += 2;
+                        if (_K > 0) {
+                            add_edge_w(_w_in, a.eidx);
+                            if (!_uniform) add_edge_w(_w_rr[rv], a.eidx);
+                        }
                     }
                 } else {
                     out_twice++;
+                    if (_K > 0 && v < a.nbr) add_edge_w(_w_out, a.eidx);
                 }
             }
         }
         _e_in += in_twice / 2;
         _e_out = out_twice / 2;
+        refresh_cov_globals();
+    }
+
+    void refresh_cov_globals() {
+        if (_K == 0) return;
+        _B_E = 0;
+        _B_E_D = 0;
+        _recx2.assign(_K, 0.0);
+        _recdx.assign(_K, 0.0);
+        auto accum_bucket = [&](long m, const WVec& w) {
+            if (m <= 0) return;
+            ++_B_E;
+            if (m > 1) ++_B_E_D;
+            for (int k : _normal_idx) {
+                double x = w.x(k);
+                _recx2[k] += x * x;
+                if (m > 1) {
+                    double dx = w.x2(k) - x * (x / static_cast<double>(m));
+                    if (dx > 0.0) _recdx[k] += dx;
+                }
+            }
+        };
+        if (_uniform) {
+            accum_bucket(_e_in, _w_in);
+            accum_bucket(_e_out, _w_out);
+        } else {
+            for (int r : _occupied) accum_bucket(_err[r], _w_rr[r]);
+            accum_bucket(_e_out, _w_out);
+        }
+    }
+
+    double cov_entropy() const {
+        if (_K == 0 || _E == 0) return 0.0;
+        double S = 0.0;
+        auto add_bucket_logp = [&](long m, const WVec& w) {
+            if (m <= 0) return;
+            double md = static_cast<double>(m);
+            for (int k = 0; k < _K; ++k)
+                S += cov_pair_neg_log_P(_covs[k], md, w.x(k), w.x2(k));
+        };
+        if (_uniform) {
+            add_bucket_logp(_e_in, _w_in);
+            add_bucket_logp(_e_out, _w_out);
+        } else {
+            for (int r : _occupied) add_bucket_logp(_err[r], _w_rr[r]);
+            add_bucket_logp(_e_out, _w_out);
+        }
+        for (int k = 0; k < _K; ++k) {
+            const CovSpec& c = _covs[k];
+            if (c.type == CovType::REAL_NORMAL) {
+                if (c.micro) {
+                    S += -signed_w_log_P(static_cast<double>(_B_E), _recsum[k],
+                                         _recx2[k], c.p0, c.p1, c.p2, c.p3, c.eps);
+                    S += -positive_w_log_P(static_cast<double>(_B_E_D), _recdx[k],
+                                           c.p2, c.p3, c.eps);
+                }
+            } else if (c.micro) {
+                if (c.type == CovType::REAL_EXPONENTIAL) {
+                    S += -positive_w_log_P(static_cast<double>(_B_E), _recsum[k],
+                                           c.p0, c.p1, c.eps);
+                } else {
+                    S += -geometric_w_log_P(static_cast<double>(_B_E), _recsum[k],
+                                            NAN, NAN);
+                }
+            }
+        }
+        return S;
     }
 
     double entropy() const {
@@ -327,7 +472,7 @@ public:
             }
             S += M.lbinom(Bn + _e_in - 1, _e_in);
         }
-        return S;
+        return S + cov_entropy();
     }
 
     // Exact O(deg(v)) zero-allocation virtual_move(v, s)
@@ -335,10 +480,19 @@ public:
         int r = _b[v];
         if (r == s) return 0.0;
         long m_r = 0, m_s = 0;
-        for (int u : _adj[v]) {
-            int bu = _b[u];
-            if (bu == r) ++m_r;
-            else if (bu == s) ++m_s;
+        if (_K > 0) {
+            _w_mr.zero(_K);
+            _w_ms.zero(_K);
+        }
+        for (const auto& a : _adj[v]) {
+            int bu = _b[a.nbr];
+            if (bu == r) {
+                ++m_r;
+                if (_K > 0) add_edge_w(_w_mr, a.eidx);
+            } else if (bu == s) {
+                ++m_s;
+                if (_K > 0) add_edge_w(_w_ms, a.eidx);
+            }
         }
         long sl = _self_loops[v];
         long derr_r = -(m_r + sl);
@@ -349,8 +503,27 @@ public:
         _last_derr_s = derr_s;
         _last_de_in = de_in;
         _last_de_out = de_out;
-        return delta_entropy(r, s, 1, _kout[v], _directed ? _kin[v] : 0,
-                             derr_r, derr_s, de_in, de_out, true, v);
+
+        double dS = delta_entropy(r, s, 1, _kout[v], _directed ? _kin[v] : 0,
+                                  derr_r, derr_s, de_in, de_out, true, v);
+        if (_K > 0) {
+            for (int k = 0; k < _K; ++k) {
+                double win_d = _w_ms.x(k) - _w_mr.x(k);
+                double win2_d = _w_ms.x2(k) - _w_mr.x2(k);
+                _last_dw_in.x(k) = win_d;
+                _last_dw_in.x2(k) = win2_d;
+                _last_dw_out.x(k) = -win_d;
+                _last_dw_out.x2(k) = -win2_d;
+                if (!_uniform) {
+                    _last_dw_r.x(k) = -(_w_mr.x(k) + _self_w[v].x(k));
+                    _last_dw_r.x2(k) = -(_w_mr.x2(k) + _self_w[v].x2(k));
+                    _last_dw_s.x(k) = +(_w_ms.x(k) + _self_w[v].x(k));
+                    _last_dw_s.x2(k) = +(_w_ms.x2(k) + _self_w[v].x2(k));
+                }
+            }
+            dS += delta_cov(r, s, derr_r, derr_s, de_in, de_out);
+        }
+        return dS;
     }
 
     double move(int v, int s) {
@@ -387,6 +560,20 @@ public:
         _err[s] += _last_derr_s;
         _e_in += _last_de_in;
         _e_out += _last_de_out;
+        if (_K > 0) {
+            apply_bucket_delta(_w_in, _last_dw_in, _e_in);
+            apply_bucket_delta(_w_out, _last_dw_out, _e_out);
+            if (!_uniform) {
+                apply_bucket_delta(_w_rr[r], _last_dw_r, _err[r]);
+                apply_bucket_delta(_w_rr[s], _last_dw_s, _err[s]);
+            }
+            _B_E += _last_d_B_E;
+            _B_E_D += _last_d_B_E_D;
+            for (int k : _normal_idx) {
+                _recx2[k] = std::max(0.0, _recx2[k] + _last_d_recx2[k]);
+                _recdx[k] = std::max(0.0, _recdx[k] + _last_d_recdx[k]);
+            }
+        }
     }
 
     double virtual_merge(int r, int t) {
@@ -417,7 +604,7 @@ public:
         double p_rand = (c * B_act) / (deg + c * B_act);
         if (rng.unif() < p_rand)
             return _occupied[rng.index(_occupied.size())];
-        return _b[adj[rng.index(adj.size())]];
+        return _b[adj[rng.index(adj.size())].nbr];
     }
 
     double move_prob(int v, int s, double c) const {
@@ -426,9 +613,23 @@ public:
         double B_act = static_cast<double>(_occupied.size());
         if (adj.empty() || std::isinf(c)) return 1.0 / B_act;
         long cnt = 0;
-        for (int u : adj) if (_b[u] == s) ++cnt;
+        for (const auto& a : adj) if (_b[a.nbr] == s) ++cnt;
         double deg = static_cast<double>(adj.size());
         return (static_cast<double>(cnt) + c) / (deg + c * B_act);
+    }
+
+    Rcpp::NumericVector w_in_mean_r() const {
+        Rcpp::NumericVector out(_K);
+        for (int k = 0; k < _K; ++k)
+            out[k] = (_e_in > 0) ? (_w_in.x(k) / static_cast<double>(_e_in)) : NA_REAL;
+        return out;
+    }
+
+    Rcpp::NumericVector w_out_mean_r() const {
+        Rcpp::NumericVector out(_K);
+        for (int k = 0; k < _K; ++k)
+            out[k] = (_e_out > 0) ? (_w_out.x(k) / static_cast<double>(_e_out)) : NA_REAL;
+        return out;
     }
 
     Rcpp::IntegerVector external_blocks_r() const {
@@ -452,20 +653,128 @@ public:
 private:
     int _N;
     bool _directed, _uniform, _dc, _dist;
+    std::vector<CovSpec> _covs;
+    int _K = 0;
+    std::vector<int> _normal_idx;
     int _cap;
     long _E = 0, _e_in = 0, _e_out = 0;
     double _base_const = 0.0;
 
-    std::vector<std::vector<int>> _adj;
+    std::vector<std::vector<PPAdj>> _adj;
     std::vector<long> _kout, _kin, _self_loops;
+    std::vector<double> _ew_x, _ew_x2;
+    std::vector<WVec> _self_w;
     std::vector<int> _b, _wr;
     std::vector<long> _ep, _em, _err;
+    WVec _w_in, _w_out;
+    std::vector<WVec> _w_rr;
+    long _B_E = 0, _B_E_D = 0;
+    std::vector<double> _recsum, _recx2, _recdx;
     std::vector<int> _occ_pos, _occupied, _empty, _empty_pos;
     std::vector<std::vector<int>> _members;
     std::vector<int> _pos;
     std::vector<pp_hash_map<long, long>> _h_out, _h_in;
 
     mutable long _last_derr_r = 0, _last_derr_s = 0, _last_de_in = 0, _last_de_out = 0;
+    mutable WVec _w_mr, _w_ms;
+    mutable WVec _last_dw_r, _last_dw_s, _last_dw_in, _last_dw_out;
+    mutable long _last_d_B_E = 0, _last_d_B_E_D = 0;
+    mutable std::vector<double> _last_d_recx2, _last_d_recdx;
+
+    inline void add_w(WVec& dst, const WVec& src) const {
+        for (int k = 0; k < _K; ++k) {
+            dst.x(k) += src.x(k);
+            dst.x2(k) += src.x2(k);
+        }
+    }
+
+    inline void add_edge_w(WVec& dst, int eidx) const {
+        size_t base = static_cast<size_t>(eidx) * _K;
+        for (int k = 0; k < _K; ++k) {
+            dst.x(k) += _ew_x[base + k];
+            dst.x2(k) += _ew_x2[base + k];
+        }
+    }
+
+    inline void apply_bucket_delta(WVec& dst, const WVec& dw, long m_new) const {
+        if (m_new <= 0) {
+            dst.zero(_K);
+        } else {
+            for (int k = 0; k < _K; ++k) {
+                dst.x(k) += dw.x(k);
+                dst.x2(k) += dw.x2(k);
+            }
+        }
+    }
+
+    double delta_cov(int r, int s, long derr_r, long derr_s,
+                     long de_in, long de_out) const {
+        double dS = 0.0;
+        _last_d_B_E = 0;
+        _last_d_B_E_D = 0;
+        for (int k = 0; k < _K; ++k) {
+            _last_d_recx2[k] = 0.0;
+            _last_d_recdx[k] = 0.0;
+        }
+        auto eval_bucket = [&](long m0, const WVec& w0, long dm, const WVec& dw) {
+            long m1 = m0 + dm;
+            if (m0 <= 0 && m1 <= 0) return;
+            _last_d_B_E += (m1 > 0 ? 1 : 0) - (m0 > 0 ? 1 : 0);
+            _last_d_B_E_D += (m1 > 1 ? 1 : 0) - (m0 > 1 ? 1 : 0);
+            for (int k = 0; k < _K; ++k) {
+                double x0 = (m0 > 0) ? w0.x(k) : 0.0;
+                double x20 = (m0 > 0) ? w0.x2(k) : 0.0;
+                double x1 = (m1 > 0) ? (x0 + dw.x(k)) : 0.0;
+                double x21 = (m1 > 0) ? (x20 + dw.x2(k)) : 0.0;
+                dS += cov_pair_neg_log_P(_covs[k], static_cast<double>(m1), x1, x21) -
+                      cov_pair_neg_log_P(_covs[k], static_cast<double>(m0), x0, x20);
+                if (_covs[k].type == CovType::REAL_NORMAL) {
+                    _last_d_recx2[k] += (m1 > 0 ? x1 * x1 : 0.0) - (m0 > 0 ? x0 * x0 : 0.0);
+                    double dx0 = (m0 > 1) ? std::max(0.0, x20 - x0 * (x0 / static_cast<double>(m0))) : 0.0;
+                    double dx1 = (m1 > 1) ? std::max(0.0, x21 - x1 * (x1 / static_cast<double>(m1))) : 0.0;
+                    _last_d_recdx[k] += dx1 - dx0;
+                }
+            }
+        };
+        if (_uniform) {
+            eval_bucket(_e_in, _w_in, de_in, _last_dw_in);
+            eval_bucket(_e_out, _w_out, de_out, _last_dw_out);
+        } else {
+            eval_bucket(_err[r], _w_rr[r], derr_r, _last_dw_r);
+            eval_bucket(_err[s], _w_rr[s], derr_s, _last_dw_s);
+            eval_bucket(_e_out, _w_out, de_out, _last_dw_out);
+        }
+        long be0 = _B_E, be1 = be0 + _last_d_B_E;
+        long bed0 = _B_E_D, bed1 = bed0 + _last_d_B_E_D;
+        for (int k = 0; k < _K; ++k) {
+            const CovSpec& c = _covs[k];
+            if (c.type == CovType::REAL_NORMAL) {
+                if (c.micro) {
+                    dS += -signed_w_log_P(static_cast<double>(be1), _recsum[k],
+                                          std::max(0.0, _recx2[k] + _last_d_recx2[k]),
+                                          c.p0, c.p1, c.p2, c.p3, c.eps) -
+                          (-signed_w_log_P(static_cast<double>(be0), _recsum[k],
+                                           _recx2[k], c.p0, c.p1, c.p2, c.p3, c.eps));
+                    dS += -positive_w_log_P(static_cast<double>(bed1),
+                                            std::max(0.0, _recdx[k] + _last_d_recdx[k]),
+                                            c.p2, c.p3, c.eps) -
+                          (-positive_w_log_P(static_cast<double>(bed0), _recdx[k],
+                                             c.p2, c.p3, c.eps));
+                }
+            } else if (c.micro && be0 != be1) {
+                if (c.type == CovType::REAL_EXPONENTIAL) {
+                    dS += -positive_w_log_P(static_cast<double>(be1), _recsum[k],
+                                            c.p0, c.p1, c.eps) -
+                          (-positive_w_log_P(static_cast<double>(be0), _recsum[k],
+                                             c.p0, c.p1, c.eps));
+                } else {
+                    dS += -geometric_w_log_P(static_cast<double>(be1), _recsum[k], NAN, NAN) -
+                          (-geometric_w_log_P(static_cast<double>(be0), _recsum[k], NAN, NAN));
+                }
+            }
+        }
+        return dS;
+    }
 
     double deg_dl_group(int r) const {
         if (!_dc || _wr[r] == 0) return 0.0;
@@ -833,39 +1142,65 @@ void pp_mcmc_sweep_once(PPState& s, PPRng& rng, double beta, double c, double d,
 
 // [[Rcpp::export]]
 double cpp_pp_entropy(SEXP pointer, Rcpp::IntegerVector blocks, bool uniform,
-                      bool degree_corrected, bool distributed, double q_max) {
+                      bool degree_corrected, bool distributed, double q_max,
+                      Rcpp::Nullable<Rcpp::NumericMatrix> weights = R_NilValue,
+                      Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
+                      Rcpp::Nullable<Rcpp::List> params = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) pplog_q().init(pp_q_cache_max(q_max));
-    PPState st(graph, uniform, degree_corrected, distributed);
+    Rcpp::NumericMatrix W = unwrap_pp_weights(weights);
+    Rcpp::CharacterVector T = unwrap_pp_types(types);
+    Rcpp::List P = unwrap_pp_params(params);
+    auto covs = parse_covs(W, T, P);
+    PPState st(graph, uniform, degree_corrected, distributed, W, covs);
     st.set_partition(parse_pp_blocks(blocks, N));
     return st.entropy();
 }
 
 // [[Rcpp::export]]
 Rcpp::List cpp_pp_stats(SEXP pointer, Rcpp::IntegerVector blocks, bool uniform,
-                        bool degree_corrected, bool distributed, double q_max) {
+                        bool degree_corrected, bool distributed, double q_max,
+                        Rcpp::Nullable<Rcpp::NumericMatrix> weights = R_NilValue,
+                        Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
+                        Rcpp::Nullable<Rcpp::List> params = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) pplog_q().init(pp_q_cache_max(q_max));
-    PPState st(graph, uniform, degree_corrected, distributed);
+    Rcpp::NumericMatrix W = unwrap_pp_weights(weights);
+    Rcpp::CharacterVector T = unwrap_pp_types(types);
+    Rcpp::List P = unwrap_pp_params(params);
+    auto covs = parse_covs(W, T, P);
+    PPState st(graph, uniform, degree_corrected, distributed, W, covs);
     st.set_partition(parse_pp_blocks(blocks, N));
-    return Rcpp::List::create(
+    Rcpp::List out = Rcpp::List::create(
         Rcpp::Named("E_in") = static_cast<double>(st.E_in()),
         Rcpp::Named("E_out") = static_cast<double>(st.E_out()),
         Rcpp::Named("E_total") = static_cast<double>(st.E()),
         Rcpp::Named("B") = st.B(),
         Rcpp::Named("err") = st.external_err_r());
+    if (st.K() > 0) {
+        out["weight_in_mean"] = st.w_in_mean_r();
+        out["weight_out_mean"] = st.w_out_mean_r();
+    }
+    return out;
 }
 
 // [[Rcpp::export]]
 Rcpp::NumericVector cpp_pp_check_moves(SEXP pointer, Rcpp::IntegerVector blocks,
                                        bool uniform, bool degree_corrected,
-                                       bool distributed, int nmoves, double q_max) {
+                                       bool distributed, int nmoves, double q_max,
+                                       Rcpp::Nullable<Rcpp::NumericMatrix> weights = R_NilValue,
+                                       Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
+                                       Rcpp::Nullable<Rcpp::List> params = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) pplog_q().init(pp_q_cache_max(q_max));
-    PPState st(graph, uniform, degree_corrected, distributed);
+    Rcpp::NumericMatrix W = unwrap_pp_weights(weights);
+    Rcpp::CharacterVector T = unwrap_pp_types(types);
+    Rcpp::List P = unwrap_pp_params(params);
+    auto covs = parse_covs(W, T, P);
+    PPState st(graph, uniform, degree_corrected, distributed, W, covs);
     st.set_partition(parse_pp_blocks(blocks, N));
     PPRng rng;
     Rcpp::NumericVector err(nmoves);
@@ -888,11 +1223,18 @@ Rcpp::NumericVector cpp_pp_check_moves(SEXP pointer, Rcpp::IntegerVector blocks,
 // [[Rcpp::export]]
 Rcpp::List cpp_pp_minimize(SEXP pointer, bool uniform, bool degree_corrected,
                            bool distributed, int B_min, double B_max,
-                           bool refine, double epsilon, double q_max) {
+                           bool refine, double epsilon, double q_max,
+                           Rcpp::Nullable<Rcpp::NumericMatrix> weights = R_NilValue,
+                           Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
+                           Rcpp::Nullable<Rcpp::List> params = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) pplog_q().init(pp_q_cache_max(q_max));
-    PPState st(graph, uniform, degree_corrected, distributed);
+    Rcpp::NumericMatrix W = unwrap_pp_weights(weights);
+    Rcpp::CharacterVector T = unwrap_pp_types(types);
+    Rcpp::List P = unwrap_pp_params(params);
+    auto covs = parse_covs(W, T, P);
+    PPState st(graph, uniform, degree_corrected, distributed, W, covs);
     PPRng rng;
     if (N <= 1) {
         std::vector<int> b(N, 0);
@@ -964,11 +1306,18 @@ Rcpp::List cpp_pp_minimize(SEXP pointer, bool uniform, bool degree_corrected,
 // [[Rcpp::export]]
 Rcpp::List cpp_pp_mcmc(SEXP pointer, Rcpp::IntegerVector blocks, bool uniform,
                        bool degree_corrected, bool distributed,
-                       Rcpp::List mcmc_opts, Rcpp::List eq_opts, double q_max) {
+                       Rcpp::List mcmc_opts, Rcpp::List eq_opts, double q_max,
+                       Rcpp::Nullable<Rcpp::NumericMatrix> weights = R_NilValue,
+                       Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
+                       Rcpp::Nullable<Rcpp::List> params = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) pplog_q().init(pp_q_cache_max(q_max));
-    PPState st(graph, uniform, degree_corrected, distributed);
+    Rcpp::NumericMatrix W = unwrap_pp_weights(weights);
+    Rcpp::CharacterVector T = unwrap_pp_types(types);
+    Rcpp::List P = unwrap_pp_params(params);
+    auto covs = parse_covs(W, T, P);
+    PPState st(graph, uniform, degree_corrected, distributed, W, covs);
     st.set_partition(parse_pp_blocks(blocks, N));
     PPRng rng;
 
@@ -991,6 +1340,7 @@ Rcpp::List cpp_pp_mcmc(SEXP pointer, Rcpp::IntegerVector blocks, bool uniform,
         for (int it = 0; it < niter; ++it) {
             pp_mcmc_sweep_once(st, rng, beta, c, d, multiflip, B_min, B_max,
                                total_dS, nattempts, nmoves);
+            if ((it + 1) % 25 == 0) st.refresh_cov_globals();
             ++steps_done;
             Rcpp::checkUserInterrupt();
         }

@@ -1,11 +1,25 @@
 new_pp_state <- function(graph, blocks, uniform, degree_corrected, degree_prior,
-                         fit = NULL) {
+                         fit = NULL, wspec = NULL) {
+  if (is.null(wspec)) {
+    wspec <- list(
+      W = matrix(0, nrow = 0L, ncol = 0L),
+      types = character(0),
+      params = list(),
+      cpp_params = list(),
+      weighted = FALSE
+    )
+  }
   structure(list(
     blocks = as.integer(blocks),
     graph = graph,
     uniform = isTRUE(uniform),
     degree_corrected = isTRUE(degree_corrected),
     degree_prior = degree_prior,
+    weights = wspec$W,
+    types = wspec$types,
+    params = wspec$params,
+    cpp_params = wspec$cpp_params,
+    weighted = isTRUE(wspec$weighted),
     num_vertices = graph_num_vertices(graph),
     num_edges = graph_num_edges(graph),
     B = length(unique(blocks)),
@@ -29,7 +43,9 @@ validate_pp_state <- function(state) {
 #' @export
 pp_block_state <- function(graph, blocks = NULL, uniform = FALSE,
                            degree_corrected = TRUE,
-                           degree_prior = c("distributed", "uniform")) {
+                           degree_prior = c("distributed", "uniform"),
+                           weights = NULL, types = NULL,
+                           params = "microcanonical") {
   graph_pointer(graph)
   degree_prior <- match.arg(degree_prior)
   if (!is.logical(uniform) || length(uniform) != 1L || is.na(uniform)) {
@@ -39,6 +55,7 @@ pp_block_state <- function(graph, blocks = NULL, uniform = FALSE,
       is.na(degree_corrected)) {
     stop("degree_corrected must be TRUE or FALSE", call. = FALSE)
   }
+  wspec <- resolve_layered_weights(graph, weights, types, params)
   n <- graph_num_vertices(graph)
   if (is.null(blocks)) {
     blocks <- rep.int(1L, n)
@@ -49,7 +66,8 @@ pp_block_state <- function(graph, blocks = NULL, uniform = FALSE,
            call. = FALSE)
     }
   }
-  new_pp_state(graph, blocks, uniform, degree_corrected, degree_prior)
+  new_pp_state(graph, blocks, uniform, degree_corrected, degree_prior,
+               wspec = wspec)
 }
 
 #' @noRd
@@ -58,25 +76,31 @@ pp_description_length <- function(state, degree_prior = NULL) {
   validate_pp_state(state)
   if (is.null(degree_prior)) degree_prior <- state$degree_prior
   degree_prior <- match.arg(degree_prior, c("distributed", "uniform"))
+  w_mat <- if (isTRUE(state$weighted)) state$weights else NULL
+  w_types <- if (isTRUE(state$weighted)) state$types else NULL
+  w_params <- if (isTRUE(state$weighted)) state$cpp_params else NULL
   cpp_pp_entropy(graph_pointer(state$graph), state$blocks, state$uniform,
                  state$degree_corrected, degree_prior == "distributed",
-                 q_cache_max())
+                 q_cache_max(), w_mat, w_types, w_params)
 }
 
 #' @noRd
 #' @export
 pp_assortativity <- function(state) {
   validate_pp_state(state)
+  w_mat <- if (isTRUE(state$weighted)) state$weights else NULL
+  w_types <- if (isTRUE(state$weighted)) state$types else NULL
+  w_params <- if (isTRUE(state$weighted)) state$cpp_params else NULL
   st <- cpp_pp_stats(graph_pointer(state$graph), state$blocks, state$uniform,
                      state$degree_corrected,
                      identical(state$degree_prior, "distributed"),
-                     q_cache_max())
+                     q_cache_max(), w_mat, w_types, w_params)
   sz <- as.numeric(tabulate(state$blocks, nbins = max(state$blocks, 0L)))
   sz <- sz[sz > 0]
   p <- sz / sum(sz)
   Be <- if (length(p)) exp(-sum(p * log(p))) else 0
   frac <- if (st$E_total > 0) st$E_in / st$E_total else NA_real_
-  list(
+  out <- list(
     E_in = st$E_in,
     E_out = st$E_out,
     E_total = st$E_total,
@@ -85,6 +109,11 @@ pp_assortativity <- function(state) {
     Be = Be,
     err = st$err
   )
+  if (isTRUE(state$weighted)) {
+    out$weight_in_mean <- as.numeric(st$weight_in_mean)
+    out$weight_out_mean <- as.numeric(st$weight_out_mean)
+  }
+  out
 }
 
 #' @noRd
@@ -93,7 +122,9 @@ minimize_pp_blockmodel_dl <- function(graph, uniform = FALSE,
                                       degree_corrected = TRUE,
                                       degree_prior = c("distributed", "uniform"),
                                       B_min = 1L, B_max = Inf,
-                                      refine = TRUE, epsilon = 1e-3) {
+                                      refine = TRUE, epsilon = 1e-3,
+                                      weights = NULL, types = NULL,
+                                      params = "microcanonical") {
   pointer <- graph_pointer(graph)
   degree_prior <- match.arg(degree_prior)
   if (!is.logical(uniform) || length(uniform) != 1L || is.na(uniform)) {
@@ -107,13 +138,18 @@ minimize_pp_blockmodel_dl <- function(graph, uniform = FALSE,
       !is.numeric(B_max) || length(B_max) != 1L || is.na(B_max) || B_max < B_min) {
     stop("B_min and B_max must satisfy 1 <= B_min <= B_max", call. = FALSE)
   }
+  wspec <- resolve_layered_weights(graph, weights, types, params)
+  w_mat <- if (wspec$weighted) wspec$W else NULL
+  w_types <- if (wspec$weighted) wspec$types else NULL
+  w_params <- if (wspec$weighted) wspec$cpp_params else NULL
   res <- cpp_pp_minimize(pointer, uniform, degree_corrected,
                          degree_prior == "distributed",
                          as.integer(floor(B_min)),
                          if (is.finite(B_max)) floor(B_max) else Inf,
-                         isTRUE(refine), as.numeric(epsilon), q_cache_max())
+                         isTRUE(refine), as.numeric(epsilon), q_cache_max(),
+                         w_mat, w_types, w_params)
   new_pp_state(graph, res$blocks, uniform, degree_corrected, degree_prior,
-               fit = list(description_length = res$entropy))
+               fit = list(description_length = res$entropy), wspec = wspec)
 }
 
 #' @noRd
@@ -121,9 +157,15 @@ minimize_pp_blockmodel_dl <- function(graph, uniform = FALSE,
 print.rgraphtool_pp_block_state <- function(x, ...) {
   dl <- pp_description_length(x)
   asrt <- pp_assortativity(x)
-  cat(sprintf("<planted-partition block state: %s, %s assortativity, B = %d (Be = %.2f), E_in/E = %.1f%%, DL = %.4f nats>\n",
+  wtxt <- if (isTRUE(x$weighted)) {
+    sprintf(", weighted (%s)", paste(x$types, collapse = ", "))
+  } else {
+    ""
+  }
+  cat(sprintf("<planted-partition block state: %s, %s assortativity%s, B = %d (Be = %.2f), E_in/E = %.1f%%, DL = %.4f nats>\n",
               if (x$degree_corrected) "degree-corrected" else "non-degree-corrected",
               if (x$uniform) "uniform" else "non-uniform",
+              wtxt,
               x$B, asrt$Be,
               if (is.finite(asrt$fraction_in)) 100 * asrt$fraction_in else 0,
               dl))
@@ -142,7 +184,9 @@ compare_assortative_models <- function(graph,
                                        evidence_method = c("variational", "importance"),
                                        nruns = 1L, nsamples = 200L, thin = 5L,
                                        burnin = NULL, mle = TRUE,
-                                       B_min = 1L, B_max = Inf, refine = TRUE) {
+                                       B_min = 1L, B_max = Inf, refine = TRUE,
+                                       weights = NULL, types = NULL,
+                                       params = "microcanonical") {
   graph_pointer(graph)
   degree_prior <- match.arg(degree_prior)
   method <- match.arg(method)
@@ -156,6 +200,7 @@ compare_assortative_models <- function(graph,
     stop("nruns must be a positive integer", call. = FALSE)
   }
   nruns <- as.integer(nruns)
+  wspec <- resolve_layered_weights(graph, weights, types, params)
   valid <- c("pp", "pp_uniform", "sbm_flat", "sbm_nested")
   if (!is.character(models) || !length(models) || anyNA(models) ||
       any(!models %in% valid)) {
@@ -177,25 +222,53 @@ compare_assortative_models <- function(graph,
     best_st <- NULL
     best_dl <- Inf
     for (run in seq_len(nruns)) {
-      st <- switch(
-        nm,
-        pp = minimize_pp_blockmodel_dl(
-          graph, uniform = FALSE, degree_corrected = degree_corrected,
-          degree_prior = degree_prior, B_min = B_min, B_max = B_max, refine = refine
-        ),
-        pp_uniform = minimize_pp_blockmodel_dl(
-          graph, uniform = TRUE, degree_corrected = degree_corrected,
-          degree_prior = degree_prior, B_min = B_min, B_max = B_max, refine = refine
-        ),
-        sbm_flat = minimize_blockmodel_dl(
-          graph, degree_corrected = degree_corrected,
-          degree_prior = degree_prior, B_min = B_min, B_max = B_max, refine = refine
-        ),
-        sbm_nested = minimize_nested_blockmodel_dl(
-          graph, degree_corrected = degree_corrected,
-          degree_prior = degree_prior, B_min = B_min, B_max = B_max, refine = refine
+      if (wspec$weighted) {
+        st <- switch(
+          nm,
+          pp = minimize_pp_blockmodel_dl(
+            graph, uniform = FALSE, degree_corrected = degree_corrected,
+            degree_prior = degree_prior, B_min = B_min, B_max = B_max,
+            refine = refine, weights = wspec$W, types = wspec$types,
+            params = params
+          ),
+          pp_uniform = minimize_pp_blockmodel_dl(
+            graph, uniform = TRUE, degree_corrected = degree_corrected,
+            degree_prior = degree_prior, B_min = B_min, B_max = B_max,
+            refine = refine, weights = wspec$W, types = wspec$types,
+            params = params
+          ),
+          sbm_flat = minimize_weighted_blockmodel_dl(
+            graph, weights = wspec$W, types = wspec$types, params = params,
+            degree_corrected = degree_corrected, degree_prior = degree_prior,
+            B_min = B_min, B_max = B_max, refine = refine
+          ),
+          sbm_nested = minimize_nested_weighted_blockmodel_dl(
+            graph, weights = wspec$W, types = wspec$types, params = params,
+            degree_corrected = degree_corrected, degree_prior = degree_prior,
+            B_min = B_min, B_max = B_max, refine = refine
+          )
         )
-      )
+      } else {
+        st <- switch(
+          nm,
+          pp = minimize_pp_blockmodel_dl(
+            graph, uniform = FALSE, degree_corrected = degree_corrected,
+            degree_prior = degree_prior, B_min = B_min, B_max = B_max, refine = refine
+          ),
+          pp_uniform = minimize_pp_blockmodel_dl(
+            graph, uniform = TRUE, degree_corrected = degree_corrected,
+            degree_prior = degree_prior, B_min = B_min, B_max = B_max, refine = refine
+          ),
+          sbm_flat = minimize_blockmodel_dl(
+            graph, degree_corrected = degree_corrected,
+            degree_prior = degree_prior, B_min = B_min, B_max = B_max, refine = refine
+          ),
+          sbm_nested = minimize_nested_blockmodel_dl(
+            graph, degree_corrected = degree_corrected,
+            degree_prior = degree_prior, B_min = B_min, B_max = B_max, refine = refine
+          )
+        )
+      }
       dl <- state_description_length(st)
       if (dl < best_dl) {
         best_dl <- dl
@@ -252,6 +325,8 @@ compare_assortative_models <- function(graph,
     log_bayes_factors = lbf,
     degree_corrected = degree_corrected,
     degree_prior = degree_prior,
+    weighted = wspec$weighted,
+    types = wspec$types,
     method = method,
     evidence_method = if (method == "posterior") evidence_method else NULL
   ), class = "rgraphtool_assortative_model_comparison")
@@ -260,9 +335,15 @@ compare_assortative_models <- function(graph,
 #' @noRd
 #' @export
 print.rgraphtool_assortative_model_comparison <- function(x, ...) {
-  cat(sprintf("<assortative vs. general SBM comparison (%s, %s)>\n",
+  wtxt <- if (isTRUE(x$weighted)) {
+    sprintf(", weighted (%s)", paste(x$types, collapse = ", "))
+  } else {
+    ""
+  }
+  cat(sprintf("<assortative vs. general SBM comparison (%s, %s%s)>\n",
               if (x$degree_corrected) "DC" else "NDC",
-              if (x$method == "posterior") paste0("posterior/", x$evidence_method) else "MAP"))
+              if (x$method == "posterior") paste0("posterior/", x$evidence_method) else "MAP",
+              wtxt))
   df <- x$summary
   cols <- if (x$method == "posterior") {
     c("model", "B", "description_length", "posterior_entropy",

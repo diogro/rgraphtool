@@ -9,19 +9,22 @@
 \title{Assortative planted-partition stochastic block model}
 \usage{
 pp_block_state(graph, blocks = NULL, uniform = FALSE,
-  degree_corrected = TRUE, degree_prior = c("distributed", "uniform"))
+  degree_corrected = TRUE, degree_prior = c("distributed", "uniform"),
+  weights = NULL, types = NULL, params = "microcanonical")
 pp_description_length(state, degree_prior = NULL)
 pp_assortativity(state)
 minimize_pp_blockmodel_dl(graph, uniform = FALSE, degree_corrected = TRUE,
   degree_prior = c("distributed", "uniform"), B_min = 1L, B_max = Inf,
-  refine = TRUE, epsilon = 1e-3)
+  refine = TRUE, epsilon = 1e-3,
+  weights = NULL, types = NULL, params = "microcanonical")
 compare_assortative_models(graph,
   models = c("pp", "pp_uniform", "sbm_flat", "sbm_nested"),
   degree_corrected = TRUE, degree_prior = c("distributed", "uniform"),
   method = c("map", "posterior"),
   evidence_method = c("variational", "importance"),
   nruns = 1L, nsamples = 200L, thin = 5L, burnin = NULL, mle = TRUE,
-  B_min = 1L, B_max = Inf, refine = TRUE)
+  B_min = 1L, B_max = Inf, refine = TRUE,
+  weights = NULL, types = NULL, params = "microcanonical")
 }
 \arguments{
   \item{graph}{A graph created by \code{\link{graph_create}}.}
@@ -50,14 +53,30 @@ compare_assortative_models(graph,
   \item{nruns}{Number of independent minimization restarts per model.}
   \item{nsamples, thin, burnin, mle}{Posterior sampling and entropy estimation
   controls forwarded to \code{\link{model_evidence}}.}
+  \item{weights}{Optional edge covariate specification (edge property name(s),
+  vector of length \code{graph_num_edges(graph)}, or matrix/data.frame with one
+  column per covariate) using the same distributions and conventions as
+  \code{\link{weighted_block_state}}. When provided, \code{compare_assortative_models()}
+  compares weighted planted-partition models against weighted flat and nested
+  SBMs (\code{\link{minimize_weighted_blockmodel_dl}} and
+  \code{\link{minimize_nested_weighted_blockmodel_dl}}).}
+  \item{types}{Optional character vector of covariate families corresponding to
+  \code{weights} (\code{"real-normal"}, \code{"real-exponential"},
+  \code{"discrete-poisson"}, \code{"discrete-geometric"}, or
+  \code{"discrete-binomial"}). Required when \code{weights} is supplied.}
+  \item{params}{Hyperprior specification for \code{weights}: \code{"microcanonical"}
+  (default) or explicit Bayesian prior hyperparameters as in
+  \code{\link{weighted_block_state}}.}
 }
 \description{
 Native C++ implementation of the microcanonical Bayesian planted-partition
 stochastic block model (Zhang and Peixoto 2020), matching graph-tool's
 \code{PPBlockState}. Constrains community structure to assortative (or
 disassortative) block patterns parameterized only by within-community edges
-\eqn{E_{\mathrm{in}}} and between-community edges \eqn{E_{\mathrm{out}}}, and
-provides declarative model comparison against the general flat and nested SBMs.
+\eqn{E_{\mathrm{in}}} and between-community edges \eqn{E_{\mathrm{out}}},
+optionally paired with exponential-family or microcanonical edge-weight
+covariate distributions, and provides declarative model comparison against the
+general flat and nested SBMs.
 }
 \details{
 Unlike the general SBM, which estimates an arbitrary \eqn{B \times B} block
@@ -66,6 +85,36 @@ to a single global rate while modeling internal edges either per-community
 (\code{uniform = FALSE}) or uniformly (\code{uniform = TRUE}). This gives
 \eqn{O(B)} state memory and zero-allocation incremental moves while remaining
 free of modularity's resolution limit and overfitting on random graphs.
+
+\strong{Weighted planted-partition models and caveats:}
+When \code{weights} and \code{types} are supplied, each active edge bucket
+receives its own weight distribution under the exact conjugate/microcanonical
+likelihoods of \code{\link{weighted_block_state}} (2 buckets \code{in}/\code{out}
+when \code{uniform = TRUE}; \eqn{B + 1} buckets \eqn{\{rr\}} and \code{out} when
+\code{uniform = FALSE}):
+\itemize{
+  \item \emph{Pooled inter-module background:} All between-community edge
+  weights are pooled into a single \code{out} distribution rather than
+  modeling pair-specific \eqn{(r, s)} block weight differences. If specific
+  pairs of modules have distinct positive vs. negative weight patterns (e.g.,
+  inter-module antagonism in a gene regulatory network), use
+  \code{compare_assortative_models(..., weights = ..., types = ...)} to test
+  whether \code{"sbm_flat"} or \code{"sbm_nested"} has higher Bayesian evidence.
+  \item \emph{Mean-ordering / sign symmetry (especially at \eqn{B = 2}):}
+  With signed covariates such as \code{"real-normal"}, the covariate likelihood
+  tests whether the within-community and between-community weight distributions
+  \emph{differ}, without enforcing \eqn{\mu_{\mathrm{in}} > \mu_{\mathrm{out}}}.
+  On strongly anti-correlated bipartitions (particularly at \eqn{B = 2}), inspect
+  \code{pp_assortativity()} (\code{fraction_in}, \code{weight_in_mean},
+  \code{weight_out_mean}) to confirm whether a recovered partition is assortative
+  or disassortative.
+  \item \emph{Extension beyond upstream graph-tool 3.9:} Upstream
+  \code{graph-tool} 3.9 \code{PPBlockState} does not support edge covariates
+  (\code{recs}); \code{rgraphtool} extends PP with the exact \code{graph-tool}
+  covariate likelihoods over the 2 or \eqn{B + 1} PP buckets. At \eqn{B = 1},
+  the weighted PP description length matches \code{\link{weighted_block_state}}
+  identically.
+}
 
 Planted-partition states work directly with \code{\link{block_membership}},
 \code{\link{block_sizes}}, \code{\link{mcmc_sweep}},
@@ -76,14 +125,16 @@ Planted-partition states work directly with \code{\link{block_membership}},
 \code{pp_block_state()} and \code{minimize_pp_blockmodel_dl()} return a
 \code{rgraphtool_pp_block_state} list with \code{blocks}, \code{graph},
 \code{uniform}, \code{degree_corrected}, \code{degree_prior}, \code{B}, and
-optional \code{fit}.
+optional \code{fit} (plus \code{weights}, \code{types}, \code{params}, and
+\code{weighted}).
 
 \code{pp_description_length()} returns the exact microcanonical description
 length in nats.
 
 \code{pp_assortativity()} returns a list with \code{E_in}, \code{E_out},
 \code{E_total}, \code{fraction_in}, \code{B}, effective group count \code{Be},
-and per-group internal edge counts \code{err}.
+and per-group internal edge counts \code{err} (plus \code{weight_in_mean} and
+\code{weight_out_mean} when \code{state} is weighted).
 
 \code{compare_assortative_models()} returns a
 \code{rgraphtool_assortative_model_comparison} list with ranked \code{summary},

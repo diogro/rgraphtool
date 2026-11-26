@@ -1,3 +1,67 @@
+# rgraphtool 0.5.0
+
+Feature release adding native gene-expression preprocessing and Gram-matrix
+GMRF network reconstruction, multi-threaded weighted and combined
+layered-weighted SBMs, and weighted planted-partition community detection.
+
+## Gene-Expression Network Utilities
+
+* Added zero-dependency expression preprocessing and post-clustering helpers:
+  `project_fixed_effects()` (with `print.rgraphtool_expression_projection()`),
+  `filter_expression_genes()`, `shrinkage_covariance()` (analytical
+  Ledoit--Wolf shrinkage toward `"diagonal"` or `"identity"` targets), and
+  `module_eigengenes()`.
+
+## Fast `PseudoNormal` Reconstruction & Merge-Split `DynBlockPrior`
+
+* Added an exact $O(\deg)$ sufficient-statistic Gram-matrix `PseudoNormal`
+  backend (`cov`, `n_eff` arguments in `pseudo_normal_block_state()`,
+  auto-enabled for sample matrices when $M \ge 64, N \le 4{,}000$).
+* Extended the precomputed 1D Gram edge-weight optimizer
+  (`optimize_edge_weight_pn_gram()`) to both continuous Laplace and quantized
+  MDL priors (`xdist = TRUE, tdist = TRUE`) via incremental $O(\log K)$
+  `QuantHist` histogram maintenance.
+* Parallelized candidate generation (`build_candidates()`) and added periodic
+  partial-residual active-set refreshes (`refresh_every` in
+  `reconstruct_dynamics()`) so greedy reconstruction recovers
+  zero-marginal-correlation suppressor edges.
+* Added `DynBlockPrior::merge_split_sweep()` (`merge_split = TRUE` in
+  `reconstruct_dynamics()`) with BFS-seeded level-0 splits, local 2-way
+  refinement, same-parent merges, and upper-level sweeps to escape single-block
+  traps, plus Phase 2 finite-temperature posterior block sampling (`bs_samples`
+  when `nsamples > 0`).
+
+## Multi-Threaded Weighted & Combined Layered-Weighted SBMs
+
+* Extracted shared conjugate/microcanonical edge-covariate likelihoods and
+  sufficient statistics into `src/weight_cov.h`.
+* Parallelized weighted SBM coarsening and flat refinement sweeps via
+  `WeightedLevel::virtual_move_const()` and `virtual_merge_const()`, and exposed
+  `nthreads` on `minimize_weighted_blockmodel_dl()` and
+  `minimize_nested_weighted_blockmodel_dl()`.
+* Extended `layered_block_state()`, `nested_layered_block_state()`,
+  `minimize_layered_blockmodel_dl()`, `minimize_nested_layered_blockmodel_dl()`,
+  `sample_posterior()`, `model_evidence()`, and `compare_layered_models()` to
+  jointly model discrete edge `layers` and edge covariates (`weights`, `types`,
+  `params`) under both pooled (`independent = FALSE` / `"edge_covariates"`) and
+  layer-stratified (`independent = TRUE` / `"independent_layers"`) models, with
+  parallel greedy sweeps (`nthreads`) and `Rcpp::Nullable` C++ default bindings.
+
+## Weighted Planted-Partition SBMs
+
+* Extended `pp_block_state()`, `minimize_pp_blockmodel_dl()`,
+  `pp_assortativity()`, `compare_assortative_models()`, and native PP MCMC
+  (`mcmc_sweep()`, `mcmc_equilibrate()`, `mcmc_anneal()`, `sample_posterior()`,
+  `model_evidence()`) to support edge covariates (`weights`, `types`, `params`)
+  across 2 (`uniform = TRUE`) or $B + 1$ (`uniform = FALSE`) weight buckets with
+  $O(\deg(v))$ zero-allocation incremental moves.
+* Added `weight_in_mean` and `weight_out_mean` summary fields to
+  `pp_assortativity()`, weighted model dispatch against flat and nested weighted
+  SBMs in `compare_assortative_models()`, and explicit caveats documentation in
+  `?pp_block_state` (pooled inter-community `out` weights, mean-ordering / sign
+  symmetry particularly at $B = 2$, and extension beyond upstream `graph-tool`
+  3.9).
+
 # rgraphtool 0.4.0
 
 Initial public release of `rgraphtool`, a standalone native R/C++23 port of
