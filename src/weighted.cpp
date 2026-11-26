@@ -17,6 +17,7 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <mutex>
 #include <numeric>
 #include <string>
 #include <tuple>
@@ -25,8 +26,12 @@
 #include <boost/unordered/unordered_flat_map.hpp>
 #include <boost/unordered/unordered_flat_set.hpp>
 #include "graph_types.h"
+#include "parallel.h"
+#include "weight_cov.h"
 
 namespace {
+
+using namespace rgt_cov;
 
 template <class K, class V, class H = boost::hash<K>>
 using wt_hash_map = boost::unordered_flat_map<K, V, H>;
@@ -35,26 +40,6 @@ template <class K, class H = boost::hash<K>>
 using wt_hash_set = boost::unordered_flat_set<K, H>;
 
 constexpr double W_LOG2 = 0.693147180559945309417;
-constexpr double W_INF = std::numeric_limits<double>::infinity();
-
-enum class CovType : int {
-    REAL_EXPONENTIAL = 0,
-    REAL_NORMAL = 1,
-    DISCRETE_GEOMETRIC = 2,
-    DISCRETE_POISSON = 3,
-    DISCRETE_BINOMIAL = 4
-};
-
-struct CovSpec {
-    CovType type;
-    bool micro;        // true = microcanonical (NaN hyperparams), false = Bayesian
-    double p0 = NAN;   // alpha (exp/geo/poi), m0 (normal), N (binomial)
-    double p1 = NAN;   // beta  (exp/geo/poi), k0 (normal), alpha (binomial)
-    double p2 = NAN;   // v0 (normal), beta (binomial)
-    double p3 = NAN;   // nu0 (normal)
-    double eps = 1e-8; // 0.1 * min_{w != 0} |w|
-    double const_term = 0.0; // constant edge-level factor (poisson lgamma(w+1), binomial -lbinom(N,w))
-};
 
 // Precomputed integer lgamma and log lookup tables.
 struct WMath {
@@ -99,98 +84,6 @@ WMath& wmath() {
     return m;
 }
 
-inline double w_safe_lgamma(double x) {
-    if (x <= 0.0) return 0.0;
-    return std::lgamma(x);
-}
-
-inline double w_lbinom_d(double n, double k) {
-    if (k <= 0.0 || k >= n) return 0.0;
-    return std::lgamma(n + 1.0) - std::lgamma(k + 1.0) - std::lgamma(n - k + 1.0);
-}
-
-inline double w_lbeta(double a, double b) {
-    return std::lgamma(a) + std::lgamma(b) - std::lgamma(a + b);
-}
-
-inline double w_safelog(double x) {
-    return (x > 0.0) ? std::log(x) : 0.0;
-}
-
-// Exact graph-tool 3.9 weighted log-probabilities (from weighted/entropy.hh)
-inline double positive_w_log_P(double N, double x, double alpha, double beta,
-                               double eps) {
-    if (N <= 0.0) return 0.0;
-    if (std::isnan(alpha) && std::isnan(beta)) {
-        if (x < eps || N <= 1.0) return 0.0;
-        return w_safe_lgamma(N) - (N - 1.0) * std::log(x);
-    }
-    return (w_safe_lgamma(N + alpha) - w_safe_lgamma(alpha) +
-            alpha * std::log(beta) - (alpha + N) * std::log(beta + x));
-}
-
-inline double signed_w_log_P(double N, double x, double x2, double m0,
-                             double k0, double v0, double nu0, double eps) {
-    if (N <= 0.0) return 0.0;
-    if (std::isnan(m0) && std::isnan(k0)) {
-        double smu1 = x * (x / N);
-        if (N < 2.0 || smu1 >= x2 || (x2 - smu1) < eps * eps)
-            return 0.0;
-        return (w_safe_lgamma((N - 1.0) / 2.0) + 0.5 * std::log(N) -
-                ((static_cast<int>(N) - 3) / 2.0) * std::log(x2 - smu1) -
-                ((N - 1.0) / 2.0) * std::log(M_PI));
-    }
-    double v = std::max(0.0, x2 - x * (x / N));
-    double k_n = k0 + N;
-    double nu_n = nu0 + N;
-    double diff = m0 - x / N;
-    double nu_v_n = v0 * nu0 + v + ((N * k0) / k_n) * diff * diff;
-    return (w_safe_lgamma(nu_n / 2.0) - w_safe_lgamma(nu0 / 2.0) +
-            0.5 * (std::log(k0) - std::log(k_n)) +
-            0.5 * nu0 * std::log(nu0 * v0) - 0.5 * nu_n * std::log(nu_v_n) -
-            0.5 * N * std::log(M_PI));
-}
-
-inline double geometric_w_log_P(double N, double x, double alpha, double beta) {
-    if (N <= 0.0) return 0.0;
-    if (std::isnan(alpha) && std::isnan(beta))
-        return -w_lbinom_d((N - 1.0) + x, x);
-    return w_lbeta(N + alpha, x + beta) - w_lbeta(alpha, beta);
-}
-
-inline double poisson_w_log_P(double N, double x, double alpha, double beta) {
-    if (N <= 0.0) return 0.0;
-    if (std::isnan(alpha) && std::isnan(beta))
-        return w_safe_lgamma(x + 1.0) - x * std::log(N);
-    return (w_safe_lgamma(x + alpha) - (x + alpha) * std::log(N + beta) -
-            w_safe_lgamma(alpha) + alpha * std::log(beta));
-}
-
-inline double binomial_w_log_P(double N, double x, double trials,
-                               double alpha, double beta) {
-    if (N <= 0.0) return 0.0;
-    if (std::isnan(alpha) && std::isnan(beta))
-        return -w_lbinom_d(N * trials, x);
-    return w_lbeta(x + alpha, N * trials - x + beta) - w_lbeta(alpha, beta);
-}
-
-inline double cov_pair_neg_log_P(const CovSpec& c, double m, double x, double x2) {
-    if (m <= 0.0) return 0.0;
-    switch (c.type) {
-    case CovType::REAL_EXPONENTIAL:
-        return -positive_w_log_P(m, x, c.p0, c.p1, c.eps);
-    case CovType::REAL_NORMAL:
-        return -signed_w_log_P(m, x, x2, c.p0, c.p1, c.p2, c.p3, c.eps);
-    case CovType::DISCRETE_GEOMETRIC:
-        return -geometric_w_log_P(m, x, c.p0, c.p1);
-    case CovType::DISCRETE_POISSON:
-        return -poisson_w_log_P(m, x, c.p0, c.p1);
-    case CovType::DISCRETE_BINOMIAL:
-        return -binomial_w_log_P(m, x, c.p0, c.p1, c.p2);
-    }
-    return 0.0;
-}
-
 // Log of restricted integer partition function q(n, k) (identical to blockmodel.cpp).
 class WLogQ {
 public:
@@ -214,16 +107,23 @@ public:
         if (k > n) k = n;
         if (static_cast<size_t>(n) <= _n_max) return get(n, k);
         uint64_t key = (static_cast<uint64_t>(n) << 32) ^ static_cast<uint64_t>(k);
-        auto it = _cache.find(key);
-        if (it != _cache.end()) return it->second;
+        {
+            std::lock_guard<std::mutex> lk(_cache_mtx);
+            auto it = _cache.find(key);
+            if (it != _cache.end()) return it->second;
+        }
         double v = approx(static_cast<double>(n), static_cast<double>(k));
-        _cache.emplace(key, v);
+        {
+            std::lock_guard<std::mutex> lk(_cache_mtx);
+            _cache.emplace(key, v);
+        }
         return v;
     }
 private:
     size_t _n_max = 0;
     std::vector<double> _table;
     mutable wt_hash_map<uint64_t, double> _cache;
+    mutable std::mutex _cache_mtx;
     double& at(size_t n, size_t k) { return _table[n * (n - 1) / 2 + (k - 1)]; }
     double get(size_t n, size_t k) const { return _table[n * (n - 1) / 2 + (k - 1)]; }
     double get_raw(size_t n, size_t k) const {
@@ -289,37 +189,6 @@ struct WRng {
         for (size_t i = a.size(); i > 1; --i)
             std::swap(a[i - 1], a[index(i)]);
     }
-};
-
-// Compact covariate accumulator per block pair or delta entry.
-// Inline storage for up to 4 covariates avoids heap allocations in hot loops.
-struct WVec {
-    static constexpr int INLINE_K = 4;
-    int k = 0;
-    double s_x[INLINE_K] = {0, 0, 0, 0};
-    double s_x2[INLINE_K] = {0, 0, 0, 0};
-    std::vector<double> d_x, d_x2;
-
-    WVec() = default;
-    explicit WVec(int K) : k(K) {
-        if (K > INLINE_K) {
-            d_x.assign(K, 0.0);
-            d_x2.assign(K, 0.0);
-        }
-    }
-    void zero(int K) {
-        k = K;
-        if (K <= INLINE_K) {
-            for (int i = 0; i < K; ++i) { s_x[i] = 0.0; s_x2[i] = 0.0; }
-        } else {
-            d_x.assign(K, 0.0);
-            d_x2.assign(K, 0.0);
-        }
-    }
-    inline double& x(int i) { return (k <= INLINE_K) ? s_x[i] : d_x[i]; }
-    inline double x(int i) const { return (k <= INLINE_K) ? s_x[i] : d_x[i]; }
-    inline double& x2(int i) { return (k <= INLINE_K) ? s_x2[i] : d_x2[i]; }
-    inline double x2(int i) const { return (k <= INLINE_K) ? s_x2[i] : d_x2[i]; }
 };
 
 struct WPairStat {
@@ -457,7 +326,9 @@ public:
     const std::vector<int>& normal_idx() const { return _normal_idx; }
     const wt_hash_map<uint64_t, WPairStat>& pairs() const { return _pairs; }
     int empty_group() const { return _empty.empty() ? -1 : _empty.back(); }
-    int random_occupied(WRng& rng) const { return _occupied[rng.index(_occupied.size())]; }
+
+    template <class Rng>
+    int random_occupied(Rng& rng) const { return _occupied[rng.index(_occupied.size())]; }
 
     void set_partition(const std::vector<int>& b) {
         if (static_cast<int>(b.size()) != _N)
@@ -628,11 +499,37 @@ public:
         return topo_entropy() + cov_entropy(include_rec, include_dl);
     }
 
+    struct PairDelta {
+        uint64_t key;
+        long dm_topo = 0;
+        long dm_cov = 0;
+        WVec dw;
+        explicit PairDelta(int K = 0) : key(0), dw(K) {}
+    };
+
+    struct MoveBuf {
+        std::vector<PairDelta> pdeltas;
+        wt_hash_map<uint64_t, size_t> scratch_idx;
+        std::vector<uint64_t> old_keys;
+        long d_ep_r = 0, d_ep_s = 0, d_em_r = 0, d_em_s = 0;
+        long d_B_E = 0, d_B_E_D = 0;
+        std::vector<double> d_recx2, d_recdx;
+    };
+
+    MoveBuf& default_buf() const { return _scratch_buf; }
+
     // Exact O(deg(v)) incremental virtual_move(v, s) for flat WeightedLevel.
     double virtual_move(int v, int s) const {
         int r = _b[v];
         if (r == s) return 0.0;
         return compute_move_delta(v, r, s, &_scratch_buf);
+    }
+
+    // Thread-safe read-only virtual_move(v, s) using caller-supplied MoveBuf.
+    double virtual_move_const(int v, int s, MoveBuf& buf) const {
+        int r = _b[v];
+        if (r == s) return 0.0;
+        return compute_move_delta(v, r, s, &buf);
     }
 
     // Exact O(deg(v)) incremental move(v, s) returning exact dS.
@@ -661,6 +558,143 @@ public:
         return dS;
     }
 
+    // Thread-safe read-only virtual_merge(r, t) for parallel coarsening/merge sweeps.
+    double virtual_merge_const(int r, int t, MoveBuf& buf) const {
+        if (r == t || _wr[r] == 0 || _wr[t] == 0) return 0.0;
+        const WMath& M = wmath();
+        auto& pds = buf.pdeltas;
+        auto& sidx = buf.scratch_idx;
+        auto& old_keys = buf.old_keys;
+        pds.clear();
+        sidx.clear();
+        old_keys.clear();
+
+        auto find_or_add = [&](uint64_t key) -> PairDelta& {
+            auto it = sidx.find(key);
+            if (it == sidx.end()) {
+                it = sidx.emplace(key, pds.size()).first;
+                pds.emplace_back(_K);
+                pds.back().key = key;
+            }
+            return pds[it->second];
+        };
+
+        // Enumerate unique non-empty pairs incident on group r via _m_out_topo / _m_in_topo.
+        for (const auto& [h, _m] : _m_out_topo[r]) {
+            (void)_m;
+            uint64_t ok = canon_pair(r, h, _directed);
+            if (sidx.emplace(ok, 0).second) old_keys.push_back(ok);
+        }
+        if (_directed) {
+            for (const auto& [h, _m] : _m_in_topo[r]) {
+                (void)_m;
+                uint64_t ok = pack_pair(h, r);
+                if (sidx.emplace(ok, 0).second) old_keys.push_back(ok);
+            }
+        }
+        sidx.clear();
+
+        auto add_pd = [&](uint64_t key, long dmt, long dmc, const WVec& w, double sign) {
+            PairDelta& pd = find_or_add(key);
+            pd.dm_topo += dmt;
+            pd.dm_cov += dmc;
+            for (int k = 0; k < _K; ++k) {
+                pd.dw.x(k) += sign * w.x(k);
+                pd.dw.x2(k) += sign * w.x2(k);
+            }
+        };
+        for (uint64_t ok : old_keys) {
+            auto pit = _pairs.find(ok);
+            if (pit == _pairs.end()) continue;
+            const WPairStat& ps = pit->second;
+            auto [a, b_g] = unpack_pair(ok);
+            int na = (a == r) ? t : a;
+            int nb = (b_g == r) ? t : b_g;
+            uint64_t nk = canon_pair(na, nb, _directed);
+            add_pd(ok, -ps.m_topo, -ps.m_cov, ps.w, -1.0);
+            add_pd(nk, +ps.m_topo, +ps.m_cov, ps.w, +1.0);
+        }
+
+        long wr_r0 = _wr[r], wr_r1 = 0;
+        long wr_t0 = _wr[t], wr_t1 = wr_t0 + wr_r0;
+        long B0 = B(), B1 = B0 - 1;
+
+        double dS = 0.0;
+        dS += M.lbinom(_N - 1, B1 - 1) - M.lbinom(_N - 1, B0 - 1);
+        if (_is_top && _E > 0) {
+            int64_t p0 = _directed ? int64_t(B0) * B0 : int64_t(B0) * (B0 + 1) / 2;
+            int64_t p1 = _directed ? int64_t(B1) * B1 : int64_t(B1) * (B1 + 1) / 2;
+            dS += M.lbinom(p1 + _E - 1, _E) - M.lbinom(p0 + _E - 1, _E);
+        }
+        dS -= (M.lgam1(wr_r1) - M.lgam1(wr_r0)) + (M.lgam1(wr_t1) - M.lgam1(wr_t0));
+
+        if (_is_base) {
+            long ep_r0 = _ep[r], ep_t0 = _ep[t], ep_t1 = ep_t0 + ep_r0;
+            long em_r0 = _directed ? _em[r] : 0;
+            long em_t0 = _directed ? _em[t] : 0;
+            long em_t1 = em_t0 + em_r0;
+            if (_dc) {
+                dS += M.lgam1(ep_t1) - M.lgam1(ep_t0) - M.lgam1(ep_r0);
+                if (_directed) dS += M.lgam1(em_t1) - M.lgam1(em_t0) - M.lgam1(em_r0);
+                if (!_dist) {
+                    dS += M.lbinom(wr_t1 + ep_t1 - 1, ep_t1) -
+                          M.lbinom(wr_t0 + ep_t0 - 1, ep_t0) -
+                          M.lbinom(wr_r0 + ep_r0 - 1, ep_r0);
+                    if (_directed) {
+                        dS += M.lbinom(wr_t1 + em_t1 - 1, em_t1) -
+                              M.lbinom(wr_t0 + em_t0 - 1, em_t0) -
+                              M.lbinom(wr_r0 + em_r0 - 1, em_r0);
+                    }
+                } else {
+                    const WLogQ& q = wlog_q();
+                    dS += (q(ep_t1, wr_t1) + M.lgam1(wr_t1)) -
+                          (q(ep_t0, wr_t0) + M.lgam1(wr_t0)) -
+                          (q(ep_r0, wr_r0) + M.lgam1(wr_r0));
+                    for (const auto& [dk, cr] : _h_out[r]) {
+                        auto ito = _h_out[t].find(dk);
+                        long ct0 = (ito == _h_out[t].end()) ? 0 : ito->second;
+                        dS += M.lgam1(cr) - (M.lgam1(ct0 + cr) - M.lgam1(ct0));
+                    }
+                    if (_directed) {
+                        dS += (q(em_t1, wr_t1) + M.lgam1(wr_t1)) -
+                              (q(em_t0, wr_t0) + M.lgam1(wr_t0)) -
+                              (q(em_r0, wr_r0) + M.lgam1(wr_r0));
+                        for (const auto& [dk, cr] : _h_in[r]) {
+                            auto iti = _h_in[t].find(dk);
+                            long ct0 = (iti == _h_in[t].end()) ? 0 : iti->second;
+                            dS += M.lgam1(cr) - (M.lgam1(ct0 + cr) - M.lgam1(ct0));
+                        }
+                    }
+                }
+            } else {
+                long dr0 = ep_r0 + em_r0, dt0 = ep_t0 + em_t0;
+                dS += static_cast<double>(dr0 + dt0) * M.logi(wr_t1) -
+                      static_cast<double>(dr0) * M.logi(wr_r0) -
+                      static_cast<double>(dt0) * M.logi(wr_t0);
+            }
+        } else {
+            // Dense upper level: also touch any existing pair incident on t whose wr[t] grows.
+            for (const auto& [h, m2] : _m_out_topo[t]) {
+                (void)m2;
+                find_or_add(canon_pair(t, h, _directed));
+            }
+            if (_directed) {
+                for (const auto& [h, m2] : _m_in_topo[t]) {
+                    (void)m2;
+                    find_or_add(pack_pair(h, t));
+                }
+            }
+        }
+
+        auto wr_after = [&](int g) -> long {
+            if (g == r) return wr_r1;
+            if (g == t) return wr_t1;
+            return _wr[g];
+        };
+        dS += eval_pair_cov_deltas(buf, wr_after);
+        return dS;
+    }
+
     double merge(int r, int t) {
         if (r == t || _wr[r] == 0) return 0.0;
         std::vector<int> verts = _members[r];
@@ -670,7 +704,8 @@ public:
     }
 
     // Fast neighbor-based proposal (matching blockmodel.cpp)
-    int sample_group(int v, double c, WRng& rng) const {
+    template <class Rng>
+    int sample_group(int v, double c, Rng& rng) const {
         if (_occupied.size() <= 1) return _b[v];
         if (std::isinf(c) || _adj[v].empty()) return random_occupied(rng);
         const auto& adj = _adj[v];
@@ -730,21 +765,6 @@ public:
     }
 
 private:
-    struct PairDelta {
-        uint64_t key;
-        long dm_topo = 0;
-        long dm_cov = 0;
-        WVec dw;
-        explicit PairDelta(int K = 0) : key(0), dw(K) {}
-    };
-
-    struct MoveBuf {
-        std::vector<PairDelta> pdeltas;
-        long d_ep_r = 0, d_ep_s = 0, d_em_r = 0, d_em_s = 0;
-        long d_B_E = 0, d_B_E_D = 0;
-        std::vector<double> d_recx2, d_recdx;
-    };
-
     int _N;
     bool _directed, _dc, _dist, _is_base, _is_top;
     std::vector<CovSpec> _covs;
@@ -770,7 +790,6 @@ private:
     std::vector<int> _normal_idx;
     std::vector<wt_hash_map<long, long>> _h_out, _h_in;
     mutable MoveBuf _scratch_buf;
-    mutable wt_hash_map<uint64_t, size_t> _scratch_idx;
 
     inline double base_eterm(int r, int s, long m_topo) const {
         if (m_topo <= 0) return 0.0;
@@ -835,10 +854,95 @@ private:
         return d;
     }
 
+    template <class WrFn>
+    double eval_pair_cov_deltas(MoveBuf& buf, WrFn&& wr_after) const {
+        double dS = 0.0;
+        long d_B_E = 0, d_B_E_D = 0;
+        auto& d_recx2 = buf.d_recx2;
+        auto& d_recdx = buf.d_recdx;
+        d_recx2.assign(_K, 0.0);
+        d_recdx.assign(_K, 0.0);
+
+        for (const auto& pd : buf.pdeltas) {
+            auto [a, b_g] = unpack_pair(pd.key);
+            auto it = _pairs.find(pd.key);
+            long mt0 = (it == _pairs.end()) ? 0 : it->second.m_topo;
+            long mc0 = (it == _pairs.end()) ? 0 : it->second.m_cov;
+            long mt1 = mt0 + pd.dm_topo;
+            long mc1 = mc0 + pd.dm_cov;
+
+            if (_is_base) {
+                if (mt0 != mt1)
+                    dS -= base_eterm(a, b_g, mt1) - base_eterm(a, b_g, mt0);
+            } else {
+                dS += dense_eterm(a, b_g, mt1, wr_after(a), wr_after(b_g)) -
+                      dense_eterm(a, b_g, mt0, _wr[a], _wr[b_g]);
+            }
+
+            if (_K > 0 && (mc0 > 0 || mc1 > 0)) {
+                d_B_E += (mc1 > 0 ? 1 : 0) - (mc0 > 0 ? 1 : 0);
+                d_B_E_D += (mc1 > 1 ? 1 : 0) - (mc0 > 1 ? 1 : 0);
+                for (int k = 0; k < _K; ++k) {
+                    double x0 = (it == _pairs.end()) ? 0.0 : it->second.w.x(k);
+                    double x20 = (it == _pairs.end()) ? 0.0 : it->second.w.x2(k);
+                    double x1 = (mc1 > 0) ? (x0 + pd.dw.x(k)) : 0.0;
+                    double x21 = (mc1 > 0) ? (x20 + pd.dw.x2(k)) : 0.0;
+                    dS += cov_pair_neg_log_P(_covs[k], static_cast<double>(mc1), x1, x21) -
+                          cov_pair_neg_log_P(_covs[k], static_cast<double>(mc0), x0, x20);
+                    if (_covs[k].type == CovType::REAL_NORMAL) {
+                        d_recx2[k] += (mc1 > 0 ? x1 * x1 : 0.0) - (mc0 > 0 ? x0 * x0 : 0.0);
+                        double dx0 = (mc0 > 1) ? std::max(0.0, x20 - x0 * (x0 / static_cast<double>(mc0))) : 0.0;
+                        double dx1 = (mc1 > 1) ? std::max(0.0, x21 - x1 * (x1 / static_cast<double>(mc1))) : 0.0;
+                        d_recdx[k] += dx1 - dx0;
+                    }
+                }
+            }
+        }
+
+        if (_K > 0) {
+            long be0 = _B_E, be1 = be0 + d_B_E;
+            long bed0 = _B_E_D, bed1 = bed0 + d_B_E_D;
+            for (int k = 0; k < _K; ++k) {
+                const CovSpec& c = _covs[k];
+                if (c.type == CovType::REAL_NORMAL) {
+                    if (c.micro) {
+                        if (_is_top) {
+                            dS += -signed_w_log_P(static_cast<double>(be1), _recsum[k],
+                                                  std::max(0.0, _recx2[k] + d_recx2[k]),
+                                                  c.p0, c.p1, c.p2, c.p3, c.eps) -
+                                  (-signed_w_log_P(static_cast<double>(be0), _recsum[k],
+                                                   _recx2[k], c.p0, c.p1, c.p2, c.p3, c.eps));
+                        }
+                        dS += -positive_w_log_P(static_cast<double>(bed1),
+                                                std::max(0.0, _recdx[k] + d_recdx[k]),
+                                                c.p2, c.p3, c.eps) -
+                              (-positive_w_log_P(static_cast<double>(bed0), _recdx[k],
+                                                 c.p2, c.p3, c.eps));
+                    }
+                } else if (_is_top && c.micro && be0 != be1) {
+                    if (c.type == CovType::REAL_EXPONENTIAL) {
+                        dS += -positive_w_log_P(static_cast<double>(be1), _recsum[k],
+                                                c.p0, c.p1, c.eps) -
+                              (-positive_w_log_P(static_cast<double>(be0), _recsum[k],
+                                                 c.p0, c.p1, c.eps));
+                    } else {
+                        dS += -geometric_w_log_P(static_cast<double>(be1), _recsum[k], NAN, NAN) -
+                              (-geometric_w_log_P(static_cast<double>(be0), _recsum[k], NAN, NAN));
+                    }
+                }
+            }
+        }
+
+        buf.d_B_E = d_B_E;
+        buf.d_B_E_D = d_B_E_D;
+        return dS;
+    }
+
     double compute_move_delta(int v, int r, int s, MoveBuf* out) const {
         const WMath& M = wmath();
         MoveBuf& buf = out ? *out : _scratch_buf;
         auto& pds = buf.pdeltas;
+        auto& sidx = buf.scratch_idx;
         pds.clear();
         bool use_map = false;
         auto find_or_add = [&](uint64_t key) -> PairDelta& {
@@ -848,17 +952,17 @@ private:
                 }
                 if (pds.size() >= 24) {
                     use_map = true;
-                    _scratch_idx.clear();
-                    for (size_t i = 0; i < pds.size(); ++i) _scratch_idx.emplace(pds[i].key, i);
+                    sidx.clear();
+                    for (size_t i = 0; i < pds.size(); ++i) sidx.emplace(pds[i].key, i);
                 } else {
                     pds.emplace_back(_K);
                     pds.back().key = key;
                     return pds.back();
                 }
             }
-            auto it = _scratch_idx.find(key);
-            if (it == _scratch_idx.end()) {
-                it = _scratch_idx.emplace(key, pds.size()).first;
+            auto it = sidx.find(key);
+            if (it == sidx.end()) {
+                it = sidx.emplace(key, pds.size()).first;
                 pds.emplace_back(_K);
                 pds.back().key = key;
             }
@@ -965,95 +1069,17 @@ private:
             touch_dense(s);
         }
 
-        // Evaluate pair-level topology & covariate deltas + global covariate deltas
-        long d_B_E = 0, d_B_E_D = 0;
-        auto& d_recx2 = buf.d_recx2;
-        auto& d_recdx = buf.d_recdx;
-        d_recx2.assign(_K, 0.0);
-        d_recdx.assign(_K, 0.0);
         auto wr_after = [&](int g) -> long {
             if (g == r) return wr_r1;
             if (g == s) return wr_s1;
             return _wr[g];
         };
-
-        for (const auto& pd : pds) {
-            auto [a, b_g] = unpack_pair(pd.key);
-            auto it = _pairs.find(pd.key);
-            long mt0 = (it == _pairs.end()) ? 0 : it->second.m_topo;
-            long mc0 = (it == _pairs.end()) ? 0 : it->second.m_cov;
-            long mt1 = mt0 + pd.dm_topo;
-            long mc1 = mc0 + pd.dm_cov;
-
-            if (_is_base) {
-                if (mt0 != mt1)
-                    dS -= base_eterm(a, b_g, mt1) - base_eterm(a, b_g, mt0);
-            } else {
-                dS += dense_eterm(a, b_g, mt1, wr_after(a), wr_after(b_g)) -
-                      dense_eterm(a, b_g, mt0, _wr[a], _wr[b_g]);
-            }
-
-            if (_K > 0 && (mc0 > 0 || mc1 > 0)) {
-                d_B_E += (mc1 > 0 ? 1 : 0) - (mc0 > 0 ? 1 : 0);
-                d_B_E_D += (mc1 > 1 ? 1 : 0) - (mc0 > 1 ? 1 : 0);
-                for (int k = 0; k < _K; ++k) {
-                    double x0 = (it == _pairs.end()) ? 0.0 : it->second.w.x(k);
-                    double x20 = (it == _pairs.end()) ? 0.0 : it->second.w.x2(k);
-                    double x1 = (mc1 > 0) ? (x0 + pd.dw.x(k)) : 0.0;
-                    double x21 = (mc1 > 0) ? (x20 + pd.dw.x2(k)) : 0.0;
-                    dS += cov_pair_neg_log_P(_covs[k], static_cast<double>(mc1), x1, x21) -
-                          cov_pair_neg_log_P(_covs[k], static_cast<double>(mc0), x0, x20);
-                    if (_covs[k].type == CovType::REAL_NORMAL) {
-                        d_recx2[k] += (mc1 > 0 ? x1 * x1 : 0.0) - (mc0 > 0 ? x0 * x0 : 0.0);
-                        double dx0 = (mc0 > 1) ? std::max(0.0, x20 - x0 * (x0 / static_cast<double>(mc0))) : 0.0;
-                        double dx1 = (mc1 > 1) ? std::max(0.0, x21 - x1 * (x1 / static_cast<double>(mc1))) : 0.0;
-                        d_recdx[k] += dx1 - dx0;
-                    }
-                }
-            }
-        }
-
-        // Global covariate rec_dl + microcanonical normal variance prior delta
-        if (_K > 0) {
-            long be0 = _B_E, be1 = be0 + d_B_E;
-            long bed0 = _B_E_D, bed1 = bed0 + d_B_E_D;
-            for (int k = 0; k < _K; ++k) {
-                const CovSpec& c = _covs[k];
-                if (c.type == CovType::REAL_NORMAL) {
-                    if (c.micro) {
-                        if (_is_top) {
-                            dS += -signed_w_log_P(static_cast<double>(be1), _recsum[k],
-                                                  std::max(0.0, _recx2[k] + d_recx2[k]),
-                                                  c.p0, c.p1, c.p2, c.p3, c.eps) -
-                                  (-signed_w_log_P(static_cast<double>(be0), _recsum[k],
-                                                   _recx2[k], c.p0, c.p1, c.p2, c.p3, c.eps));
-                        }
-                        dS += -positive_w_log_P(static_cast<double>(bed1),
-                                                std::max(0.0, _recdx[k] + d_recdx[k]),
-                                                c.p2, c.p3, c.eps) -
-                              (-positive_w_log_P(static_cast<double>(bed0), _recdx[k],
-                                                 c.p2, c.p3, c.eps));
-                    }
-                } else if (_is_top && c.micro && be0 != be1) {
-                    if (c.type == CovType::REAL_EXPONENTIAL) {
-                        dS += -positive_w_log_P(static_cast<double>(be1), _recsum[k],
-                                                c.p0, c.p1, c.eps) -
-                              (-positive_w_log_P(static_cast<double>(be0), _recsum[k],
-                                                 c.p0, c.p1, c.eps));
-                    } else {
-                        dS += -geometric_w_log_P(static_cast<double>(be1), _recsum[k], NAN, NAN) -
-                              (-geometric_w_log_P(static_cast<double>(be0), _recsum[k], NAN, NAN));
-                    }
-                }
-            }
-        }
+        dS += eval_pair_cov_deltas(buf, wr_after);
 
         buf.d_ep_r = d_ep_r;
         buf.d_ep_s = d_ep_s;
         buf.d_em_r = d_em_r;
         buf.d_em_s = d_em_s;
-        buf.d_B_E = d_B_E;
-        buf.d_B_E_D = d_B_E_D;
         return dS;
     }
 
@@ -1172,87 +1198,6 @@ private:
     }
 };
 
-// Parse covariates from R inputs (weights matrix E x K, types, params list)
-std::vector<CovSpec> parse_covs(const Rcpp::NumericMatrix& weights,
-                                const Rcpp::CharacterVector& types,
-                                const Rcpp::List& params) {
-    int K = static_cast<int>(types.size());
-    int E = weights.nrow();
-    if (weights.ncol() != K || params.size() != K)
-        Rcpp::stop("weights, types, and params must agree on the number of covariates");
-    std::vector<CovSpec> out(K);
-    for (int k = 0; k < K; ++k) {
-        std::string t = Rcpp::as<std::string>(types[k]);
-        CovSpec& c = out[k];
-        if (t == "real-exponential") c.type = CovType::REAL_EXPONENTIAL;
-        else if (t == "real-normal") c.type = CovType::REAL_NORMAL;
-        else if (t == "discrete-geometric") c.type = CovType::DISCRETE_GEOMETRIC;
-        else if (t == "discrete-poisson") c.type = CovType::DISCRETE_POISSON;
-        else if (t == "discrete-binomial") c.type = CovType::DISCRETE_BINOMIAL;
-        else Rcpp::stop("Unknown covariate type: '%s'", t.c_str());
-
-        // Compute epsilon = 0.1 * min_{w != 0} |w| (exact graph-tool 3.9 rule)
-        double min_nz = W_INF;
-        for (int e = 0; e < E; ++e) {
-            double w = weights(e, k);
-            if (!std::isfinite(w)) Rcpp::stop("Edge weights must be finite");
-            if (w != 0.0) min_nz = std::min(min_nz, std::abs(w));
-        }
-        c.eps = std::isfinite(min_nz) ? (min_nz / 10.0) : 1e-8;
-
-        Rcpp::NumericVector p = params[k];
-        if (c.type == CovType::REAL_EXPONENTIAL ||
-            c.type == CovType::DISCRETE_GEOMETRIC ||
-            c.type == CovType::DISCRETE_POISSON) {
-            c.p0 = (p.size() > 0) ? p[0] : NAN;
-            c.p1 = (p.size() > 1) ? p[1] : NAN;
-            c.micro = (std::isnan(c.p0) && std::isnan(c.p1));
-        } else if (c.type == CovType::DISCRETE_BINOMIAL) {
-            c.p0 = (p.size() > 0) ? p[0] : 1.0;  // N trials
-            c.p1 = (p.size() > 1) ? p[1] : NAN;  // alpha
-            c.p2 = (p.size() > 2) ? p[2] : NAN;  // beta
-            c.micro = (std::isnan(c.p1) && std::isnan(c.p2));
-        } else if (c.type == CovType::REAL_NORMAL) {
-            c.p0 = (p.size() > 0) ? p[0] : NAN;  // m0
-            c.p1 = (p.size() > 1) ? p[1] : NAN;  // k0
-            c.p2 = (p.size() > 2) ? p[2] : NAN;  // v0
-            c.p3 = (p.size() > 3) ? p[3] : NAN;  // nu0
-            c.micro = (std::isnan(c.p0) && std::isnan(c.p1));
-        }
-
-        // Edge-level constant terms (poisson: +sum lgamma(w+1); binomial: -sum lbinom(N, w))
-        c.const_term = 0.0;
-        if (c.type == CovType::DISCRETE_POISSON) {
-            for (int e = 0; e < E; ++e)
-                c.const_term += w_safe_lgamma(weights(e, k) + 1.0);
-        } else if (c.type == CovType::DISCRETE_BINOMIAL) {
-            for (int e = 0; e < E; ++e)
-                c.const_term -= w_lbinom_d(c.p0, weights(e, k));
-        }
-    }
-    return out;
-}
-
-std::vector<CovSpec> make_upper_covs(const std::vector<CovSpec>& base_covs) {
-    std::vector<CovSpec> up;
-    up.reserve(base_covs.size());
-    for (const auto& c : base_covs) {
-        CovSpec u;
-        u.micro = true;
-        u.eps = c.eps;
-        u.const_term = 0.0;
-        if (c.type == CovType::DISCRETE_GEOMETRIC ||
-            c.type == CovType::DISCRETE_POISSON ||
-            c.type == CovType::DISCRETE_BINOMIAL) {
-            u.type = CovType::DISCRETE_GEOMETRIC;
-        } else {
-            u.type = c.type;  // REAL_EXPONENTIAL or REAL_NORMAL
-        }
-        up.push_back(u);
-    }
-    return up;
-}
-
 std::vector<WGraphEdge> build_base_edges(const Graph& graph,
                                          const Rcpp::NumericMatrix& weights) {
     int K = weights.ncol();
@@ -1335,41 +1280,98 @@ std::vector<int> parse_w_blocks(Rcpp::IntegerVector blocks, int N) {
 // Flat WeightedSBM minimization and refinement (agglomerative + greedy sweeps)
 
 double weighted_refine_flat(WeightedLevel& s, WRng& rng, size_t B_min,
-                            size_t B_max, double epsilon, size_t max_iter = 30) {
+                            size_t B_max, double epsilon, size_t max_iter = 30,
+                            int nthreads = 0) {
     if (s.N() <= 1 || s.E() == 0) return s.entropy();
+    int nw = rgt_parallel::resolve_threads(nthreads);
     std::vector<int> vs(s.N());
     std::iota(vs.begin(), vs.end(), 0);
     double S = s.entropy();
 
     for (size_t iter = 0; iter < max_iter; ++iter) {
-        // 1. Greedy single-node sweeps
+        // 1. Greedy single-node sweeps (batch-parallel candidate screening for N >= 512)
         for (int sw = 0; sw < 10; ++sw) {
             rng.shuffle(vs);
             double dS_sw = 0.0;
-            for (int v : vs) {
-                int r = s.group(v);
-                size_t B_cur = static_cast<size_t>(s.B());
-                wt_hash_set<int> cands;
-                for (int k = 0; k < 6; ++k) cands.insert(s.sample_group(v, 0.5, rng));
-                if (B_cur <= 20) {
-                    for (int g : s.occupied()) cands.insert(g);
+            if (nw > 1 && s.N() >= 512 && s.B() > 1) {
+                size_t N = static_cast<size_t>(s.N());
+                size_t batch = std::min(N, std::max<size_t>(512, static_cast<size_t>(nw) * 256));
+                std::vector<WeightedLevel::MoveBuf> bufs(static_cast<size_t>(nw));
+                std::vector<wt_hash_set<int>> cand_sets(static_cast<size_t>(nw));
+                std::vector<int> cand_t;
+                for (size_t base = 0; base < N; base += batch) {
+                    size_t len = std::min(batch, N - base);
+                    cand_t.assign(len, -1);
+                    uint64_t batch_seed = static_cast<uint64_t>(rng.index(1ULL << 30)) ^
+                                          (static_cast<uint64_t>(rng.index(1ULL << 30)) << 30) ^
+                                          0x9e3779b97f4a7c15ULL;
+                    const size_t B_snap = static_cast<size_t>(s.B());
+                    rgt_parallel::parallel_for(len, nw, [&](int tid, size_t lo, size_t hi) {
+                        rgt_parallel::ThreadRng trng(
+                            batch_seed ^ (static_cast<uint64_t>(lo + 1) * 0xbf58476d1ce4e5b9ULL));
+                        auto& buf = bufs[static_cast<size_t>(tid)];
+                        auto& cands = cand_sets[static_cast<size_t>(tid)];
+                        for (size_t idx = lo; idx < hi; ++idx) {
+                            int v = vs[base + idx];
+                            int r = s.group(v);
+                            cands.clear();
+                            for (int k = 0; k < 6; ++k) cands.insert(s.sample_group(v, 0.5, trng));
+                            if (B_snap <= 20) {
+                                for (int g : s.occupied()) cands.insert(g);
+                            }
+                            if (B_snap < B_max && s.size(r) > 1 && s.empty_group() >= 0)
+                                cands.insert(s.empty_group());
+                            cands.erase(r);
+                            int best = -1;
+                            double best_dS = -1e-9;
+                            for (int t : cands) {
+                                if (s.size(r) == 1 && B_snap <= B_min && s.size(t) > 0) continue;
+                                double d = s.virtual_move_const(v, t, buf);
+                                if (d < best_dS) { best_dS = d; best = t; }
+                            }
+                            cand_t[idx] = best;
+                        }
+                    }, 32);
+
+                    for (size_t idx = 0; idx < len; ++idx) {
+                        int t = cand_t[idx];
+                        if (t < 0) continue;
+                        int v = vs[base + idx];
+                        int r = s.group(v);
+                        if (t == r) continue;
+                        size_t B_cur = static_cast<size_t>(s.B());
+                        if (s.size(r) == 1 && s.size(t) > 0 && B_cur <= B_min) continue;
+                        if (s.size(t) == 0 && (B_cur >= B_max && s.size(r) > 1)) continue;
+                        double d = s.virtual_move(v, t);
+                        if (d < -1e-9) dS_sw += s.move(v, t);
+                    }
                 }
-                if (B_cur < B_max && s.size(r) > 1 && s.empty_group() >= 0)
-                    cands.insert(s.empty_group());
-                cands.erase(r);
-                int best = r;
-                double best_dS = -1e-9;
-                for (int t : cands) {
-                    if (s.size(r) == 1 && B_cur <= B_min && s.size(t) > 0) continue;
-                    double d = s.virtual_move(v, t);
-                    if (d < best_dS) { best_dS = d; best = t; }
+            } else {
+                for (int v : vs) {
+                    int r = s.group(v);
+                    size_t B_cur = static_cast<size_t>(s.B());
+                    wt_hash_set<int> cands;
+                    for (int k = 0; k < 6; ++k) cands.insert(s.sample_group(v, 0.5, rng));
+                    if (B_cur <= 20) {
+                        for (int g : s.occupied()) cands.insert(g);
+                    }
+                    if (B_cur < B_max && s.size(r) > 1 && s.empty_group() >= 0)
+                        cands.insert(s.empty_group());
+                    cands.erase(r);
+                    int best = r;
+                    double best_dS = -1e-9;
+                    for (int t : cands) {
+                        if (s.size(r) == 1 && B_cur <= B_min && s.size(t) > 0) continue;
+                        double d = s.virtual_move(v, t);
+                        if (d < best_dS) { best_dS = d; best = t; }
+                    }
+                    if (best != r) dS_sw += s.move(v, best);
                 }
-                if (best != r) dS_sw += s.move(v, best);
             }
             if (std::abs(dS_sw) < 1e-8) break;
         }
 
-        // 2. Strict greedy merges
+        // 2. Strict greedy merges (parallel candidate evaluation for occ.size() >= 32)
         while (static_cast<size_t>(s.B()) > B_min) {
             std::vector<int> occ = s.occupied();
             int mr = -1, mt = -1;
@@ -1377,8 +1379,49 @@ double weighted_refine_flat(WeightedLevel& s, WRng& rng, size_t B_min,
             if (occ.size() <= 40) {
                 for (size_t i = 0; i < occ.size(); ++i) {
                     for (size_t j = i + 1; j < occ.size(); ++j) {
-                        double d = s.virtual_merge(occ[i], occ[j]);
+                        double d = s.virtual_merge_const(occ[i], occ[j], s.default_buf());
                         if (d < best_dS) { best_dS = d; mr = occ[i]; mt = occ[j]; }
+                    }
+                }
+            } else if (nw > 1) {
+                size_t B_occ = occ.size();
+                std::vector<int> cand_t(B_occ, -1);
+                std::vector<double> cand_val(B_occ, 0.0);
+                std::vector<WeightedLevel::MoveBuf> bufs(static_cast<size_t>(nw));
+                std::vector<wt_hash_set<int>> tried_sets(static_cast<size_t>(nw));
+                uint64_t m_seed = static_cast<uint64_t>(rng.index(1ULL << 30)) ^
+                                  (static_cast<uint64_t>(rng.index(1ULL << 30)) << 30) ^
+                                  0xbf58476d1ce4e5b9ULL;
+                rgt_parallel::parallel_for(B_occ, nw, [&](int tid, size_t lo, size_t hi) {
+                    rgt_parallel::ThreadRng trng(
+                        m_seed ^ (static_cast<uint64_t>(lo + 1) * 0x94d049bb133111ebULL));
+                    auto& buf = bufs[static_cast<size_t>(tid)];
+                    auto& tried = tried_sets[static_cast<size_t>(tid)];
+                    for (size_t idx = lo; idx < hi; ++idx) {
+                        int r = occ[idx];
+                        const auto& mem = s.members(r);
+                        tried.clear();
+                        int best_loc = -1;
+                        double best_loc_dS = -1e-9;
+                        for (int k = 0; k < 8; ++k) {
+                            int v = mem[trng.index(mem.size())];
+                            int t = s.sample_group(v, k < 4 ? 0.0 : 0.5, trng);
+                            if (t == r || tried.count(t)) continue;
+                            tried.insert(t);
+                            double d = s.virtual_merge_const(r, t, buf);
+                            if (d < best_loc_dS) { best_loc_dS = d; best_loc = t; }
+                        }
+                        if (best_loc >= 0) {
+                            cand_t[idx] = best_loc;
+                            cand_val[idx] = best_loc_dS;
+                        }
+                    }
+                }, 4);
+                for (size_t idx = 0; idx < B_occ; ++idx) {
+                    if (cand_t[idx] >= 0 && cand_val[idx] < best_dS) {
+                        best_dS = cand_val[idx];
+                        mr = occ[idx];
+                        mt = cand_t[idx];
                     }
                 }
             } else {
@@ -1445,7 +1488,8 @@ double weighted_refine_flat(WeightedLevel& s, WRng& rng, size_t B_min,
 }
 
 void weighted_coarsen_to(WeightedLevel& s, WRng& rng, size_t B_target,
-                         double shrink = 0.8) {
+                         double shrink = 0.8, int nthreads = 0) {
+    int nw = rgt_parallel::resolve_threads(nthreads);
     while (static_cast<size_t>(s.B()) > B_target) {
         size_t B_cur = static_cast<size_t>(s.B());
         size_t B_next = std::max(B_target, std::min(B_cur - 1, static_cast<size_t>(std::round(B_cur * shrink))));
@@ -1453,26 +1497,71 @@ void weighted_coarsen_to(WeightedLevel& s, WRng& rng, size_t B_target,
         rng.shuffle(occ);
         std::vector<std::tuple<double, int, int>> cands;
         cands.reserve(occ.size());
-        for (int r : occ) {
-            const auto& mem = s.members(r);
-            int best = -1;
-            double best_dS = W_INF;
-            wt_hash_set<int> tried;
-            for (int k = 0; k < 10; ++k) {
-                int v = mem[rng.index(mem.size())];
-                int t = s.sample_group(v, k < 5 ? 0.0 : 0.5, rng);
-                if (t == r || tried.count(t)) continue;
-                tried.insert(t);
-                double d = s.virtual_merge(r, t);
-                if (d < best_dS) { best_dS = d; best = t; }
+        if (nw > 1 && occ.size() >= 32) {
+            size_t B_occ = occ.size();
+            std::vector<int> best_tgt(B_occ, -1);
+            std::vector<double> best_val(B_occ, W_INF);
+            std::vector<WeightedLevel::MoveBuf> bufs(static_cast<size_t>(nw));
+            std::vector<wt_hash_set<int>> tried_sets(static_cast<size_t>(nw));
+            uint64_t c_seed = static_cast<uint64_t>(rng.index(1ULL << 30)) ^
+                              (static_cast<uint64_t>(rng.index(1ULL << 30)) << 30) ^
+                              0xbf58476d1ce4e5b9ULL;
+            rgt_parallel::parallel_for(B_occ, nw, [&](int tid, size_t lo, size_t hi) {
+                rgt_parallel::ThreadRng trng(
+                    c_seed ^ (static_cast<uint64_t>(lo + 1) * 0x94d049bb133111ebULL));
+                auto& buf = bufs[static_cast<size_t>(tid)];
+                auto& tried = tried_sets[static_cast<size_t>(tid)];
+                for (size_t idx = lo; idx < hi; ++idx) {
+                    int r = occ[idx];
+                    const auto& mem = s.members(r);
+                    int best = -1;
+                    double best_dS = W_INF;
+                    tried.clear();
+                    for (int k = 0; k < 10; ++k) {
+                        int v = mem[trng.index(mem.size())];
+                        int t = s.sample_group(v, k < 5 ? 0.0 : 0.5, trng);
+                        if (t == r || tried.count(t)) continue;
+                        tried.insert(t);
+                        double d = s.virtual_merge_const(r, t, buf);
+                        if (d < best_dS) { best_dS = d; best = t; }
+                    }
+                    if (best < 0 && B_occ > 1) {
+                        int t = occ[trng.index(B_occ - 1)];
+                        if (t == r) t = occ.back();
+                        best = t;
+                        best_dS = s.virtual_merge_const(r, t, buf);
+                    }
+                    if (best >= 0) {
+                        best_tgt[idx] = best;
+                        best_val[idx] = best_dS;
+                    }
+                }
+            }, 8);
+            for (size_t idx = 0; idx < B_occ; ++idx) {
+                if (best_tgt[idx] >= 0) cands.emplace_back(best_val[idx], occ[idx], best_tgt[idx]);
             }
-            if (best < 0 && occ.size() > 1) {
-                int t = occ[rng.index(occ.size() - 1)];
-                if (t == r) t = occ.back();
-                best = t;
-                best_dS = s.virtual_merge(r, t);
+        } else {
+            for (int r : occ) {
+                const auto& mem = s.members(r);
+                int best = -1;
+                double best_dS = W_INF;
+                wt_hash_set<int> tried;
+                for (int k = 0; k < 10; ++k) {
+                    int v = mem[rng.index(mem.size())];
+                    int t = s.sample_group(v, k < 5 ? 0.0 : 0.5, rng);
+                    if (t == r || tried.count(t)) continue;
+                    tried.insert(t);
+                    double d = s.virtual_merge(r, t);
+                    if (d < best_dS) { best_dS = d; best = t; }
+                }
+                if (best < 0 && occ.size() > 1) {
+                    int t = occ[rng.index(occ.size() - 1)];
+                    if (t == r) t = occ.back();
+                    best = t;
+                    best_dS = s.virtual_merge(r, t);
+                }
+                if (best >= 0) cands.emplace_back(best_dS, r, best);
             }
-            if (best >= 0) cands.emplace_back(best_dS, r, best);
         }
         std::sort(cands.begin(), cands.end());
         wt_hash_map<int, int> root;
@@ -1497,11 +1586,13 @@ void weighted_coarsen_to(WeightedLevel& s, WRng& rng, size_t B_target,
 }
 
 double weighted_minimize_flat(WeightedLevel& s, WRng& rng, size_t B_min,
-                              size_t B_max, bool refine, double epsilon) {
+                              size_t B_max, bool refine, double epsilon,
+                              int nthreads = 0) {
     if (s.N() <= 1 || s.E() == 0) {
         s.set_partition(std::vector<int>(s.N(), 0));
         return s.entropy();
     }
+    int nw = rgt_parallel::resolve_threads(nthreads);
     size_t B_hi = std::min<size_t>(B_max, static_cast<size_t>(s.N()));
     size_t B_lo = std::min(std::max<size_t>(1, B_min), B_hi);
 
@@ -1510,24 +1601,59 @@ double weighted_minimize_flat(WeightedLevel& s, WRng& rng, size_t B_min,
     std::iota(b_init.begin(), b_init.end(), 0);
     s.set_partition(b_init);
     if (static_cast<size_t>(s.B()) > B_hi)
-        weighted_coarsen_to(s, rng, B_hi);
+        weighted_coarsen_to(s, rng, B_hi, 0.8, nw);
 
     double best_S = s.entropy();
     std::vector<int> best_b = s.blocks();
 
     std::vector<int> vs(s.N());
     std::iota(vs.begin(), vs.end(), 0);
+    std::vector<WeightedLevel::MoveBuf> sw_bufs(static_cast<size_t>(std::max(1, nw)));
     while (static_cast<size_t>(s.B()) > B_lo) {
         size_t B_cur = static_cast<size_t>(s.B());
         size_t B_next = std::max(B_lo, std::min(B_cur - 1, static_cast<size_t>(std::round(B_cur * 0.8))));
-        weighted_coarsen_to(s, rng, B_next, 0.8);
+        weighted_coarsen_to(s, rng, B_next, 0.8, nw);
         // Quick greedy single-node sweep at each coarsening stop
         rng.shuffle(vs);
-        for (int v : vs) {
-            int r = s.group(v);
-            if (s.size(r) <= 1 && static_cast<size_t>(s.B()) <= B_lo) continue;
-            int t = s.sample_group(v, 0.5, rng);
-            if (t != r && s.virtual_move(v, t) < -1e-9) s.move(v, t);
+        if (nw > 1 && s.N() >= 512 && s.B() > 1) {
+            size_t N = static_cast<size_t>(s.N());
+            size_t batch = std::min(N, std::max<size_t>(512, static_cast<size_t>(nw) * 256));
+            std::vector<int> cand_t;
+            for (size_t base = 0; base < N; base += batch) {
+                size_t len = std::min(batch, N - base);
+                cand_t.assign(len, -1);
+                uint64_t b_seed = static_cast<uint64_t>(rng.index(1ULL << 30)) ^
+                                  (static_cast<uint64_t>(rng.index(1ULL << 30)) << 30) ^
+                                  0x9e3779b97f4a7c15ULL;
+                rgt_parallel::parallel_for(len, nw, [&](int tid, size_t lo, size_t hi) {
+                    rgt_parallel::ThreadRng trng(
+                        b_seed ^ (static_cast<uint64_t>(lo + 1) * 0xbf58476d1ce4e5b9ULL));
+                    auto& buf = sw_bufs[static_cast<size_t>(tid)];
+                    for (size_t idx = lo; idx < hi; ++idx) {
+                        int v = vs[base + idx];
+                        int r = s.group(v);
+                        int t = s.sample_group(v, 0.5, trng);
+                        if (t != r && s.virtual_move_const(v, t, buf) < -1e-9) {
+                            cand_t[idx] = t;
+                        }
+                    }
+                }, 64);
+                for (size_t idx = 0; idx < len; ++idx) {
+                    int t = cand_t[idx];
+                    if (t < 0) continue;
+                    int v = vs[base + idx];
+                    int r = s.group(v);
+                    if (t == r || (s.size(r) <= 1 && static_cast<size_t>(s.B()) <= B_lo)) continue;
+                    if (s.virtual_move(v, t) < -1e-9) s.move(v, t);
+                }
+            }
+        } else {
+            for (int v : vs) {
+                int r = s.group(v);
+                if (s.size(r) <= 1 && static_cast<size_t>(s.B()) <= B_lo) continue;
+                int t = s.sample_group(v, 0.5, rng);
+                if (t != r && s.virtual_move(v, t) < -1e-9) s.move(v, t);
+            }
         }
         s.refresh_cov_globals();
         double cur_S = s.entropy();
@@ -1540,14 +1666,14 @@ double weighted_minimize_flat(WeightedLevel& s, WRng& rng, size_t B_min,
     // Refine best agglomerative state
     s.set_partition(best_b);
     if (refine) {
-        best_S = weighted_refine_flat(s, rng, B_lo, B_hi, epsilon, 30);
+        best_S = weighted_refine_flat(s, rng, B_lo, B_hi, epsilon, 30, nw);
         best_b = s.blocks();
     }
 
     // Also try single-group start (with split refinement) when B_lo == 1
     if (B_lo == 1) {
         s.set_partition(std::vector<int>(s.N(), 0));
-        double s1 = refine ? weighted_refine_flat(s, rng, B_lo, B_hi, epsilon, 15) : s.entropy();
+        double s1 = refine ? weighted_refine_flat(s, rng, B_lo, B_hi, epsilon, 15, nw) : s.entropy();
         if (s1 < best_S) {
             best_S = s1;
             best_b = s.blocks();
@@ -1651,7 +1777,7 @@ public:
 
     // Build upper levels greedily from a fixed base partition b0 (and trim redundant top 1-block levels)
     void optimize_from_base(const std::vector<int>& b0, WRng& rng, bool refine,
-                            double epsilon) {
+                            double epsilon, int nthreads = 0) {
         std::vector<std::vector<int>> bs;
         bs.push_back(b0);
         // Repeatedly minimize upper level on lower block graph until B == 1
@@ -1670,7 +1796,7 @@ public:
             built_ups.emplace_back(Nl, _directed, false, false, false, true, _up_covs);
             built_ups.back().set_edges(std::move(uedges));
             weighted_minimize_flat(built_ups.back(), rng, 1, static_cast<size_t>(Nl),
-                                   refine, epsilon);
+                                   refine, epsilon, nthreads);
             // Map labels to contiguous 0..B_l-1
             Rcpp::IntegerVector eb = built_ups.back().external_blocks_r();
             std::vector<int> bl(Nl);
@@ -2038,7 +2164,18 @@ Rcpp::NumericVector cpp_weighted_check_moves(SEXP pointer,
         double dS_v = lv.virtual_move(v, s);
         double dS_a = lv.move(v, s);
         double S_new = lv.entropy();
-        err[i] = std::max(std::abs(dS_v - (S_new - S)), std::abs(dS_a - (S_new - S)));
+        double max_e = std::max(std::abs(dS_v - (S_new - S)), std::abs(dS_a - (S_new - S)));
+        if (lv.B() >= 2 && (i % 5 == 0)) {
+            int mr = lv.random_occupied(rng);
+            int mt = lv.random_occupied(rng);
+            if (mr != mt) {
+                WeightedLevel::MoveBuf mb;
+                double mc = lv.virtual_merge_const(mr, mt, mb);
+                double ma = lv.virtual_merge(mr, mt);
+                max_e = std::max(max_e, std::abs(mc - ma));
+            }
+        }
+        err[i] = max_e;
         S = S_new;
     }
     return err;
@@ -2049,7 +2186,7 @@ Rcpp::List cpp_weighted_minimize(SEXP pointer, Rcpp::NumericMatrix weights,
                                  Rcpp::CharacterVector types, Rcpp::List params,
                                  bool degree_corrected, bool distributed,
                                  int B_min, double B_max, bool refine,
-                                 double epsilon, double q_max) {
+                                 double epsilon, double q_max, int nthreads = 0) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) wlog_q().init(w_q_cache_max(q_max));
@@ -2060,7 +2197,7 @@ Rcpp::List cpp_weighted_minimize(SEXP pointer, Rcpp::NumericMatrix weights,
     size_t bmax = std::isinf(B_max) ? std::numeric_limits<size_t>::max()
                                     : static_cast<size_t>(B_max);
     double S = weighted_minimize_flat(lv, rng, static_cast<size_t>(B_min), bmax,
-                                      refine, epsilon);
+                                      refine, epsilon, nthreads);
     return Rcpp::List::create(
         Rcpp::Named("blocks") = lv.external_blocks_r(),
         Rcpp::Named("entropy") = S,
@@ -2100,7 +2237,8 @@ Rcpp::List cpp_nested_weighted_minimize(SEXP pointer, Rcpp::NumericMatrix weight
                                         Rcpp::CharacterVector types,
                                         Rcpp::List params, bool degree_corrected,
                                         bool distributed, int B_min, double B_max,
-                                        bool refine, double epsilon, double q_max) {
+                                        bool refine, double epsilon, double q_max,
+                                        int nthreads = 0) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) wlog_q().init(w_q_cache_max(q_max));
@@ -2113,13 +2251,13 @@ Rcpp::List cpp_nested_weighted_minimize(SEXP pointer, Rcpp::NumericMatrix weight
     // and jointly refine under exact total nested weighted DL!
     WeightedLevel seed(N, graph.directed, degree_corrected, distributed, true, true, covs);
     seed.set_edges(build_base_edges(graph, weights));
-    weighted_minimize_flat(seed, rng, static_cast<size_t>(B_min), bmax, refine, epsilon);
+    weighted_minimize_flat(seed, rng, static_cast<size_t>(B_min), bmax, refine, epsilon, nthreads);
     Rcpp::IntegerVector eb0 = seed.external_blocks_r();
     std::vector<int> b0(N);
     for (int i = 0; i < N; ++i) b0[i] = eb0[i] - 1;
 
     NestedWeightedSBM nw(graph, weights, covs, degree_corrected, distributed);
-    nw.optimize_from_base(b0, rng, refine, epsilon);
+    nw.optimize_from_base(b0, rng, refine, epsilon, nthreads);
     if (refine)
         nw.refine_joint(rng, static_cast<size_t>(B_min), bmax, epsilon);
 

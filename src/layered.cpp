@@ -15,6 +15,7 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <mutex>
 #include <numeric>
 #include <tuple>
 #include <unordered_map>
@@ -23,8 +24,12 @@
 #include <vector>
 
 #include "graph_types.h"
+#include "parallel.h"
+#include "weight_cov.h"
 
 namespace {
+
+using namespace rgt_cov;
 
 constexpr double L_INF = std::numeric_limits<double>::infinity();
 constexpr double L_LOG2 = 0.693147180559945309417232121458176568;
@@ -85,6 +90,7 @@ struct LLogQ {
     size_t max_n = 0;
     std::vector<double> table;
     mutable lt_hash_map<uint64_t, double> memo;
+    mutable std::mutex memo_mtx;
 
     void init(size_t n) {
         if (n <= max_n) return;
@@ -112,8 +118,11 @@ struct LLogQ {
             return table[static_cast<size_t>(n) * (max_n + 1) + static_cast<size_t>(k)];
         }
         uint64_t key = (static_cast<uint64_t>(n) << 32) | static_cast<uint64_t>(k);
-        auto it = memo.find(key);
-        if (it != memo.end()) return it->second;
+        {
+            std::lock_guard<std::mutex> lk(memo_mtx);
+            auto it = memo.find(key);
+            if (it != memo.end()) return it->second;
+        }
         // Exact Szekeres / Peixoto (2017) saddle-point approximation (matches blockmodel.cpp):
         double dn = static_cast<double>(n);
         double dk = static_cast<double>(k);
@@ -175,7 +184,10 @@ struct LLogQ {
             if (!std::isfinite(res))
                 res = 2.0 * c * std::sqrt(dn) - std::log(4.0 * std::sqrt(3.0) * dn);
         }
-        memo.emplace(key, res);
+        {
+            std::lock_guard<std::mutex> lk(memo_mtx);
+            memo.emplace(key, res);
+        }
         return res;
     }
 };
@@ -244,16 +256,82 @@ struct LayerCountVec {
     }
 };
 
+// Sparse sorted per-layer covariate accumulators
+struct LayerWItem {
+    int l;
+    long m_cov = 0;
+    WVec w;
+};
+
+struct LayerWVec {
+    std::vector<LayerWItem> items;  // sorted by l
+
+    bool empty() const { return items.empty(); }
+    void clear() { items.clear(); }
+
+    const LayerWItem* find_const(int l) const {
+        for (const auto& it : items) {
+            if (it.l == l) return &it;
+            if (it.l > l) break;
+        }
+        return nullptr;
+    }
+
+    void add_cov(int l, long dm_cov, const WVec& dw, double sign, int K,
+                 bool erase_zero_m = false) {
+        for (auto it = items.begin(); it != items.end(); ++it) {
+            if (it->l == l) {
+                it->m_cov += dm_cov;
+                for (int k = 0; k < K; ++k) {
+                    it->w.x(k) += sign * dw.x(k);
+                    it->w.x2(k) += sign * dw.x2(k);
+                }
+                if (erase_zero_m && it->m_cov <= 0) items.erase(it);
+                return;
+            }
+            if (it->l > l) {
+                if (erase_zero_m && dm_cov <= 0) return;
+                LayerWItem nw;
+                nw.l = l;
+                nw.m_cov = dm_cov;
+                nw.w.zero(K);
+                for (int k = 0; k < K; ++k) {
+                    nw.w.x(k) = sign * dw.x(k);
+                    nw.w.x2(k) = sign * dw.x2(k);
+                }
+                items.insert(it, std::move(nw));
+                return;
+            }
+        }
+        if (erase_zero_m && dm_cov <= 0) return;
+        LayerWItem nw;
+        nw.l = l;
+        nw.m_cov = dm_cov;
+        nw.w.zero(K);
+        for (int k = 0; k < K; ++k) {
+            nw.w.x(k) = sign * dw.x(k);
+            nw.w.x2(k) = sign * dw.x2(k);
+        }
+        items.push_back(std::move(nw));
+    }
+};
+
 struct LPairStat {
     long m_tot = 0;
+    long m_cov = 0;      // used when _K > 0 && !_independent
     LayerCountVec ml;
+    WVec w;              // used when _K > 0 && !_independent
+    LayerWVec wl;        // used when _K > 0 && _independent
 };
 
 struct LGraphEdge {
     int u, v;
-    long m_tot;        // sum of ml counts (1 at level 0)
-    int single_layer;  // >= 0 at level 0 (fast path!), -1 at upper levels
-    LayerCountVec ml;  // used when single_layer < 0
+    long m_tot;          // sum of ml counts (1 at level 0)
+    int single_layer;    // >= 0 at level 0 (fast path!), -1 at upper levels
+    LayerCountVec ml;    // used when single_layer < 0
+    long m_cov = 1;      // used when K > 0 && (single_layer >= 0 || !independent)
+    WVec w;              // used when K > 0 && (single_layer >= 0 || !independent)
+    LayerWVec wl;        // used when K > 0 && independent && single_layer < 0
 };
 
 struct LAdjRef {
@@ -283,9 +361,13 @@ inline std::pair<int, int> lunpack_pair(uint64_t key) {
 class LayeredLevel {
 public:
     LayeredLevel(int N, int C, bool directed, bool independent, bool dc,
-                 bool dist, bool is_base, bool is_top)
+                 bool dist, bool is_base, bool is_top,
+                 std::vector<CovSpec> covs = {})
         : _N(N), _C(C), _directed(directed), _independent(independent),
           _dc(dc), _dist(dist), _is_base(is_base), _is_top(is_top),
+          _covs(std::move(covs)),
+          _K(static_cast<int>(_covs.size())),
+          _num_cov_strata((_K == 0) ? 0 : (independent ? C : 1)),
           _cap(std::max(2, N)),
           _adj(N), _kout(N, 0), _kin(directed ? N : 0, 0),
           _v_layers(independent ? N : 0),
@@ -302,7 +384,12 @@ public:
           _h_out(!independent && is_base && dc && dist ? _cap : 0),
           _h_in(!independent && is_base && dc && dist && directed ? _cap : 0),
           _h_out_l(independent && is_base && dc && dist ? C : 0),
-          _h_in_l(independent && is_base && dc && dist && directed ? C : 0) {
+          _h_in_l(independent && is_base && dc && dist && directed ? C : 0),
+          _B_E_c(_num_cov_strata, 0),
+          _B_E_D_c(_num_cov_strata, 0),
+          _recsum_c(_num_cov_strata, std::vector<double>(_K, 0.0)),
+          _recx2_c(_num_cov_strata, std::vector<double>(_K, 0.0)),
+          _recdx_c(_num_cov_strata, std::vector<double>(_K, 0.0)) {
         _empty.reserve(_cap);
         for (int r = _cap - 1; r >= 0; --r) push_empty(r);
         if (independent && is_base && dc && dist) {
@@ -310,6 +397,9 @@ public:
                 _h_out_l[l].resize(_cap);
                 if (directed) _h_in_l[l].resize(_cap);
             }
+        }
+        for (int k = 0; k < _K; ++k) {
+            if (_covs[k].type == CovType::REAL_NORMAL) _normal_idx.push_back(k);
         }
     }
 
@@ -330,6 +420,7 @@ public:
                 if (_directed) _v_kin_l.assign(_N, {});
             }
         }
+        for (int st = 0; st < _num_cov_strata; ++st) _recsum_c[st].assign(_K, 0.0);
 
         for (int ei = 0; ei < static_cast<int>(_edges.size()); ++ei) {
             const auto& e = _edges[ei];
@@ -338,6 +429,18 @@ public:
                 _E_l[e.single_layer] += e.m_tot;
             } else {
                 for (const auto& [l, c] : e.ml.items) _E_l[l] += c;
+            }
+            if (_K > 0) {
+                if (e.single_layer >= 0) {
+                    int st = _independent ? e.single_layer : 0;
+                    for (int k = 0; k < _K; ++k) _recsum_c[st][k] += e.w.x(k);
+                } else if (!_independent) {
+                    for (int k = 0; k < _K; ++k) _recsum_c[0][k] += e.w.x(k);
+                } else {
+                    for (const auto& wi : e.wl.items) {
+                        for (int k = 0; k < _K; ++k) _recsum_c[wi.l][k] += wi.w.x(k);
+                    }
+                }
             }
             if (_directed) {
                 _adj[e.u].push_back({e.v, ei, true});
@@ -453,6 +556,7 @@ public:
                     }
                 }
             }
+            for (int k = 0; k < _K; ++k) _base_const += _covs[k].const_term;
         }
         if (_is_base && _dc && _dist) {
             llog_q().init(std::min<size_t>(static_cast<size_t>(2 * _E + 10), 2000));
@@ -464,19 +568,27 @@ public:
     int C_active() const { return _C_active; }
     long E() const { return _E; }
     int B() const { return static_cast<int>(_occupied.size()); }
+    int K() const { return _K; }
+    int num_cov_strata() const { return _num_cov_strata; }
     bool directed() const { return _directed; }
     bool independent() const { return _independent; }
     bool is_base() const { return _is_base; }
     bool is_top() const { return _is_top; }
     int group(int v) const { return _b[v]; }
     int size(int r) const { return _wr[r]; }
+    long B_E_D_c(int st) const { return _B_E_D_c[st]; }
+    double recdx_c(int st, int k) const { return _recdx_c[st][k]; }
     const std::vector<int>& occupied() const { return _occupied; }
     const std::vector<int>& members(int r) const { return _members[r]; }
     const std::vector<int>& blocks() const { return _b; }
+    const std::vector<CovSpec>& covs() const { return _covs; }
+    const std::vector<int>& normal_idx() const { return _normal_idx; }
     const lt_hash_map<uint64_t, LPairStat>& pairs() const { return _pairs; }
     const LayerCountVec& wr_l(int r) const { return _wr_l[r]; }
     int empty_group() const { return _empty.empty() ? -1 : _empty.back(); }
-    int random_occupied(LRng& rng) const { return _occupied[rng.index(_occupied.size())]; }
+
+    template <class Rng>
+    int random_occupied(Rng& rng) const { return _occupied[rng.index(_occupied.size())]; }
 
     void set_partition(const std::vector<int>& b) {
         if (static_cast<int>(b.size()) != _N)
@@ -543,6 +655,23 @@ public:
             if (e.single_layer >= 0) ps.ml.add(e.single_layer, e.m_tot);
             else ps.ml.add_all(e.ml, +1);
 
+            if (_K > 0) {
+                if (!_independent) {
+                    ps.m_cov += e.m_cov;
+                    if (ps.w.k == 0) ps.w.zero(_K);
+                    for (int k = 0; k < _K; ++k) {
+                        ps.w.x(k) += e.w.x(k);
+                        ps.w.x2(k) += e.w.x2(k);
+                    }
+                } else if (e.single_layer >= 0) {
+                    ps.wl.add_cov(e.single_layer, e.m_cov, e.w, +1.0, _K);
+                } else {
+                    for (const auto& wi : e.wl.items) {
+                        ps.wl.add_cov(wi.l, wi.m_cov, wi.w, +1.0, _K);
+                    }
+                }
+            }
+
             if (_directed) {
                 _ep[r] += e.m_tot;
                 _em[s] += e.m_tot;
@@ -573,6 +702,49 @@ public:
                     } else {
                         _ep_l[r].add_all(e.ml, +1);
                         _ep_l[s].add_all(e.ml, +1);
+                    }
+                }
+            }
+        }
+        refresh_cov_globals();
+    }
+
+    void refresh_cov_globals() {
+        if (_K == 0) return;
+        for (int st = 0; st < _num_cov_strata; ++st) {
+            _B_E_c[st] = 0;
+            _B_E_D_c[st] = 0;
+            _recx2_c[st].assign(_K, 0.0);
+            _recdx_c[st].assign(_K, 0.0);
+        }
+        for (const auto& [pk, ps] : _pairs) {
+            (void)pk;
+            if (!_independent) {
+                if (ps.m_cov > 0) {
+                    ++_B_E_c[0];
+                    if (ps.m_cov > 1) ++_B_E_D_c[0];
+                    for (int k : _normal_idx) {
+                        double x = ps.w.x(k);
+                        _recx2_c[0][k] += x * x;
+                        if (ps.m_cov > 1) {
+                            double dx = ps.w.x2(k) - x * (x / static_cast<double>(ps.m_cov));
+                            if (dx > 0.0) _recdx_c[0][k] += dx;
+                        }
+                    }
+                }
+            } else {
+                for (const auto& wi : ps.wl.items) {
+                    if (wi.m_cov <= 0) continue;
+                    int st = wi.l;
+                    ++_B_E_c[st];
+                    if (wi.m_cov > 1) ++_B_E_D_c[st];
+                    for (int k : _normal_idx) {
+                        double x = wi.w.x(k);
+                        _recx2_c[st][k] += x * x;
+                        if (wi.m_cov > 1) {
+                            double dx = wi.w.x2(k) - x * (x / static_cast<double>(wi.m_cov));
+                            if (dx > 0.0) _recdx_c[st][k] += dx;
+                        }
                     }
                 }
             }
@@ -668,14 +840,89 @@ public:
                 }
             }
         }
+        return S + cov_entropy(true, true);
+    }
+
+    double cov_entropy(bool include_rec = true, bool include_dl = true) const {
+        if (_K == 0 || _E == 0) return 0.0;
+        double S = 0.0;
+        if (include_rec) {
+            for (const auto& [pk, ps] : _pairs) {
+                (void)pk;
+                if (!_independent) {
+                    if (ps.m_cov <= 0) continue;
+                    double m = static_cast<double>(ps.m_cov);
+                    for (int k = 0; k < _K; ++k) {
+                        S += cov_pair_neg_log_P(_covs[k], m, ps.w.x(k), ps.w.x2(k));
+                    }
+                } else {
+                    for (const auto& wi : ps.wl.items) {
+                        if (wi.m_cov <= 0) continue;
+                        double m = static_cast<double>(wi.m_cov);
+                        for (int k = 0; k < _K; ++k) {
+                            S += cov_pair_neg_log_P(_covs[k], m, wi.w.x(k), wi.w.x2(k));
+                        }
+                    }
+                }
+            }
+        }
+        for (int st = 0; st < _num_cov_strata; ++st) {
+            for (int k = 0; k < _K; ++k) {
+                const CovSpec& c = _covs[k];
+                if (c.type == CovType::REAL_NORMAL) {
+                    if (c.micro) {
+                        if (include_dl && _is_top) {
+                            S += -signed_w_log_P(static_cast<double>(_B_E_c[st]), _recsum_c[st][k],
+                                                 _recx2_c[st][k], c.p0, c.p1, c.p2, c.p3, c.eps);
+                        }
+                        S += -positive_w_log_P(static_cast<double>(_B_E_D_c[st]), _recdx_c[st][k],
+                                               c.p2, c.p3, c.eps);
+                    }
+                } else if (include_dl && _is_top && c.micro) {
+                    if (c.type == CovType::REAL_EXPONENTIAL) {
+                        S += -positive_w_log_P(static_cast<double>(_B_E_c[st]), _recsum_c[st][k],
+                                               c.p0, c.p1, c.eps);
+                    } else {
+                        S += -geometric_w_log_P(static_cast<double>(_B_E_c[st]), _recsum_c[st][k],
+                                                NAN, NAN);
+                    }
+                }
+            }
+        }
         return S;
     }
+
+    struct PairDelta {
+        uint64_t key = 0;
+        long dm_tot = 0;
+        long dm_cov = 0;
+        LayerCountVec dml;
+        WVec dw;
+        LayerWVec dwl;
+    };
+
+    struct MoveBuf {
+        std::vector<PairDelta> pdeltas;
+        lt_hash_map<uint64_t, size_t> scratch_idx;
+        long d_ep_r = 0, d_ep_s = 0, d_em_r = 0, d_em_s = 0;
+        LayerCountVec d_ep_l_r, d_ep_l_s, d_em_l_r, d_em_l_s;
+        std::vector<long> d_B_E_c, d_B_E_D_c;
+        std::vector<std::vector<double>> d_recx2_c, d_recdx_c;
+        std::vector<uint8_t> touched_strata;
+    };
 
     // Exact O(deg(v)) incremental virtual_move(v, s)
     double virtual_move(int v, int s) const {
         int r = _b[v];
         if (r == s) return 0.0;
         return compute_move_delta(v, r, s, &_scratch_buf);
+    }
+
+    // Thread-safe read-only virtual_move(v, s) using caller-supplied MoveBuf
+    double virtual_move_const(int v, int s, MoveBuf& buf) const {
+        int r = _b[v];
+        if (r == s) return 0.0;
+        return compute_move_delta(v, r, s, &buf);
     }
 
     // Exact O(deg(v)) incremental move(v, s)
@@ -713,7 +960,8 @@ public:
     }
 
     // Peixoto neighbor-based ergodic proposal (using collapsed adjacency counts)
-    int sample_group(int v, double c, LRng& rng) const {
+    template <class Rng>
+    int sample_group(int v, double c, Rng& rng) const {
         if (_occupied.empty()) return 0;
         const auto& adj = _adj[v];
         if (adj.empty() || std::isinf(c))
@@ -773,21 +1021,12 @@ public:
     }
 
 private:
-    struct PairDelta {
-        uint64_t key = 0;
-        long dm_tot = 0;
-        LayerCountVec dml;
-    };
-
-    struct MoveBuf {
-        std::vector<PairDelta> pdeltas;
-        long d_ep_r = 0, d_ep_s = 0, d_em_r = 0, d_em_s = 0;
-        LayerCountVec d_ep_l_r, d_ep_l_s, d_em_l_r, d_em_l_s;
-    };
-
     int _N, _C;
     int _C_active = 0;
     bool _directed, _independent, _dc, _dist, _is_base, _is_top;
+    std::vector<CovSpec> _covs;
+    int _K = 0;
+    int _num_cov_strata = 0;
     int _cap;
     long _E = 0;
     double _base_const = 0.0;
@@ -812,8 +1051,11 @@ private:
     std::vector<lt_hash_map<long, long>> _h_out, _h_in;
     std::vector<std::vector<lt_hash_map<long, long>>> _h_out_l, _h_in_l;
 
+    std::vector<int> _normal_idx;
+    std::vector<long> _B_E_c, _B_E_D_c;
+    std::vector<std::vector<double>> _recsum_c, _recx2_c, _recdx_c;
+
     mutable MoveBuf _scratch_buf;
-    mutable lt_hash_map<uint64_t, size_t> _scratch_idx;
 
     inline double base_eterm(int r, int s, const LPairStat& ps) const {
         const LMath& M = lmath();
@@ -910,6 +1152,7 @@ private:
         const LMath& M = lmath();
         MoveBuf& buf = out ? *out : _scratch_buf;
         auto& pds = buf.pdeltas;
+        auto& sidx = buf.scratch_idx;
         pds.clear();
         buf.d_ep_l_r.clear();
         buf.d_ep_l_s.clear();
@@ -924,19 +1167,21 @@ private:
                 }
                 if (pds.size() >= 24) {
                     use_map = true;
-                    _scratch_idx.clear();
-                    for (size_t i = 0; i < pds.size(); ++i) _scratch_idx.emplace(pds[i].key, i);
+                    sidx.clear();
+                    for (size_t i = 0; i < pds.size(); ++i) sidx.emplace(pds[i].key, i);
                 } else {
                     pds.emplace_back();
                     pds.back().key = key;
+                    if (_K > 0 && !_independent) pds.back().dw.zero(_K);
                     return pds.back();
                 }
             }
-            auto it = _scratch_idx.find(key);
-            if (it == _scratch_idx.end()) {
-                it = _scratch_idx.emplace(key, pds.size()).first;
+            auto it = sidx.find(key);
+            if (it == sidx.end()) {
+                it = sidx.emplace(key, pds.size()).first;
                 pds.emplace_back();
                 pds.back().key = key;
+                if (_K > 0 && !_independent) pds.back().dw.zero(_K);
             }
             return pds[it->second];
         };
@@ -946,6 +1191,22 @@ private:
             pd.dm_tot += sign * e.m_tot;
             if (e.single_layer >= 0) pd.dml.add(e.single_layer, sign * e.m_tot);
             else pd.dml.add_all(e.ml, sign);
+            if (_K > 0) {
+                double sd = static_cast<double>(sign);
+                if (!_independent) {
+                    pd.dm_cov += sign * e.m_cov;
+                    for (int k = 0; k < _K; ++k) {
+                        pd.dw.x(k) += sd * e.w.x(k);
+                        pd.dw.x2(k) += sd * e.w.x2(k);
+                    }
+                } else if (e.single_layer >= 0) {
+                    pd.dwl.add_cov(e.single_layer, sign * e.m_cov, e.w, sd, _K);
+                } else {
+                    for (const auto& wi : e.wl.items) {
+                        pd.dwl.add_cov(wi.l, sign * wi.m_cov, wi.w, sd, _K);
+                    }
+                }
+            }
         };
 
         long d_ep_r = 0, d_ep_s = 0, d_em_r = 0, d_em_s = 0;
@@ -1156,6 +1417,107 @@ private:
             }
         }
 
+        if (_K > 0) {
+            buf.d_B_E_c.assign(_num_cov_strata, 0);
+            buf.d_B_E_D_c.assign(_num_cov_strata, 0);
+            if (static_cast<int>(buf.d_recx2_c.size()) != _num_cov_strata) {
+                buf.d_recx2_c.assign(_num_cov_strata, std::vector<double>(_K, 0.0));
+                buf.d_recdx_c.assign(_num_cov_strata, std::vector<double>(_K, 0.0));
+            } else {
+                for (int st = 0; st < _num_cov_strata; ++st) {
+                    buf.d_recx2_c[st].assign(_K, 0.0);
+                    buf.d_recdx_c[st].assign(_K, 0.0);
+                }
+            }
+            buf.touched_strata.assign(_num_cov_strata, 0);
+
+            for (const auto& pd : pds) {
+                auto it = _pairs.find(pd.key);
+                if (!_independent) {
+                    long mc0 = (it == _pairs.end()) ? 0 : it->second.m_cov;
+                    long mc1 = mc0 + pd.dm_cov;
+                    if (mc0 <= 0 && mc1 <= 0) continue;
+                    buf.touched_strata[0] = 1;
+                    buf.d_B_E_c[0] += (mc1 > 0 ? 1 : 0) - (mc0 > 0 ? 1 : 0);
+                    buf.d_B_E_D_c[0] += (mc1 > 1 ? 1 : 0) - (mc0 > 1 ? 1 : 0);
+                    for (int k = 0; k < _K; ++k) {
+                        double x0 = (it == _pairs.end() || mc0 <= 0) ? 0.0 : it->second.w.x(k);
+                        double x20 = (it == _pairs.end() || mc0 <= 0) ? 0.0 : it->second.w.x2(k);
+                        double x1 = (mc1 > 0) ? (x0 + pd.dw.x(k)) : 0.0;
+                        double x21 = (mc1 > 0) ? (x20 + pd.dw.x2(k)) : 0.0;
+                        dS += cov_pair_neg_log_P(_covs[k], static_cast<double>(mc1), x1, x21) -
+                              cov_pair_neg_log_P(_covs[k], static_cast<double>(mc0), x0, x20);
+                        if (_covs[k].type == CovType::REAL_NORMAL) {
+                            buf.d_recx2_c[0][k] += (mc1 > 0 ? x1 * x1 : 0.0) - (mc0 > 0 ? x0 * x0 : 0.0);
+                            double dx0 = (mc0 > 1) ? std::max(0.0, x20 - x0 * (x0 / static_cast<double>(mc0))) : 0.0;
+                            double dx1 = (mc1 > 1) ? std::max(0.0, x21 - x1 * (x1 / static_cast<double>(mc1))) : 0.0;
+                            buf.d_recdx_c[0][k] += dx1 - dx0;
+                        }
+                    }
+                } else {
+                    for (const auto& dwi : pd.dwl.items) {
+                        const LayerWItem* old_it = (it == _pairs.end()) ? nullptr : it->second.wl.find_const(dwi.l);
+                        long mc0 = old_it ? old_it->m_cov : 0;
+                        long mc1 = mc0 + dwi.m_cov;
+                        if (mc0 <= 0 && mc1 <= 0) continue;
+                        int st = dwi.l;
+                        buf.touched_strata[st] = 1;
+                        buf.d_B_E_c[st] += (mc1 > 0 ? 1 : 0) - (mc0 > 0 ? 1 : 0);
+                        buf.d_B_E_D_c[st] += (mc1 > 1 ? 1 : 0) - (mc0 > 1 ? 1 : 0);
+                        for (int k = 0; k < _K; ++k) {
+                            double x0 = (old_it && mc0 > 0) ? old_it->w.x(k) : 0.0;
+                            double x20 = (old_it && mc0 > 0) ? old_it->w.x2(k) : 0.0;
+                            double x1 = (mc1 > 0) ? (x0 + dwi.w.x(k)) : 0.0;
+                            double x21 = (mc1 > 0) ? (x20 + dwi.w.x2(k)) : 0.0;
+                            dS += cov_pair_neg_log_P(_covs[k], static_cast<double>(mc1), x1, x21) -
+                                  cov_pair_neg_log_P(_covs[k], static_cast<double>(mc0), x0, x20);
+                            if (_covs[k].type == CovType::REAL_NORMAL) {
+                                buf.d_recx2_c[st][k] += (mc1 > 0 ? x1 * x1 : 0.0) - (mc0 > 0 ? x0 * x0 : 0.0);
+                                double dx0 = (mc0 > 1) ? std::max(0.0, x20 - x0 * (x0 / static_cast<double>(mc0))) : 0.0;
+                                double dx1 = (mc1 > 1) ? std::max(0.0, x21 - x1 * (x1 / static_cast<double>(mc1))) : 0.0;
+                                buf.d_recdx_c[st][k] += dx1 - dx0;
+                            }
+                        }
+                    }
+                }
+            }
+
+            for (int st = 0; st < _num_cov_strata; ++st) {
+                if (!buf.touched_strata[st]) continue;
+                long be0 = _B_E_c[st], be1 = be0 + buf.d_B_E_c[st];
+                long bed0 = _B_E_D_c[st], bed1 = bed0 + buf.d_B_E_D_c[st];
+                for (int k = 0; k < _K; ++k) {
+                    const CovSpec& c = _covs[k];
+                    if (c.type == CovType::REAL_NORMAL) {
+                        if (c.micro) {
+                            if (_is_top) {
+                                dS += -signed_w_log_P(static_cast<double>(be1), _recsum_c[st][k],
+                                                      std::max(0.0, _recx2_c[st][k] + buf.d_recx2_c[st][k]),
+                                                      c.p0, c.p1, c.p2, c.p3, c.eps) -
+                                      (-signed_w_log_P(static_cast<double>(be0), _recsum_c[st][k],
+                                                       _recx2_c[st][k], c.p0, c.p1, c.p2, c.p3, c.eps));
+                            }
+                            dS += -positive_w_log_P(static_cast<double>(bed1),
+                                                    std::max(0.0, _recdx_c[st][k] + buf.d_recdx_c[st][k]),
+                                                    c.p2, c.p3, c.eps) -
+                                  (-positive_w_log_P(static_cast<double>(bed0), _recdx_c[st][k],
+                                                     c.p2, c.p3, c.eps));
+                        }
+                    } else if (_is_top && c.micro && be0 != be1) {
+                        if (c.type == CovType::REAL_EXPONENTIAL) {
+                            dS += -positive_w_log_P(static_cast<double>(be1), _recsum_c[st][k],
+                                                    c.p0, c.p1, c.eps) -
+                                  (-positive_w_log_P(static_cast<double>(be0), _recsum_c[st][k],
+                                                     c.p0, c.p1, c.eps));
+                        } else {
+                            dS += -geometric_w_log_P(static_cast<double>(be1), _recsum_c[st][k], NAN, NAN) -
+                                  (-geometric_w_log_P(static_cast<double>(be0), _recsum_c[st][k], NAN, NAN));
+                        }
+                    }
+                }
+            }
+        }
+
         buf.d_ep_r = d_ep_r;
         buf.d_ep_s = d_ep_s;
         buf.d_em_r = d_em_r;
@@ -1228,18 +1590,45 @@ private:
             }
         };
 
+        if (_K > 0) {
+            for (int st = 0; st < _num_cov_strata; ++st) {
+                if (!buf.touched_strata[st]) continue;
+                _B_E_c[st] += buf.d_B_E_c[st];
+                _B_E_D_c[st] += buf.d_B_E_D_c[st];
+                for (int k : _normal_idx) {
+                    _recx2_c[st][k] = std::max(0.0, _recx2_c[st][k] + buf.d_recx2_c[st][k]);
+                    _recdx_c[st][k] = std::max(0.0, _recdx_c[st][k] + buf.d_recdx_c[st][k]);
+                }
+            }
+        }
+
         for (const auto& pd : buf.pdeltas) {
-            if (pd.dm_tot == 0 && pd.dml.empty()) continue;
+            if (pd.dm_tot == 0 && pd.dm_cov == 0 && pd.dml.empty() && pd.dwl.empty() &&
+                (_K == 0 || _independent)) continue;
             auto [a, b_g] = lunpack_pair(pd.key);
             auto it = _pairs.find(pd.key);
             if (it == _pairs.end()) {
-                if (pd.dm_tot <= 0) continue;
+                if (pd.dm_tot <= 0 && pd.dm_cov <= 0) continue;
                 it = _pairs.emplace(pd.key, LPairStat{}).first;
             }
             LPairStat& ps = it->second;
             ps.m_tot += pd.dm_tot;
             ps.ml.add_all(pd.dml, +1);
-            if (ps.m_tot <= 0) _pairs.erase(it);
+            if (_K > 0) {
+                if (!_independent) {
+                    ps.m_cov += pd.dm_cov;
+                    if (ps.w.k == 0) ps.w.zero(_K);
+                    for (int k = 0; k < _K; ++k) {
+                        ps.w.x(k) += pd.dw.x(k);
+                        ps.w.x2(k) += pd.dw.x2(k);
+                    }
+                } else {
+                    for (const auto& dwi : pd.dwl.items) {
+                        ps.wl.add_cov(dwi.l, dwi.m_cov, dwi.w, +1.0, _K, true);
+                    }
+                }
+            }
+            if (ps.m_tot <= 0 && ps.m_cov <= 0) _pairs.erase(it);
 
             if (_directed) {
                 add_m(_m_out_tot[a], b_g, pd.dm_tot);
@@ -1305,10 +1694,14 @@ private:
 
 std::vector<LGraphEdge> build_base_layered_edges(const Graph& graph,
                                                  const Rcpp::IntegerVector& layers,
+                                                 const Rcpp::NumericMatrix& weights,
+                                                 int K,
                                                  int& C_out) {
     int E = static_cast<int>(boost::num_edges(graph.adjacency));
     if (layers.size() != E)
         Rcpp::stop("layers must have length graph_num_edges(graph)");
+    if (K > 0 && weights.nrow() != E)
+        Rcpp::stop("weights must have nrow(weights) == graph_num_edges(graph)");
     int max_l = 0;
     for (int i = 0; i < E; ++i) {
         if (layers[i] == NA_INTEGER || layers[i] < 1)
@@ -1325,9 +1718,81 @@ std::vector<LGraphEdge> build_base_layered_edges(const Graph& graph,
         e.v = static_cast<int>(boost::target(*it, graph.adjacency));
         e.m_tot = 1;
         e.single_layer = layers[idx] - 1;
+        e.m_cov = 1;
+        if (K > 0) {
+            e.w.zero(K);
+            for (int k = 0; k < K; ++k) {
+                double val = weights(static_cast<R_xlen_t>(idx), k);
+                e.w.x(k) = val;
+                e.w.x2(k) = val * val;
+            }
+        }
         edges.push_back(std::move(e));
     }
     return edges;
+}
+
+std::vector<LGraphEdge> build_upper_layered_edges(const LayeredLevel& lower,
+                                                  lt_hash_map<int, int>& gmap,
+                                                  std::vector<std::vector<int>>* next_vl = nullptr) {
+    std::vector<int> occ = lower.occupied();
+    std::sort(occ.begin(), occ.end());
+    gmap.clear();
+    gmap.reserve(occ.size());
+    for (size_t i = 0; i < occ.size(); ++i)
+        gmap.emplace(occ[i], static_cast<int>(i));
+
+    int K = lower.K();
+    bool indep = lower.independent();
+    std::vector<LGraphEdge> next_edges;
+    next_edges.reserve(lower.pairs().size());
+    for (const auto& [pk, ps] : lower.pairs()) {
+        if (ps.m_tot <= 0) continue;
+        auto [r, s] = lunpack_pair(pk);
+        LGraphEdge e;
+        e.u = gmap[r];
+        e.v = gmap[s];
+        e.m_tot = ps.m_tot;
+        e.single_layer = -1;
+        e.ml = ps.ml;
+        if (K > 0) {
+            if (!indep) {
+                e.m_cov = (ps.m_cov > 0) ? 1 : 0;
+                e.w.zero(K);
+                if (ps.m_cov > 0) {
+                    for (int k = 0; k < K; ++k) {
+                        double x = ps.w.x(k);
+                        e.w.x(k) = x;
+                        e.w.x2(k) = x * x;
+                    }
+                }
+            } else {
+                e.m_cov = 0;
+                for (const auto& wi : ps.wl.items) {
+                    if (wi.m_cov <= 0) continue;
+                    WVec w_up(K);
+                    for (int k = 0; k < K; ++k) {
+                        double x = wi.w.x(k);
+                        w_up.x(k) = x;
+                        w_up.x2(k) = x * x;
+                    }
+                    e.wl.add_cov(wi.l, 1L, w_up, +1.0, K);
+                }
+            }
+        }
+        next_edges.push_back(std::move(e));
+    }
+    if (next_vl != nullptr && indep) {
+        int next_N = static_cast<int>(occ.size());
+        next_vl->assign(next_N, {});
+        for (size_t i = 0; i < occ.size(); ++i) {
+            const auto& wl = lower.wr_l(occ[i]);
+            for (const auto& [lay, cnt] : wl.items) {
+                if (cnt > 0) (*next_vl)[i].push_back(lay);
+            }
+        }
+    }
+    return next_edges;
 }
 
 std::vector<int> parse_l_blocks(const Rcpp::IntegerVector& blocks, int N) {
@@ -1351,52 +1816,111 @@ std::vector<int> parse_l_blocks(const Rcpp::IntegerVector& blocks, int N) {
 // Flat greedy minimization & golden-section / agglomerative search over B
 
 void layered_greedy_sweeps(LayeredLevel& lv, LRng& rng, size_t B_min, size_t B_max,
-                           int max_sweeps, double epsilon) {
+                           int max_sweeps, double epsilon, int nthreads = 0) {
     if (lv.N() <= 1) return;
+    int nw = rgt_parallel::resolve_threads(nthreads);
     std::vector<int> vs(lv.N());
     std::iota(vs.begin(), vs.end(), 0);
     for (int sw = 0; sw < max_sweeps; ++sw) {
         double tot_dS = 0.0;
         rng.shuffle(vs);
-        for (int v : vs) {
-            int r = lv.group(v);
-            size_t B_cur = static_cast<size_t>(lv.B());
-            double best_dS = -1e-11;
-            int best_s = r;
-
-            // Check neighbor blocks + small sample of random blocks
-            lt_hash_set<int> cands;
-            const auto& occ = lv.occupied();
-            if (occ.size() <= 12) {
-                for (int g : occ) cands.insert(g);
-            } else {
-                for (int k = 0; k < 8; ++k) cands.insert(lv.sample_group(v, 0.5, rng));
-                for (int k = 0; k < 4; ++k) cands.insert(lv.random_occupied(rng));
-            }
-            if (B_cur < B_max && B_cur < static_cast<size_t>(lv.N()) &&
-                lv.size(r) > 1 && lv.empty_group() >= 0) {
-                cands.insert(lv.empty_group());
-            }
-            cands.erase(r);
-
-            for (int s : cands) {
-                if (lv.size(r) == 1 && lv.size(s) > 0 && B_cur <= B_min) continue;
-                double dS = lv.virtual_move(v, s);
-                if (dS < best_dS) {
-                    best_dS = dS;
-                    best_s = s;
+        if (nw > 1 && lv.N() >= 512 && lv.B() > 1) {
+            size_t N = static_cast<size_t>(lv.N());
+            size_t batch = std::min(N, std::max<size_t>(512, static_cast<size_t>(nw) * 256));
+            std::vector<LayeredLevel::MoveBuf> bufs(static_cast<size_t>(nw));
+            std::vector<lt_hash_set<int>> cand_sets(static_cast<size_t>(nw));
+            std::vector<int> cand_s;
+            for (size_t base = 0; base < N; base += batch) {
+                size_t len = std::min(batch, N - base);
+                cand_s.assign(len, -1);
+                uint64_t b_seed = static_cast<uint64_t>(rng.index(1ULL << 30)) ^
+                                  (static_cast<uint64_t>(rng.index(1ULL << 30)) << 30) ^
+                                  0x9e3779b97f4a7c15ULL;
+                const size_t B_snap = static_cast<size_t>(lv.B());
+                rgt_parallel::parallel_for(len, nw, [&](int tid, size_t lo, size_t hi) {
+                    rgt_parallel::ThreadRng trng(
+                        b_seed ^ (static_cast<uint64_t>(lo + 1) * 0xbf58476d1ce4e5b9ULL));
+                    auto& buf = bufs[static_cast<size_t>(tid)];
+                    auto& cands = cand_sets[static_cast<size_t>(tid)];
+                    for (size_t idx = lo; idx < hi; ++idx) {
+                        int v = vs[base + idx];
+                        int r = lv.group(v);
+                        cands.clear();
+                        const auto& occ = lv.occupied();
+                        if (occ.size() <= 12) {
+                            for (int g : occ) cands.insert(g);
+                        } else {
+                            for (int k = 0; k < 8; ++k) cands.insert(lv.sample_group(v, 0.5, trng));
+                            for (int k = 0; k < 4; ++k) cands.insert(lv.random_occupied(trng));
+                        }
+                        if (B_snap < B_max && B_snap < N &&
+                            lv.size(r) > 1 && lv.empty_group() >= 0) {
+                            cands.insert(lv.empty_group());
+                        }
+                        cands.erase(r);
+                        double best_dS = -1e-11;
+                        int best_s = -1;
+                        for (int s : cands) {
+                            if (lv.size(r) == 1 && lv.size(s) > 0 && B_snap <= B_min) continue;
+                            double dS = lv.virtual_move_const(v, s, buf);
+                            if (dS < best_dS) { best_dS = dS; best_s = s; }
+                        }
+                        cand_s[idx] = best_s;
+                    }
+                }, 32);
+                for (size_t idx = 0; idx < len; ++idx) {
+                    int s = cand_s[idx];
+                    if (s < 0) continue;
+                    int v = vs[base + idx];
+                    int r = lv.group(v);
+                    if (s == r) continue;
+                    size_t B_cur = static_cast<size_t>(lv.B());
+                    if (lv.size(r) == 1 && lv.size(s) > 0 && B_cur <= B_min) continue;
+                    if (lv.size(s) == 0 && B_cur >= B_max && lv.size(r) > 1) continue;
+                    if (lv.virtual_move(v, s) < -1e-11) tot_dS += lv.move(v, s);
                 }
             }
-            if (best_s != r) {
-                tot_dS += lv.move(v, best_s);
+        } else {
+            for (int v : vs) {
+                int r = lv.group(v);
+                size_t B_cur = static_cast<size_t>(lv.B());
+                double best_dS = -1e-11;
+                int best_s = r;
+
+                lt_hash_set<int> cands;
+                const auto& occ = lv.occupied();
+                if (occ.size() <= 12) {
+                    for (int g : occ) cands.insert(g);
+                } else {
+                    for (int k = 0; k < 8; ++k) cands.insert(lv.sample_group(v, 0.5, rng));
+                    for (int k = 0; k < 4; ++k) cands.insert(lv.random_occupied(rng));
+                }
+                if (B_cur < B_max && B_cur < static_cast<size_t>(lv.N()) &&
+                    lv.size(r) > 1 && lv.empty_group() >= 0) {
+                    cands.insert(lv.empty_group());
+                }
+                cands.erase(r);
+
+                for (int s : cands) {
+                    if (lv.size(r) == 1 && lv.size(s) > 0 && B_cur <= B_min) continue;
+                    double dS = lv.virtual_move(v, s);
+                    if (dS < best_dS) {
+                        best_dS = dS;
+                        best_s = s;
+                    }
+                }
+                if (best_s != r) {
+                    tot_dS += lv.move(v, best_s);
+                }
             }
         }
+        lv.refresh_cov_globals();
         if (std::abs(tot_dS) <= epsilon) break;
     }
 }
 
 void layered_agglomerate_to(LayeredLevel& lv, LRng& rng, size_t target_B,
-                            double epsilon) {
+                            double epsilon, int nthreads = 0) {
     while (static_cast<size_t>(lv.B()) > target_B) {
         std::vector<int> occ = lv.occupied();
         size_t cur_B = occ.size();
@@ -1456,13 +1980,14 @@ void layered_agglomerate_to(LayeredLevel& lv, LRng& rng, size_t target_B,
             lv.merge(r, t);
         }
         layered_greedy_sweeps(lv, rng, target_B, std::max(target_B, static_cast<size_t>(lv.B())),
-                              2, epsilon);
+                              2, epsilon, nthreads);
     }
 }
 
 double layered_minimize_flat(LayeredLevel& lv, LRng& rng, size_t B_min,
                              size_t B_max, bool refine, double epsilon,
-                             std::vector<std::vector<int>>* checkpoints = nullptr) {
+                             std::vector<std::vector<int>>* checkpoints = nullptr,
+                             int nthreads = 0) {
     int N = lv.N();
     if (N <= 1) {
         std::vector<int> b(N, 0);
@@ -1478,7 +2003,7 @@ double layered_minimize_flat(LayeredLevel& lv, LRng& rng, size_t B_min,
     lv.set_partition(b_init);
 
     if (B_max < static_cast<size_t>(N))
-        layered_agglomerate_to(lv, rng, B_max, epsilon);
+        layered_agglomerate_to(lv, rng, B_max, epsilon, nthreads);
 
     std::vector<int> best_b = lv.blocks();
     double best_S = lv.entropy();
@@ -1497,8 +2022,8 @@ double layered_minimize_flat(LayeredLevel& lv, LRng& rng, size_t B_min,
         size_t next_B;
         if (cur_B <= 12) next_B = cur_B - 1;
         else next_B = std::max(B_min, static_cast<size_t>(std::floor(static_cast<double>(cur_B) * 0.70)));
-        layered_agglomerate_to(lv, rng, next_B, epsilon);
-        if (refine) layered_greedy_sweeps(lv, rng, next_B, next_B, 3, epsilon);
+        layered_agglomerate_to(lv, rng, next_B, epsilon, nthreads);
+        if (refine) layered_greedy_sweeps(lv, rng, next_B, next_B, 3, epsilon, nthreads);
         double S = lv.entropy();
         if (S < best_S) {
             best_S = S;
@@ -1513,7 +2038,7 @@ double layered_minimize_flat(LayeredLevel& lv, LRng& rng, size_t B_min,
 
     lv.set_partition(best_b);
     if (refine) {
-        layered_greedy_sweeps(lv, rng, B_min, B_max, 12, epsilon);
+        layered_greedy_sweeps(lv, rng, B_min, B_max, 12, epsilon, nthreads);
         while (static_cast<size_t>(lv.B()) > B_min) {
             std::vector<int> occ = lv.occupied();
             if (occ.size() > 16) break;
@@ -1531,7 +2056,7 @@ double layered_minimize_flat(LayeredLevel& lv, LRng& rng, size_t B_min,
             }
             if (mr < 0) break;
             lv.merge(mr, mt);
-            layered_greedy_sweeps(lv, rng, B_min, B_max, 6, epsilon);
+            layered_greedy_sweeps(lv, rng, B_min, B_max, 6, epsilon, nthreads);
         }
         double S_ref = lv.entropy();
         if (S_ref < best_S) {
@@ -1551,10 +2076,15 @@ double layered_minimize_flat(LayeredLevel& lv, LRng& rng, size_t B_min,
 class NestedLayeredSBM {
 public:
     NestedLayeredSBM(const Graph& graph, const Rcpp::IntegerVector& layers,
-                     bool independent, bool dc, bool dist)
+                     bool independent, bool dc, bool dist,
+                     const Rcpp::NumericMatrix& weights = Rcpp::NumericMatrix(0, 0),
+                     std::vector<CovSpec> covs = {})
         : _directed(graph.directed), _independent(independent), _dc(dc),
-          _dist(dist), _base_N(static_cast<int>(boost::num_vertices(graph.adjacency))) {
-        _base_edges = build_base_layered_edges(graph, layers, _C);
+          _dist(dist), _base_N(static_cast<int>(boost::num_vertices(graph.adjacency))),
+          _base_covs(std::move(covs)),
+          _up_covs(make_upper_covs(_base_covs)) {
+        _base_edges = build_base_layered_edges(
+            graph, layers, weights, static_cast<int>(_base_covs.size()), _C);
     }
 
     void build(const std::vector<std::vector<int>>& bs) {
@@ -1571,45 +2101,16 @@ public:
             bool is_top = (l == L - 1);
             LayeredLevel lv(cur_N, _C, _directed, _independent,
                             is_base ? _dc : false, is_base ? _dist : false,
-                            is_base, is_top);
+                            is_base, is_top,
+                            is_base ? _base_covs : _up_covs);
             lv.set_edges(std::move(cur_edges),
                          (!is_base && _independent) ? &cur_v_layers : nullptr);
             lv.set_partition(bs[l]);
 
             if (l + 1 < L) {
-                // Coarsen into next level
-                std::vector<int> occ = lv.occupied();
-                std::sort(occ.begin(), occ.end());
                 lt_hash_map<int, int> gmap;
-                for (size_t i = 0; i < occ.size(); ++i)
-                    gmap.emplace(occ[i], static_cast<int>(i));
-
-                int next_N = static_cast<int>(occ.size());
-                std::vector<LGraphEdge> next_edges;
-                next_edges.reserve(lv.pairs().size());
-                for (const auto& [pk, ps] : lv.pairs()) {
-                    if (ps.m_tot <= 0) continue;
-                    auto [r, s] = lunpack_pair(pk);
-                    LGraphEdge e;
-                    e.u = gmap[r];
-                    e.v = gmap[s];
-                    e.m_tot = ps.m_tot;
-                    e.single_layer = -1;
-                    e.ml = ps.ml;
-                    next_edges.push_back(std::move(e));
-                }
-
-                if (_independent) {
-                    cur_v_layers.assign(next_N, {});
-                    for (size_t i = 0; i < occ.size(); ++i) {
-                        const auto& wl = lv.wr_l(occ[i]);
-                        for (const auto& [lay, cnt] : wl.items) {
-                            if (cnt > 0) cur_v_layers[i].push_back(lay);
-                        }
-                    }
-                }
-                cur_N = next_N;
-                cur_edges = std::move(next_edges);
+                cur_edges = build_upper_layered_edges(lv, gmap, &cur_v_layers);
+                cur_N = static_cast<int>(gmap.size());
             }
             _levels.push_back(std::move(lv));
         }
@@ -1620,17 +2121,46 @@ public:
     const LayeredLevel& level(int l) const { return _levels[l]; }
 
     std::vector<double> level_entropies() const {
-        std::vector<double> out(_levels.size());
-        for (size_t l = 0; l < _levels.size(); ++l)
-            out[l] = _levels[l].entropy(l == 0);
+        int L = static_cast<int>(_levels.size());
+        std::vector<double> out(L, 0.0);
+        bool has_normal = !_levels[0].normal_idx().empty();
+        int S_strata = _levels[0].num_cov_strata();
+        std::vector<long> L_active(S_strata, 0);
+        std::vector<std::vector<double>> L_recdx(
+            S_strata, std::vector<double>(_base_covs.size(), 0.0));
+        if (L > 1 && has_normal) {
+            for (int l = 0; l < L; ++l) {
+                for (int st = 0; st < S_strata; ++st) {
+                    long bed = _levels[l].B_E_D_c(st);
+                    if (bed > 0) ++L_active[st];
+                    for (int k : _levels[0].normal_idx()) {
+                        L_recdx[st][k] += _levels[l].recdx_c(st, k) * static_cast<double>(bed);
+                    }
+                }
+            }
+        }
+        for (int l = 0; l < L; ++l) {
+            double s = _levels[l].entropy(l == 0);
+            if (L > 1 && has_normal) {
+                for (int st = 0; st < S_strata; ++st) {
+                    for (int k : _levels[0].normal_idx()) {
+                        s += -w_safelog(static_cast<double>(_levels[l].B_E_D_c(st)));
+                        if (l == 0) {
+                            const CovSpec& c = _base_covs[k];
+                            s += -positive_w_log_P(static_cast<double>(L_active[st]),
+                                                   L_recdx[st][k], c.p2, c.p3, c.eps);
+                        }
+                    }
+                }
+            }
+            out[l] = s;
+        }
         return out;
     }
 
     double entropy() const {
-        double S = 0.0;
-        for (size_t l = 0; l < _levels.size(); ++l)
-            S += _levels[l].entropy(l == 0);
-        return S;
+        auto lv = level_entropies();
+        return std::accumulate(lv.begin(), lv.end(), 0.0);
     }
 
     std::vector<std::vector<int>> save_bs() const {
@@ -1670,37 +2200,12 @@ public:
         for (int idx = 0; idx < static_cast<int>(upper_bs.size()); ++idx) {
             int l = start_l + 1 + idx;
             const LayeredLevel& prev = _levels[l - 1];
-            std::vector<int> occ = prev.occupied();
-            std::sort(occ.begin(), occ.end());
             lt_hash_map<int, int> gmap;
-            for (size_t i = 0; i < occ.size(); ++i)
-                gmap.emplace(occ[i], static_cast<int>(i));
-
-            int next_N = static_cast<int>(occ.size());
-            std::vector<LGraphEdge> next_edges;
-            next_edges.reserve(prev.pairs().size());
-            for (const auto& [pk, ps] : prev.pairs()) {
-                if (ps.m_tot <= 0) continue;
-                auto [r, s] = lunpack_pair(pk);
-                LGraphEdge e;
-                e.u = gmap[r];
-                e.v = gmap[s];
-                e.m_tot = ps.m_tot;
-                e.single_layer = -1;
-                e.ml = ps.ml;
-                next_edges.push_back(std::move(e));
-            }
             std::vector<std::vector<int>> next_vl;
-            if (_independent) {
-                next_vl.assign(next_N, {});
-                for (size_t i = 0; i < occ.size(); ++i) {
-                    const auto& wl = prev.wr_l(occ[i]);
-                    for (const auto& [lay, cnt] : wl.items)
-                        if (cnt > 0) next_vl[i].push_back(lay);
-                }
-            }
+            std::vector<LGraphEdge> next_edges = build_upper_layered_edges(prev, gmap, &next_vl);
+            int next_N = static_cast<int>(gmap.size());
             bool is_top = (l == L - 1);
-            LayeredLevel ulv(next_N, _C, _directed, _independent, false, false, false, is_top);
+            LayeredLevel ulv(next_N, _C, _directed, _independent, false, false, false, is_top, _up_covs);
             ulv.set_edges(std::move(next_edges), _independent ? &next_vl : nullptr);
             ulv.set_partition(upper_bs[idx]);
             _levels.push_back(std::move(ulv));
@@ -1714,56 +2219,25 @@ public:
 
     // Build optimal upper hierarchy above a given level-0 partition b0
     void optimize_from_base(const std::vector<int>& b0, LRng& rng,
-                            bool refine, double epsilon) {
+                            bool refine, double epsilon, int nthreads = 0) {
         std::vector<std::vector<int>> bs;
         bs.push_back(b0);
 
         // Build base level first to extract coarsened graph
-        LayeredLevel lv0(_base_N, _C, _directed, _independent, _dc, _dist, true, false);
+        LayeredLevel lv0(_base_N, _C, _directed, _independent, _dc, _dist, true, false, _base_covs);
         lv0.set_edges(_base_edges);
         lv0.set_partition(b0);
 
-        auto coarsen = [&](const LayeredLevel& lv,
-                           std::vector<LGraphEdge>& next_edges,
-                           std::vector<std::vector<int>>& next_vl) -> int {
-            std::vector<int> occ = lv.occupied();
-            std::sort(occ.begin(), occ.end());
-            lt_hash_map<int, int> gmap;
-            for (size_t i = 0; i < occ.size(); ++i)
-                gmap.emplace(occ[i], static_cast<int>(i));
-            int next_N = static_cast<int>(occ.size());
-            next_edges.clear();
-            next_edges.reserve(lv.pairs().size());
-            for (const auto& [pk, ps] : lv.pairs()) {
-                if (ps.m_tot <= 0) continue;
-                auto [r, s] = lunpack_pair(pk);
-                LGraphEdge e;
-                e.u = gmap[r];
-                e.v = gmap[s];
-                e.m_tot = ps.m_tot;
-                e.single_layer = -1;
-                e.ml = ps.ml;
-                next_edges.push_back(std::move(e));
-            }
-            if (_independent) {
-                next_vl.assign(next_N, {});
-                for (size_t i = 0; i < occ.size(); ++i) {
-                    const auto& wl = lv.wr_l(occ[i]);
-                    for (const auto& [lay, cnt] : wl.items)
-                        if (cnt > 0) next_vl[i].push_back(lay);
-                }
-            }
-            return next_N;
-        };
-
         std::vector<LGraphEdge> cur_edges;
         std::vector<std::vector<int>> cur_vl;
-        int cur_N = coarsen(lv0, cur_edges, cur_vl);
+        lt_hash_map<int, int> gmap;
+        cur_edges = build_upper_layered_edges(lv0, gmap, &cur_vl);
+        int cur_N = static_cast<int>(gmap.size());
 
         while (cur_N > 1) {
-            LayeredLevel ulv(cur_N, _C, _directed, _independent, false, false, false, true);
+            LayeredLevel ulv(cur_N, _C, _directed, _independent, false, false, false, true, _up_covs);
             ulv.set_edges(cur_edges, _independent ? &cur_vl : nullptr);
-            layered_minimize_flat(ulv, rng, 1, static_cast<size_t>(cur_N), refine, epsilon);
+            layered_minimize_flat(ulv, rng, 1, static_cast<size_t>(cur_N), refine, epsilon, nullptr, nthreads);
             if (ulv.B() >= cur_N) {
                 // Force collapse to B=1 if no compression at this level
                 std::vector<int> b1(cur_N, 0);
@@ -1774,7 +2248,8 @@ public:
             for (int i = 0; i < eb.size(); ++i) bl[i] = eb[i] - 1;
             bs.push_back(std::move(bl));
             if (ulv.B() == 1) break;
-            cur_N = coarsen(ulv, cur_edges, cur_vl);
+            cur_edges = build_upper_layered_edges(ulv, gmap, &cur_vl);
+            cur_N = static_cast<int>(gmap.size());
         }
         if (bs.size() == 1 && lv0.B() == 1) {
             bs.push_back(std::vector<int>(1, 0));
@@ -1783,7 +2258,7 @@ public:
     }
 
     // Joint refinement across levels under full nested entropy
-    void refine_joint(LRng& rng, size_t B_min, size_t B_max, double epsilon) {
+    void refine_joint(LRng& rng, size_t B_min, size_t B_max, double epsilon, int nthreads = 0) {
         double best_S = entropy();
         std::vector<std::vector<int>> best_bs = save_bs();
         std::vector<int> vs(_base_N);
@@ -1817,7 +2292,7 @@ public:
                         std::vector<int> b0_c(_base_N);
                         for (int i = 0; i < _base_N; ++i) b0_c[i] = eb0[i] - 1;
                         NestedLayeredSBM tmp = *this;
-                        tmp.optimize_from_base(b0_c, rng, false, epsilon);
+                        tmp.optimize_from_base(b0_c, rng, false, epsilon, nthreads);
                         cand_S = tmp.entropy();
                     }
                     lv0.move(v, r);
@@ -1834,7 +2309,7 @@ public:
                         Rcpp::IntegerVector eb0 = lv0.external_blocks_r();
                         std::vector<int> b0_c(_base_N);
                         for (int i = 0; i < _base_N; ++i) b0_c[i] = eb0[i] - 1;
-                        optimize_from_base(b0_c, rng, true, epsilon);
+                        optimize_from_base(b0_c, rng, true, epsilon, nthreads);
                     } else {
                         rebuild_upper_keep_bs();
                     }
@@ -1864,7 +2339,7 @@ public:
                         Rcpp::IntegerVector eb0 = tmp._levels[0].external_blocks_r();
                         std::vector<int> b0_c(_base_N);
                         for (int k = 0; k < _base_N; ++k) b0_c[k] = eb0[k] - 1;
-                        tmp.optimize_from_base(b0_c, rng, false, epsilon);
+                        tmp.optimize_from_base(b0_c, rng, false, epsilon, nthreads);
                         double s_try = tmp.entropy();
                         if (s_try < mS) {
                             mS = s_try;
@@ -1882,7 +2357,7 @@ public:
             // Re-optimize upper levels from best level-0
             if (best_bs[0].size() > 1 && static_cast<size_t>(_levels[0].B()) <= B_max) {
                 NestedLayeredSBM tmp = *this;
-                tmp.optimize_from_base(best_bs[0], rng, true, epsilon);
+                tmp.optimize_from_base(best_bs[0], rng, true, epsilon, nthreads);
                 double s_up = tmp.entropy();
                 if (s_up < best_S - 1e-8) {
                     best_S = s_up;
@@ -1898,6 +2373,7 @@ public:
 private:
     bool _directed, _independent, _dc, _dist;
     int _base_N, _C = 1;
+    std::vector<CovSpec> _base_covs, _up_covs;
     std::vector<LGraphEdge> _base_edges;
     std::vector<LayeredLevel> _levels;
 };
@@ -2132,10 +2608,10 @@ void layered_nested_mcmc_sweep(NestedLayeredSBM& nw, LRng& rng, double beta,
                 double prev = (1.0 - p_new) * lv.move_prob(v, r, cl);
                 // Recompute upper levels (for l < L - 1) without rebuilding level 0!
                 double new_S;
-                if (l == L - 1) {
+                if (l == L - 1 && nw.level(0).normal_idx().empty()) {
                     new_S = cur_S + dSl;
                 } else {
-                    nw.rebuild_upper_from(l);
+                    if (l < L - 1) nw.rebuild_upper_from(l);
                     new_S = nw.entropy();
                 }
                 double dS = new_S - cur_S;
@@ -2252,6 +2728,16 @@ void layered_nested_mcmc_sweep(NestedLayeredSBM& nw, LRng& rng, double beta,
     }
 }
 
+inline Rcpp::NumericMatrix unwrap_weights(Rcpp::Nullable<Rcpp::NumericMatrix> weights) {
+    return weights.isNotNull() ? Rcpp::NumericMatrix(weights.get()) : Rcpp::NumericMatrix(0, 0);
+}
+inline Rcpp::CharacterVector unwrap_types(Rcpp::Nullable<Rcpp::CharacterVector> types) {
+    return types.isNotNull() ? Rcpp::CharacterVector(types.get()) : Rcpp::CharacterVector();
+}
+inline Rcpp::List unwrap_params(Rcpp::Nullable<Rcpp::List> params) {
+    return params.isNotNull() ? Rcpp::List(params.get()) : Rcpp::List();
+}
+
 }  // namespace
 
 // ---------------------------------------------------------------------------
@@ -2261,14 +2747,22 @@ void layered_nested_mcmc_sweep(NestedLayeredSBM& nw, LRng& rng, double beta,
 double cpp_layered_entropy(SEXP pointer, Rcpp::IntegerVector blocks,
                            Rcpp::IntegerVector layers, bool independent,
                            bool degree_corrected, bool distributed,
-                           bool include_lmemb, double q_max) {
+                           bool include_lmemb, double q_max,
+                           Rcpp::Nullable<Rcpp::NumericMatrix> weights = R_NilValue,
+                           Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
+                           Rcpp::Nullable<Rcpp::List> params = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) llog_q().init(l_q_cache_max(q_max));
+    Rcpp::NumericMatrix W = unwrap_weights(weights);
+    Rcpp::CharacterVector T = unwrap_types(types);
+    Rcpp::List P = unwrap_params(params);
+    auto covs = parse_covs(W, T, P);
     int C = 1;
-    auto edges = build_base_layered_edges(graph, layers, C);
+    auto edges = build_base_layered_edges(
+        graph, layers, W, static_cast<int>(covs.size()), C);
     LayeredLevel lv(N, C, graph.directed, independent, degree_corrected,
-                    distributed, true, true);
+                    distributed, true, true, covs);
     lv.set_edges(std::move(edges));
     lv.set_partition(parse_l_blocks(blocks, N));
     return lv.entropy(include_lmemb);
@@ -2281,14 +2775,22 @@ Rcpp::NumericVector cpp_layered_check_moves(SEXP pointer,
                                             bool independent,
                                             bool degree_corrected,
                                             bool distributed, int nmoves,
-                                            double q_max) {
+                                            double q_max,
+                                            Rcpp::Nullable<Rcpp::NumericMatrix> weights = R_NilValue,
+                                            Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
+                                            Rcpp::Nullable<Rcpp::List> params = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) llog_q().init(l_q_cache_max(q_max));
+    Rcpp::NumericMatrix W = unwrap_weights(weights);
+    Rcpp::CharacterVector T = unwrap_types(types);
+    Rcpp::List P = unwrap_params(params);
+    auto covs = parse_covs(W, T, P);
     int C = 1;
-    auto edges = build_base_layered_edges(graph, layers, C);
+    auto edges = build_base_layered_edges(
+        graph, layers, W, static_cast<int>(covs.size()), C);
     LayeredLevel lv(N, C, graph.directed, independent, degree_corrected,
-                    distributed, true, true);
+                    distributed, true, true, covs);
     lv.set_edges(std::move(edges));
     lv.set_partition(parse_l_blocks(blocks, N));
     LRng rng;
@@ -2313,20 +2815,29 @@ Rcpp::NumericVector cpp_layered_check_moves(SEXP pointer,
 Rcpp::List cpp_layered_minimize(SEXP pointer, Rcpp::IntegerVector layers,
                                 bool independent, bool degree_corrected,
                                 bool distributed, int B_min, double B_max,
-                                bool refine, double epsilon, double q_max) {
+                                bool refine, double epsilon, double q_max,
+                                Rcpp::Nullable<Rcpp::NumericMatrix> weights = R_NilValue,
+                                Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
+                                Rcpp::Nullable<Rcpp::List> params = R_NilValue,
+                                int nthreads = 0) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) llog_q().init(l_q_cache_max(q_max));
+    Rcpp::NumericMatrix W = unwrap_weights(weights);
+    Rcpp::CharacterVector T = unwrap_types(types);
+    Rcpp::List P = unwrap_params(params);
+    auto covs = parse_covs(W, T, P);
     int C = 1;
-    auto edges = build_base_layered_edges(graph, layers, C);
+    auto edges = build_base_layered_edges(
+        graph, layers, W, static_cast<int>(covs.size()), C);
     LayeredLevel lv(N, C, graph.directed, independent, degree_corrected,
-                    distributed, true, true);
+                    distributed, true, true, covs);
     lv.set_edges(std::move(edges));
     LRng rng;
     size_t bmax = std::isinf(B_max) ? std::numeric_limits<size_t>::max()
                                     : static_cast<size_t>(B_max);
     double S = layered_minimize_flat(lv, rng, static_cast<size_t>(B_min), bmax,
-                                     refine, epsilon);
+                                     refine, epsilon, nullptr, nthreads);
     return Rcpp::List::create(
         Rcpp::Named("blocks") = lv.external_blocks_r(),
         Rcpp::Named("entropy") = S,
@@ -2338,11 +2849,19 @@ Rcpp::NumericVector cpp_nested_layered_entropy(SEXP pointer, Rcpp::List bs,
                                                Rcpp::IntegerVector layers,
                                                bool independent,
                                                bool degree_corrected,
-                                               bool distributed, double q_max) {
+                                               bool distributed, double q_max,
+                                               Rcpp::Nullable<Rcpp::NumericMatrix> weights = R_NilValue,
+                                               Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
+                                               Rcpp::Nullable<Rcpp::List> params = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) llog_q().init(l_q_cache_max(q_max));
-    NestedLayeredSBM nw(graph, layers, independent, degree_corrected, distributed);
+    Rcpp::NumericMatrix W = unwrap_weights(weights);
+    Rcpp::CharacterVector T = unwrap_types(types);
+    Rcpp::List P = unwrap_params(params);
+    auto covs = parse_covs(W, T, P);
+    NestedLayeredSBM nw(graph, layers, independent, degree_corrected, distributed,
+                        W, covs);
     std::vector<std::vector<int>> b_vec;
     b_vec.reserve(bs.size());
     int cur_n = N;
@@ -2361,27 +2880,38 @@ Rcpp::NumericVector cpp_nested_layered_entropy(SEXP pointer, Rcpp::List bs,
 Rcpp::List cpp_nested_layered_minimize(SEXP pointer, Rcpp::IntegerVector layers,
                                        bool independent, bool degree_corrected,
                                        bool distributed, int B_min, double B_max,
-                                       bool refine, double epsilon, double q_max) {
+                                       bool refine, double epsilon, double q_max,
+                                       Rcpp::Nullable<Rcpp::NumericMatrix> weights = R_NilValue,
+                                       Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
+                                       Rcpp::Nullable<Rcpp::List> params = R_NilValue,
+                                       int nthreads = 0) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) llog_q().init(l_q_cache_max(q_max));
+    Rcpp::NumericMatrix W = unwrap_weights(weights);
+    Rcpp::CharacterVector T = unwrap_types(types);
+    Rcpp::List P = unwrap_params(params);
+    auto covs = parse_covs(W, T, P);
     int C = 1;
-    auto edges = build_base_layered_edges(graph, layers, C);
+    auto edges = build_base_layered_edges(
+        graph, layers, W, static_cast<int>(covs.size()), C);
     // Sweep base level without flat top-level edges_dl penalty so nested-scale B candidates are explored
     LayeredLevel lv0(N, C, graph.directed, independent, degree_corrected,
-                     distributed, true, false);
+                     distributed, true, false, covs);
     lv0.set_edges(std::move(edges));
     LRng rng;
     size_t bmax = std::isinf(B_max) ? std::numeric_limits<size_t>::max()
                                     : static_cast<size_t>(B_max);
     std::vector<std::vector<int>> cps;
-    layered_minimize_flat(lv0, rng, static_cast<size_t>(B_min), bmax, refine, epsilon, &cps);
+    layered_minimize_flat(lv0, rng, static_cast<size_t>(B_min), bmax, refine, epsilon, &cps, nthreads);
 
-    NestedLayeredSBM best_nw(graph, layers, independent, degree_corrected, distributed);
+    NestedLayeredSBM best_nw(graph, layers, independent, degree_corrected, distributed,
+                             W, covs);
     double best_S = L_INF;
     for (const auto& b0 : cps) {
-        NestedLayeredSBM cand(graph, layers, independent, degree_corrected, distributed);
-        cand.optimize_from_base(b0, rng, false, epsilon);
+        NestedLayeredSBM cand(graph, layers, independent, degree_corrected, distributed,
+                              W, covs);
+        cand.optimize_from_base(b0, rng, false, epsilon, nthreads);
         double s_cand = cand.entropy();
         if (s_cand < best_S) {
             best_S = s_cand;
@@ -2389,7 +2919,7 @@ Rcpp::List cpp_nested_layered_minimize(SEXP pointer, Rcpp::IntegerVector layers,
         }
     }
     if (refine)
-        best_nw.refine_joint(rng, static_cast<size_t>(B_min), bmax, epsilon);
+        best_nw.refine_joint(rng, static_cast<size_t>(B_min), bmax, epsilon, nthreads);
 
     auto lvS = best_nw.level_entropies();
     return Rcpp::List::create(
@@ -2403,14 +2933,22 @@ Rcpp::List cpp_layered_mcmc(SEXP pointer, Rcpp::IntegerVector blocks,
                             Rcpp::IntegerVector layers, bool independent,
                             bool degree_corrected, bool distributed,
                             Rcpp::List mcmc_opts, Rcpp::List eq_opts,
-                            double q_max) {
+                            double q_max,
+                            Rcpp::Nullable<Rcpp::NumericMatrix> weights = R_NilValue,
+                            Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
+                            Rcpp::Nullable<Rcpp::List> params = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) llog_q().init(l_q_cache_max(q_max));
+    Rcpp::NumericMatrix W = unwrap_weights(weights);
+    Rcpp::CharacterVector T = unwrap_types(types);
+    Rcpp::List P = unwrap_params(params);
+    auto covs = parse_covs(W, T, P);
     int C = 1;
-    auto edges = build_base_layered_edges(graph, layers, C);
+    auto edges = build_base_layered_edges(
+        graph, layers, W, static_cast<int>(covs.size()), C);
     LayeredLevel lv(N, C, graph.directed, independent, degree_corrected,
-                    distributed, true, true);
+                    distributed, true, true, covs);
     lv.set_edges(std::move(edges));
     lv.set_partition(parse_l_blocks(blocks, N));
     LRng rng;
@@ -2434,6 +2972,7 @@ Rcpp::List cpp_layered_mcmc(SEXP pointer, Rcpp::IntegerVector blocks,
         for (int it = 0; it < niter; ++it) {
             layered_flat_mcmc_sweep(lv, rng, beta, c, d, multiflip, B_min, B_max,
                                     total_dS, nattempts, nmoves);
+            if ((it + 1) % 25 == 0) lv.refresh_cov_globals();
             ++steps_done;
             Rcpp::checkUserInterrupt();
         }
@@ -2531,11 +3070,19 @@ Rcpp::List cpp_nested_layered_mcmc(SEXP pointer, Rcpp::List bs,
                                    Rcpp::IntegerVector layers, bool independent,
                                    bool degree_corrected, bool distributed,
                                    Rcpp::List mcmc_opts, Rcpp::List eq_opts,
-                                   double q_max) {
+                                   double q_max,
+                                   Rcpp::Nullable<Rcpp::NumericMatrix> weights = R_NilValue,
+                                   Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
+                                   Rcpp::Nullable<Rcpp::List> params = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) llog_q().init(l_q_cache_max(q_max));
-    NestedLayeredSBM nw(graph, layers, independent, degree_corrected, distributed);
+    Rcpp::NumericMatrix W = unwrap_weights(weights);
+    Rcpp::CharacterVector T = unwrap_types(types);
+    Rcpp::List P = unwrap_params(params);
+    auto covs = parse_covs(W, T, P);
+    NestedLayeredSBM nw(graph, layers, independent, degree_corrected, distributed,
+                        W, covs);
     std::vector<std::vector<int>> b_vec;
     b_vec.reserve(bs.size());
     int cur_n = N;

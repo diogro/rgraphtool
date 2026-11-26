@@ -242,7 +242,8 @@ minimize_weighted_blockmodel_dl <- function(graph, weights, types,
                                             degree_corrected = TRUE,
                                             degree_prior = c("distributed", "uniform"),
                                             B_min = 1L, B_max = Inf,
-                                            refine = TRUE, epsilon = 1e-3) {
+                                            refine = TRUE, epsilon = 1e-3,
+                                            nthreads = NULL) {
   pointer <- graph_pointer(graph)
   degree_prior <- match.arg(degree_prior)
   if (!is.logical(degree_corrected) || length(degree_corrected) != 1L ||
@@ -253,13 +254,15 @@ minimize_weighted_blockmodel_dl <- function(graph, weights, types,
       !is.numeric(B_max) || length(B_max) != 1L || is.na(B_max) || B_max < B_min) {
     stop("B_min and B_max must satisfy 1 <= B_min <= B_max", call. = FALSE)
   }
+  nt <- if (is.null(nthreads)) 0L else as.integer(nthreads)
   wmat <- resolve_weight_matrix(graph, weights)
   spec <- resolve_covariate_specs(wmat, types, params)
   res <- cpp_weighted_minimize(pointer, wmat, spec$types, spec$cpp_params,
                                degree_corrected, degree_prior == "distributed",
                                as.integer(floor(B_min)),
                                if (is.finite(B_max)) floor(B_max) else Inf,
-                               isTRUE(refine), as.numeric(epsilon), q_cache_max())
+                               isTRUE(refine), as.numeric(epsilon), q_cache_max(),
+                               nt)
   new_weighted_state(graph, res$blocks, wmat, spec, degree_corrected,
                      degree_prior, fit = list(description_length = res$entropy))
 }
@@ -368,7 +371,8 @@ minimize_nested_weighted_blockmodel_dl <- function(graph, weights, types,
                                                    degree_corrected = TRUE,
                                                    degree_prior = c("distributed", "uniform"),
                                                    B_min = 1L, B_max = Inf,
-                                                   refine = TRUE, epsilon = 1e-3) {
+                                                   refine = TRUE, epsilon = 1e-3,
+                                                   nthreads = NULL) {
   pointer <- graph_pointer(graph)
   degree_prior <- match.arg(degree_prior)
   if (graph_num_vertices(graph) < 1L) {
@@ -382,6 +386,7 @@ minimize_nested_weighted_blockmodel_dl <- function(graph, weights, types,
       !is.numeric(B_max) || length(B_max) != 1L || is.na(B_max) || B_max < B_min) {
     stop("B_min and B_max must satisfy 1 <= B_min <= B_max", call. = FALSE)
   }
+  nt <- if (is.null(nthreads)) 0L else as.integer(nthreads)
   wmat <- resolve_weight_matrix(graph, weights)
   spec <- resolve_covariate_specs(wmat, types, params)
   res <- cpp_nested_weighted_minimize(pointer, wmat, spec$types, spec$cpp_params,
@@ -390,7 +395,7 @@ minimize_nested_weighted_blockmodel_dl <- function(graph, weights, types,
                                       as.integer(floor(B_min)),
                                       if (is.finite(B_max)) floor(B_max) else Inf,
                                       isTRUE(refine), as.numeric(epsilon),
-                                      q_cache_max())
+                                      q_cache_max(), nt)
   new_nested_weighted_state(graph, res$bs, wmat, spec, degree_corrected,
                             degree_prior,
                             fit = list(description_length = res$entropy,

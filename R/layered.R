@@ -34,8 +34,43 @@ resolve_layer_vector <- function(graph, layers) {
   list(codes = codes, levels = lvls, C = length(lvls))
 }
 
+resolve_layered_weights <- function(graph, weights = NULL, types = NULL,
+                                    params = "microcanonical") {
+  if (is.null(weights)) {
+    return(list(
+      W = matrix(0, nrow = 0L, ncol = 0L),
+      types = character(0),
+      params = list(),
+      cpp_params = list(),
+      weighted = FALSE
+    ))
+  }
+  if (is.null(types)) {
+    stop("types must be specified when weights is provided", call. = FALSE)
+  }
+  W <- resolve_weight_matrix(graph, weights)
+  spec <- resolve_covariate_specs(W, types, params = params)
+  list(
+    W = W,
+    types = spec$types,
+    params = spec$params,
+    cpp_params = spec$cpp_params,
+    weighted = TRUE
+  )
+}
+
 new_layered_state <- function(graph, blocks, layer_info, independent,
-                              degree_corrected, degree_prior, fit = NULL) {
+                              degree_corrected, degree_prior, fit = NULL,
+                              wspec = NULL) {
+  if (is.null(wspec)) {
+    wspec <- list(
+      W = matrix(0, nrow = 0L, ncol = 0L),
+      types = character(0),
+      params = list(),
+      cpp_params = list(),
+      weighted = FALSE
+    )
+  }
   structure(list(
     blocks = as.integer(blocks),
     graph = graph,
@@ -45,6 +80,11 @@ new_layered_state <- function(graph, blocks, layer_info, independent,
     independent = isTRUE(independent),
     degree_corrected = isTRUE(degree_corrected),
     degree_prior = degree_prior,
+    weights = wspec$W,
+    types = wspec$types,
+    params = wspec$params,
+    cpp_params = wspec$cpp_params,
+    weighted = isTRUE(wspec$weighted),
     num_vertices = graph_num_vertices(graph),
     num_edges = graph_num_edges(graph),
     B = length(unique(blocks)),
@@ -67,7 +107,9 @@ validate_layered_state <- function(state) {
 #' @export
 layered_block_state <- function(graph, layers, independent = TRUE,
                                 blocks = NULL, degree_corrected = TRUE,
-                                degree_prior = c("distributed", "uniform")) {
+                                degree_prior = c("distributed", "uniform"),
+                                weights = NULL, types = NULL,
+                                params = "microcanonical") {
   graph_pointer(graph)
   degree_prior <- match.arg(degree_prior)
   if (!is.logical(independent) || length(independent) != 1L || is.na(independent)) {
@@ -88,7 +130,9 @@ layered_block_state <- function(graph, layers, independent = TRUE,
     }
   }
   linfo <- resolve_layer_vector(graph, layers)
-  new_layered_state(graph, blocks, linfo, independent, degree_corrected, degree_prior)
+  wspec <- resolve_layered_weights(graph, weights, types, params)
+  new_layered_state(graph, blocks, linfo, independent, degree_corrected,
+                    degree_prior, wspec = wspec)
 }
 
 #' @noRd
@@ -97,9 +141,13 @@ layered_description_length <- function(state, lmemb = TRUE, degree_prior = NULL)
   validate_layered_state(state)
   if (is.null(degree_prior)) degree_prior <- state$degree_prior
   degree_prior <- match.arg(degree_prior, c("distributed", "uniform"))
+  w_mat <- if (isTRUE(state$weighted)) state$weights else matrix(0, nrow = 0L, ncol = 0L)
+  w_types <- if (isTRUE(state$weighted)) state$types else character(0)
+  w_params <- if (isTRUE(state$weighted)) state$cpp_params else list()
   cpp_layered_entropy(graph_pointer(state$graph), state$blocks, state$layers,
                       state$independent, state$degree_corrected,
-                      degree_prior == "distributed", isTRUE(lmemb), q_cache_max())
+                      degree_prior == "distributed", isTRUE(lmemb), q_cache_max(),
+                      w_mat, w_types, w_params)
 }
 
 #' @noRd
@@ -108,7 +156,10 @@ minimize_layered_blockmodel_dl <- function(graph, layers, independent = TRUE,
                                            degree_corrected = TRUE,
                                            degree_prior = c("distributed", "uniform"),
                                            B_min = 1L, B_max = Inf,
-                                           refine = TRUE, epsilon = 1e-3) {
+                                           refine = TRUE, epsilon = 1e-3,
+                                           weights = NULL, types = NULL,
+                                           params = "microcanonical",
+                                           nthreads = NULL) {
   pointer <- graph_pointer(graph)
   degree_prior <- match.arg(degree_prior)
   if (!is.logical(independent) || length(independent) != 1L || is.na(independent)) {
@@ -122,32 +173,46 @@ minimize_layered_blockmodel_dl <- function(graph, layers, independent = TRUE,
       !is.numeric(B_max) || length(B_max) != 1L || is.na(B_max) || B_max < B_min) {
     stop("B_min and B_max must satisfy 1 <= B_min <= B_max", call. = FALSE)
   }
+  nt <- if (is.null(nthreads)) 0L else as.integer(nthreads)
   linfo <- resolve_layer_vector(graph, layers)
+  wspec <- resolve_layered_weights(graph, weights, types, params)
   res <- cpp_layered_minimize(pointer, linfo$codes, independent,
                               degree_corrected, degree_prior == "distributed",
                               as.integer(floor(B_min)),
                               if (is.finite(B_max)) floor(B_max) else Inf,
-                              isTRUE(refine), as.numeric(epsilon), q_cache_max())
+                              isTRUE(refine), as.numeric(epsilon), q_cache_max(),
+                              wspec$W, wspec$types, wspec$cpp_params, nt)
   new_layered_state(graph, res$blocks, linfo, independent, degree_corrected,
-                    degree_prior, fit = list(description_length = res$entropy))
+                    degree_prior, fit = list(description_length = res$entropy),
+                    wspec = wspec)
 }
 
 #' @noRd
 #' @export
 print.rgraphtool_layered_block_state <- function(x, ...) {
   dl <- layered_description_length(x)
-  cat(sprintf("<layered block state: %s, %d %s layer%s, B = %d, description length %.4f nats>\n",
+  wtxt <- if (isTRUE(x$weighted)) paste0(", ", paste(x$types, collapse = "+")) else ""
+  cat(sprintf("<layered block state: %s, %d %s layer%s%s, B = %d, description length %.4f nats>\n",
               if (x$degree_corrected) "degree-corrected" else "non-degree-corrected",
               x$C,
               if (x$independent) "independent" else "edge-covariate",
               if (x$C == 1L) "" else "s",
-              x$B, dl))
+              wtxt, x$B, dl))
   invisible(x)
 }
 
 new_nested_layered_state <- function(graph, levels, layer_info, independent,
                                      degree_corrected, degree_prior,
-                                     fit = NULL) {
+                                     fit = NULL, wspec = NULL) {
+  if (is.null(wspec)) {
+    wspec <- list(
+      W = matrix(0, nrow = 0L, ncol = 0L),
+      types = character(0),
+      params = list(),
+      cpp_params = list(),
+      weighted = FALSE
+    )
+  }
   structure(list(
     levels = levels,
     graph = graph,
@@ -157,6 +222,11 @@ new_nested_layered_state <- function(graph, levels, layer_info, independent,
     independent = isTRUE(independent),
     degree_corrected = isTRUE(degree_corrected),
     degree_prior = degree_prior,
+    weights = wspec$W,
+    types = wspec$types,
+    params = wspec$params,
+    cpp_params = wspec$cpp_params,
+    weighted = isTRUE(wspec$weighted),
     num_vertices = graph_num_vertices(graph),
     num_edges = graph_num_edges(graph),
     B = vapply(levels, function(b) length(unique(b)), integer(1)),
@@ -180,7 +250,9 @@ validate_nested_layered_state <- function(state) {
 #' @export
 nested_layered_block_state <- function(graph, layers, independent = TRUE,
                                        levels = NULL, degree_corrected = TRUE,
-                                       degree_prior = c("distributed", "uniform")) {
+                                       degree_prior = c("distributed", "uniform"),
+                                       weights = NULL, types = NULL,
+                                       params = "microcanonical") {
   graph_pointer(graph)
   degree_prior <- match.arg(degree_prior)
   if (!is.logical(independent) || length(independent) != 1L || is.na(independent)) {
@@ -211,8 +283,9 @@ nested_layered_block_state <- function(graph, layers, independent = TRUE,
     })
   }
   linfo <- resolve_layer_vector(graph, layers)
+  wspec <- resolve_layered_weights(graph, weights, types, params)
   new_nested_layered_state(graph, levels, linfo, independent, degree_corrected,
-                           degree_prior)
+                           degree_prior, wspec = wspec)
 }
 
 #' @noRd
@@ -221,10 +294,14 @@ nested_layered_level_entropy <- function(state, degree_prior = NULL) {
   validate_nested_layered_state(state)
   if (is.null(degree_prior)) degree_prior <- state$degree_prior
   degree_prior <- match.arg(degree_prior, c("distributed", "uniform"))
+  w_mat <- if (isTRUE(state$weighted)) state$weights else matrix(0, nrow = 0L, ncol = 0L)
+  w_types <- if (isTRUE(state$weighted)) state$types else character(0)
+  w_params <- if (isTRUE(state$weighted)) state$cpp_params else list()
   cpp_nested_layered_entropy(graph_pointer(state$graph), state$levels,
                              state$layers, state$independent,
                              state$degree_corrected,
-                             degree_prior == "distributed", q_cache_max())
+                             degree_prior == "distributed", q_cache_max(),
+                             w_mat, w_types, w_params)
 }
 
 #' @noRd
@@ -239,7 +316,10 @@ minimize_nested_layered_blockmodel_dl <- function(graph, layers, independent = T
                                                   degree_corrected = TRUE,
                                                   degree_prior = c("distributed", "uniform"),
                                                   B_min = 1L, B_max = Inf,
-                                                  refine = TRUE, epsilon = 1e-3) {
+                                                  refine = TRUE, epsilon = 1e-3,
+                                                  weights = NULL, types = NULL,
+                                                  params = "microcanonical",
+                                                  nthreads = NULL) {
   pointer <- graph_pointer(graph)
   degree_prior <- match.arg(degree_prior)
   if (graph_num_vertices(graph) < 1L) {
@@ -256,30 +336,35 @@ minimize_nested_layered_blockmodel_dl <- function(graph, layers, independent = T
       !is.numeric(B_max) || length(B_max) != 1L || is.na(B_max) || B_max < B_min) {
     stop("B_min and B_max must satisfy 1 <= B_min <= B_max", call. = FALSE)
   }
+  nt <- if (is.null(nthreads)) 0L else as.integer(nthreads)
   linfo <- resolve_layer_vector(graph, layers)
+  wspec <- resolve_layered_weights(graph, weights, types, params)
   res <- cpp_nested_layered_minimize(pointer, linfo$codes, independent,
                                      degree_corrected,
                                      degree_prior == "distributed",
                                      as.integer(floor(B_min)),
                                      if (is.finite(B_max)) floor(B_max) else Inf,
                                      isTRUE(refine), as.numeric(epsilon),
-                                     q_cache_max())
+                                     q_cache_max(), wspec$W, wspec$types,
+                                     wspec$cpp_params, nt)
   new_nested_layered_state(graph, res$bs, linfo, independent, degree_corrected,
                            degree_prior,
                            fit = list(description_length = res$entropy,
-                                      level_entropy = res$level_entropy))
+                                      level_entropy = res$level_entropy),
+                           wspec = wspec)
 }
 
 #' @noRd
 #' @export
 print.rgraphtool_nested_layered_block_state <- function(x, ...) {
   dl <- nested_layered_description_length(x)
-  cat(sprintf("<nested layered block state: %s, %d %s layer%s, %d levels, B = %s, description length %.4f nats>\n",
+  wtxt <- if (isTRUE(x$weighted)) paste0(", ", paste(x$types, collapse = "+")) else ""
+  cat(sprintf("<nested layered block state: %s, %d %s layer%s%s, %d levels, B = %s, description length %.4f nats>\n",
               if (x$degree_corrected) "degree-corrected" else "non-degree-corrected",
               x$C,
               if (x$independent) "independent" else "edge-covariate",
               if (x$C == 1L) "" else "s",
-              length(x$levels), paste(x$B, collapse = "-"), dl))
+              wtxt, length(x$levels), paste(x$B, collapse = "-"), dl))
   invisible(x)
 }
 
@@ -295,7 +380,10 @@ compare_layered_models <- function(graph, layers,
                                    evidence_method = c("variational", "importance"),
                                    nruns = 1L, nsamples = 200L, thin = 5L,
                                    burnin = NULL, mle = TRUE,
-                                   B_min = 1L, B_max = Inf, refine = TRUE) {
+                                   B_min = 1L, B_max = Inf, refine = TRUE,
+                                   weights = NULL, types = NULL,
+                                   params = "microcanonical",
+                                   nthreads = NULL) {
   graph_pointer(graph)
   degree_prior <- match.arg(degree_prior)
   method <- match.arg(method)
@@ -323,8 +411,9 @@ compare_layered_models <- function(graph, layers,
   }
   models <- unique(models)
 
-  # Resolve layers once for validation
+  # Resolve layers & optional weights once for validation
   linfo <- resolve_layer_vector(graph, layers)
+  wspec <- resolve_layered_weights(graph, weights, types, params)
 
   spec_for <- function(nm) {
     switch(
@@ -356,13 +445,21 @@ compare_layered_models <- function(graph, layers,
         minimize_nested_layered_blockmodel_dl(
           graph, layers = linfo$codes, independent = sp$independent,
           degree_corrected = sp$dc, degree_prior = degree_prior,
-          B_min = B_min, B_max = B_max, refine = refine
+          B_min = B_min, B_max = B_max, refine = refine,
+          weights = if (wspec$weighted) wspec$W else NULL,
+          types = if (wspec$weighted) wspec$types else NULL,
+          params = if (wspec$weighted) params else "microcanonical",
+          nthreads = nthreads
         )
       } else {
         minimize_layered_blockmodel_dl(
           graph, layers = linfo$codes, independent = sp$independent,
           degree_corrected = sp$dc, degree_prior = degree_prior,
-          B_min = B_min, B_max = B_max, refine = refine
+          B_min = B_min, B_max = B_max, refine = refine,
+          weights = if (wspec$weighted) wspec$W else NULL,
+          types = if (wspec$weighted) wspec$types else NULL,
+          params = if (wspec$weighted) params else "microcanonical",
+          nthreads = nthreads
         )
       }
       st$layer_levels <- linfo$levels

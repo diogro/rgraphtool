@@ -18,7 +18,7 @@ weighted_description_length(state, rec = TRUE, rec_dl = TRUE,
 minimize_weighted_blockmodel_dl(graph, weights, types,
   params = "microcanonical", degree_corrected = TRUE,
   degree_prior = c("distributed", "uniform"), B_min = 1L, B_max = Inf,
-  refine = TRUE, epsilon = 1e-3)
+  refine = TRUE, epsilon = 1e-3, nthreads = NULL)
 nested_weighted_block_state(graph, weights, types, params = "microcanonical",
   levels = NULL, degree_corrected = TRUE,
   degree_prior = c("distributed", "uniform"))
@@ -27,7 +27,7 @@ nested_weighted_description_length(state, degree_prior = NULL)
 minimize_nested_weighted_blockmodel_dl(graph, weights, types,
   params = "microcanonical", degree_corrected = TRUE,
   degree_prior = c("distributed", "uniform"), B_min = 1L, B_max = Inf,
-  refine = TRUE, epsilon = 1e-3)
+  refine = TRUE, epsilon = 1e-3, nthreads = NULL)
 }
 \arguments{
   \item{graph}{A graph created by \code{\link{graph_create}}.}
@@ -62,6 +62,8 @@ minimize_nested_weighted_blockmodel_dl(graph, weights, types,
   \item{B_min, B_max}{Minimum and maximum number of occupied level-0 groups.}
   \item{refine}{Whether to run greedy local refinement sweeps.}
   \item{epsilon}{Convergence tolerance in nats.}
+  \item{nthreads}{Optional thread count override (defaults to
+  \code{rgraphtool_num_threads()}).}
 }
 \description{
 Construct, evaluate, and infer flat and hierarchical (nested) weighted

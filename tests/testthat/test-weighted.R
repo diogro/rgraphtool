@@ -383,3 +383,43 @@ test_that("weighted SBM validates domain, covariate specs, and edge cases", {
   graph_add_edges(g, rbind(c(1L, 4L)))
   expect_error(weighted_description_length(st), "changed")
 })
+
+test_that("parallel weighted SBM minimization and virtual_merge_const are exact", {
+  set.seed(404L)
+  n <- 300L
+  truth <- rep(1:3, each = 100L)
+  ed_list <- list()
+  w <- numeric(0)
+  for (i in 1:(n - 1L)) {
+    for (j in (i + 1L):n) {
+      same <- (truth[i] == truth[j])
+      p <- if (same) 0.12 else 0.01
+      if (stats::runif(1) < p) {
+        ed_list[[length(ed_list) + 1L]] <- c(i, j)
+        w <- c(w, stats::rnorm(1, mean = if (same) 1.8 else -0.5, sd = 0.5))
+      }
+    }
+  }
+  emat <- do.call(rbind, ed_list)
+  g <- graph_add_edges(graph_create(n, directed = FALSE), emat, properties = list(w = w))
+
+  # Incremental single-node + virtual_merge_const parity
+  b_init <- sample.int(12L, n, replace = TRUE)
+  err <- rgraphtool:::cpp_weighted_check_moves(
+    rgraphtool:::graph_pointer(g), b_init, matrix(w, ncol = 1L), "real-normal",
+    list(c(NaN, NaN, NaN, NaN)), TRUE, TRUE, 40L, Inf
+  )
+  expect_lt(max(err), 1e-8)
+
+  rgraphtool_set_num_threads(1L)
+  set.seed(77L)
+  f1 <- minimize_nested_weighted_blockmodel_dl(g, weights = "w", types = "real-normal", nthreads = 1L)
+  rgraphtool_set_num_threads(4L)
+  on.exit(rgraphtool_set_num_threads(1L), add = TRUE)
+  set.seed(77L)
+  f4 <- minimize_nested_weighted_blockmodel_dl(g, weights = "w", types = "real-normal", nthreads = 4L)
+
+  expect_lt(abs(nested_weighted_description_length(f4) - nested_weighted_description_length(f1)), 200.0)
+  expect_gt(partition_overlap(nested_project(f4, 0L), truth, norm = TRUE), 0.90)
+  expect_gt(partition_overlap(nested_project(f1, 0L), truth, norm = TRUE), 0.90)
+})

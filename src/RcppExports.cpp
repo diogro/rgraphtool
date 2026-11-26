@@ -868,8 +868,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_layered_entropy
-double cpp_layered_entropy(SEXP pointer, Rcpp::IntegerVector blocks, Rcpp::IntegerVector layers, bool independent, bool degree_corrected, bool distributed, bool include_lmemb, double q_max);
-RcppExport SEXP _rgraphtool_cpp_layered_entropy(SEXP pointerSEXP, SEXP blocksSEXP, SEXP layersSEXP, SEXP independentSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP include_lmembSEXP, SEXP q_maxSEXP) {
+double cpp_layered_entropy(SEXP pointer, Rcpp::IntegerVector blocks, Rcpp::IntegerVector layers, bool independent, bool degree_corrected, bool distributed, bool include_lmemb, double q_max, Rcpp::Nullable<Rcpp::NumericMatrix> weights, Rcpp::Nullable<Rcpp::CharacterVector> types, Rcpp::Nullable<Rcpp::List> params);
+RcppExport SEXP _rgraphtool_cpp_layered_entropy(SEXP pointerSEXP, SEXP blocksSEXP, SEXP layersSEXP, SEXP independentSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP include_lmembSEXP, SEXP q_maxSEXP, SEXP weightsSEXP, SEXP typesSEXP, SEXP paramsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -881,13 +881,16 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
     Rcpp::traits::input_parameter< bool >::type include_lmemb(include_lmembSEXP);
     Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_layered_entropy(pointer, blocks, layers, independent, degree_corrected, distributed, include_lmemb, q_max));
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::CharacterVector> >::type types(typesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::List> >::type params(paramsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_layered_entropy(pointer, blocks, layers, independent, degree_corrected, distributed, include_lmemb, q_max, weights, types, params));
     return rcpp_result_gen;
 END_RCPP
 }
 // cpp_layered_check_moves
-Rcpp::NumericVector cpp_layered_check_moves(SEXP pointer, Rcpp::IntegerVector blocks, Rcpp::IntegerVector layers, bool independent, bool degree_corrected, bool distributed, int nmoves, double q_max);
-RcppExport SEXP _rgraphtool_cpp_layered_check_moves(SEXP pointerSEXP, SEXP blocksSEXP, SEXP layersSEXP, SEXP independentSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP nmovesSEXP, SEXP q_maxSEXP) {
+Rcpp::NumericVector cpp_layered_check_moves(SEXP pointer, Rcpp::IntegerVector blocks, Rcpp::IntegerVector layers, bool independent, bool degree_corrected, bool distributed, int nmoves, double q_max, Rcpp::Nullable<Rcpp::NumericMatrix> weights, Rcpp::Nullable<Rcpp::CharacterVector> types, Rcpp::Nullable<Rcpp::List> params);
+RcppExport SEXP _rgraphtool_cpp_layered_check_moves(SEXP pointerSEXP, SEXP blocksSEXP, SEXP layersSEXP, SEXP independentSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP nmovesSEXP, SEXP q_maxSEXP, SEXP weightsSEXP, SEXP typesSEXP, SEXP paramsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -899,13 +902,16 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
     Rcpp::traits::input_parameter< int >::type nmoves(nmovesSEXP);
     Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_layered_check_moves(pointer, blocks, layers, independent, degree_corrected, distributed, nmoves, q_max));
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::CharacterVector> >::type types(typesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::List> >::type params(paramsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_layered_check_moves(pointer, blocks, layers, independent, degree_corrected, distributed, nmoves, q_max, weights, types, params));
     return rcpp_result_gen;
 END_RCPP
 }
 // cpp_layered_minimize
-Rcpp::List cpp_layered_minimize(SEXP pointer, Rcpp::IntegerVector layers, bool independent, bool degree_corrected, bool distributed, int B_min, double B_max, bool refine, double epsilon, double q_max);
-RcppExport SEXP _rgraphtool_cpp_layered_minimize(SEXP pointerSEXP, SEXP layersSEXP, SEXP independentSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP B_minSEXP, SEXP B_maxSEXP, SEXP refineSEXP, SEXP epsilonSEXP, SEXP q_maxSEXP) {
+Rcpp::List cpp_layered_minimize(SEXP pointer, Rcpp::IntegerVector layers, bool independent, bool degree_corrected, bool distributed, int B_min, double B_max, bool refine, double epsilon, double q_max, Rcpp::Nullable<Rcpp::NumericMatrix> weights, Rcpp::Nullable<Rcpp::CharacterVector> types, Rcpp::Nullable<Rcpp::List> params, int nthreads);
+RcppExport SEXP _rgraphtool_cpp_layered_minimize(SEXP pointerSEXP, SEXP layersSEXP, SEXP independentSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP B_minSEXP, SEXP B_maxSEXP, SEXP refineSEXP, SEXP epsilonSEXP, SEXP q_maxSEXP, SEXP weightsSEXP, SEXP typesSEXP, SEXP paramsSEXP, SEXP nthreadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -919,13 +925,17 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< bool >::type refine(refineSEXP);
     Rcpp::traits::input_parameter< double >::type epsilon(epsilonSEXP);
     Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_layered_minimize(pointer, layers, independent, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max));
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::CharacterVector> >::type types(typesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::List> >::type params(paramsSEXP);
+    Rcpp::traits::input_parameter< int >::type nthreads(nthreadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_layered_minimize(pointer, layers, independent, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max, weights, types, params, nthreads));
     return rcpp_result_gen;
 END_RCPP
 }
 // cpp_nested_layered_entropy
-Rcpp::NumericVector cpp_nested_layered_entropy(SEXP pointer, Rcpp::List bs, Rcpp::IntegerVector layers, bool independent, bool degree_corrected, bool distributed, double q_max);
-RcppExport SEXP _rgraphtool_cpp_nested_layered_entropy(SEXP pointerSEXP, SEXP bsSEXP, SEXP layersSEXP, SEXP independentSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP q_maxSEXP) {
+Rcpp::NumericVector cpp_nested_layered_entropy(SEXP pointer, Rcpp::List bs, Rcpp::IntegerVector layers, bool independent, bool degree_corrected, bool distributed, double q_max, Rcpp::Nullable<Rcpp::NumericMatrix> weights, Rcpp::Nullable<Rcpp::CharacterVector> types, Rcpp::Nullable<Rcpp::List> params);
+RcppExport SEXP _rgraphtool_cpp_nested_layered_entropy(SEXP pointerSEXP, SEXP bsSEXP, SEXP layersSEXP, SEXP independentSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP q_maxSEXP, SEXP weightsSEXP, SEXP typesSEXP, SEXP paramsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -936,13 +946,16 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< bool >::type degree_corrected(degree_correctedSEXP);
     Rcpp::traits::input_parameter< bool >::type distributed(distributedSEXP);
     Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_nested_layered_entropy(pointer, bs, layers, independent, degree_corrected, distributed, q_max));
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::CharacterVector> >::type types(typesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::List> >::type params(paramsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_nested_layered_entropy(pointer, bs, layers, independent, degree_corrected, distributed, q_max, weights, types, params));
     return rcpp_result_gen;
 END_RCPP
 }
 // cpp_nested_layered_minimize
-Rcpp::List cpp_nested_layered_minimize(SEXP pointer, Rcpp::IntegerVector layers, bool independent, bool degree_corrected, bool distributed, int B_min, double B_max, bool refine, double epsilon, double q_max);
-RcppExport SEXP _rgraphtool_cpp_nested_layered_minimize(SEXP pointerSEXP, SEXP layersSEXP, SEXP independentSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP B_minSEXP, SEXP B_maxSEXP, SEXP refineSEXP, SEXP epsilonSEXP, SEXP q_maxSEXP) {
+Rcpp::List cpp_nested_layered_minimize(SEXP pointer, Rcpp::IntegerVector layers, bool independent, bool degree_corrected, bool distributed, int B_min, double B_max, bool refine, double epsilon, double q_max, Rcpp::Nullable<Rcpp::NumericMatrix> weights, Rcpp::Nullable<Rcpp::CharacterVector> types, Rcpp::Nullable<Rcpp::List> params, int nthreads);
+RcppExport SEXP _rgraphtool_cpp_nested_layered_minimize(SEXP pointerSEXP, SEXP layersSEXP, SEXP independentSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP B_minSEXP, SEXP B_maxSEXP, SEXP refineSEXP, SEXP epsilonSEXP, SEXP q_maxSEXP, SEXP weightsSEXP, SEXP typesSEXP, SEXP paramsSEXP, SEXP nthreadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -956,13 +969,17 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< bool >::type refine(refineSEXP);
     Rcpp::traits::input_parameter< double >::type epsilon(epsilonSEXP);
     Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_nested_layered_minimize(pointer, layers, independent, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max));
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::CharacterVector> >::type types(typesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::List> >::type params(paramsSEXP);
+    Rcpp::traits::input_parameter< int >::type nthreads(nthreadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_nested_layered_minimize(pointer, layers, independent, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max, weights, types, params, nthreads));
     return rcpp_result_gen;
 END_RCPP
 }
 // cpp_layered_mcmc
-Rcpp::List cpp_layered_mcmc(SEXP pointer, Rcpp::IntegerVector blocks, Rcpp::IntegerVector layers, bool independent, bool degree_corrected, bool distributed, Rcpp::List mcmc_opts, Rcpp::List eq_opts, double q_max);
-RcppExport SEXP _rgraphtool_cpp_layered_mcmc(SEXP pointerSEXP, SEXP blocksSEXP, SEXP layersSEXP, SEXP independentSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP mcmc_optsSEXP, SEXP eq_optsSEXP, SEXP q_maxSEXP) {
+Rcpp::List cpp_layered_mcmc(SEXP pointer, Rcpp::IntegerVector blocks, Rcpp::IntegerVector layers, bool independent, bool degree_corrected, bool distributed, Rcpp::List mcmc_opts, Rcpp::List eq_opts, double q_max, Rcpp::Nullable<Rcpp::NumericMatrix> weights, Rcpp::Nullable<Rcpp::CharacterVector> types, Rcpp::Nullable<Rcpp::List> params);
+RcppExport SEXP _rgraphtool_cpp_layered_mcmc(SEXP pointerSEXP, SEXP blocksSEXP, SEXP layersSEXP, SEXP independentSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP mcmc_optsSEXP, SEXP eq_optsSEXP, SEXP q_maxSEXP, SEXP weightsSEXP, SEXP typesSEXP, SEXP paramsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -975,13 +992,16 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< Rcpp::List >::type mcmc_opts(mcmc_optsSEXP);
     Rcpp::traits::input_parameter< Rcpp::List >::type eq_opts(eq_optsSEXP);
     Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_layered_mcmc(pointer, blocks, layers, independent, degree_corrected, distributed, mcmc_opts, eq_opts, q_max));
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::CharacterVector> >::type types(typesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::List> >::type params(paramsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_layered_mcmc(pointer, blocks, layers, independent, degree_corrected, distributed, mcmc_opts, eq_opts, q_max, weights, types, params));
     return rcpp_result_gen;
 END_RCPP
 }
 // cpp_nested_layered_mcmc
-Rcpp::List cpp_nested_layered_mcmc(SEXP pointer, Rcpp::List bs, Rcpp::IntegerVector layers, bool independent, bool degree_corrected, bool distributed, Rcpp::List mcmc_opts, Rcpp::List eq_opts, double q_max);
-RcppExport SEXP _rgraphtool_cpp_nested_layered_mcmc(SEXP pointerSEXP, SEXP bsSEXP, SEXP layersSEXP, SEXP independentSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP mcmc_optsSEXP, SEXP eq_optsSEXP, SEXP q_maxSEXP) {
+Rcpp::List cpp_nested_layered_mcmc(SEXP pointer, Rcpp::List bs, Rcpp::IntegerVector layers, bool independent, bool degree_corrected, bool distributed, Rcpp::List mcmc_opts, Rcpp::List eq_opts, double q_max, Rcpp::Nullable<Rcpp::NumericMatrix> weights, Rcpp::Nullable<Rcpp::CharacterVector> types, Rcpp::Nullable<Rcpp::List> params);
+RcppExport SEXP _rgraphtool_cpp_nested_layered_mcmc(SEXP pointerSEXP, SEXP bsSEXP, SEXP layersSEXP, SEXP independentSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP mcmc_optsSEXP, SEXP eq_optsSEXP, SEXP q_maxSEXP, SEXP weightsSEXP, SEXP typesSEXP, SEXP paramsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -994,7 +1014,10 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< Rcpp::List >::type mcmc_opts(mcmc_optsSEXP);
     Rcpp::traits::input_parameter< Rcpp::List >::type eq_opts(eq_optsSEXP);
     Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_nested_layered_mcmc(pointer, bs, layers, independent, degree_corrected, distributed, mcmc_opts, eq_opts, q_max));
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::NumericMatrix> >::type weights(weightsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::CharacterVector> >::type types(typesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<Rcpp::List> >::type params(paramsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_nested_layered_mcmc(pointer, bs, layers, independent, degree_corrected, distributed, mcmc_opts, eq_opts, q_max, weights, types, params));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -2071,8 +2094,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_weighted_minimize
-Rcpp::List cpp_weighted_minimize(SEXP pointer, Rcpp::NumericMatrix weights, Rcpp::CharacterVector types, Rcpp::List params, bool degree_corrected, bool distributed, int B_min, double B_max, bool refine, double epsilon, double q_max);
-RcppExport SEXP _rgraphtool_cpp_weighted_minimize(SEXP pointerSEXP, SEXP weightsSEXP, SEXP typesSEXP, SEXP paramsSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP B_minSEXP, SEXP B_maxSEXP, SEXP refineSEXP, SEXP epsilonSEXP, SEXP q_maxSEXP) {
+Rcpp::List cpp_weighted_minimize(SEXP pointer, Rcpp::NumericMatrix weights, Rcpp::CharacterVector types, Rcpp::List params, bool degree_corrected, bool distributed, int B_min, double B_max, bool refine, double epsilon, double q_max, int nthreads);
+RcppExport SEXP _rgraphtool_cpp_weighted_minimize(SEXP pointerSEXP, SEXP weightsSEXP, SEXP typesSEXP, SEXP paramsSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP B_minSEXP, SEXP B_maxSEXP, SEXP refineSEXP, SEXP epsilonSEXP, SEXP q_maxSEXP, SEXP nthreadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -2087,7 +2110,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< bool >::type refine(refineSEXP);
     Rcpp::traits::input_parameter< double >::type epsilon(epsilonSEXP);
     Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_weighted_minimize(pointer, weights, types, params, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max));
+    Rcpp::traits::input_parameter< int >::type nthreads(nthreadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_weighted_minimize(pointer, weights, types, params, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max, nthreads));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -2110,8 +2134,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_nested_weighted_minimize
-Rcpp::List cpp_nested_weighted_minimize(SEXP pointer, Rcpp::NumericMatrix weights, Rcpp::CharacterVector types, Rcpp::List params, bool degree_corrected, bool distributed, int B_min, double B_max, bool refine, double epsilon, double q_max);
-RcppExport SEXP _rgraphtool_cpp_nested_weighted_minimize(SEXP pointerSEXP, SEXP weightsSEXP, SEXP typesSEXP, SEXP paramsSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP B_minSEXP, SEXP B_maxSEXP, SEXP refineSEXP, SEXP epsilonSEXP, SEXP q_maxSEXP) {
+Rcpp::List cpp_nested_weighted_minimize(SEXP pointer, Rcpp::NumericMatrix weights, Rcpp::CharacterVector types, Rcpp::List params, bool degree_corrected, bool distributed, int B_min, double B_max, bool refine, double epsilon, double q_max, int nthreads);
+RcppExport SEXP _rgraphtool_cpp_nested_weighted_minimize(SEXP pointerSEXP, SEXP weightsSEXP, SEXP typesSEXP, SEXP paramsSEXP, SEXP degree_correctedSEXP, SEXP distributedSEXP, SEXP B_minSEXP, SEXP B_maxSEXP, SEXP refineSEXP, SEXP epsilonSEXP, SEXP q_maxSEXP, SEXP nthreadsSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -2126,7 +2150,8 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< bool >::type refine(refineSEXP);
     Rcpp::traits::input_parameter< double >::type epsilon(epsilonSEXP);
     Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_nested_weighted_minimize(pointer, weights, types, params, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max));
+    Rcpp::traits::input_parameter< int >::type nthreads(nthreadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_nested_weighted_minimize(pointer, weights, types, params, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max, nthreads));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -2223,13 +2248,13 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rgraphtool_cpp_read_gt_file", (DL_FUNC) &_rgraphtool_cpp_read_gt_file, 1},
     {"_rgraphtool_cpp_write_gt_raw", (DL_FUNC) &_rgraphtool_cpp_write_gt_raw, 5},
     {"_rgraphtool_cpp_write_gt_file", (DL_FUNC) &_rgraphtool_cpp_write_gt_file, 6},
-    {"_rgraphtool_cpp_layered_entropy", (DL_FUNC) &_rgraphtool_cpp_layered_entropy, 8},
-    {"_rgraphtool_cpp_layered_check_moves", (DL_FUNC) &_rgraphtool_cpp_layered_check_moves, 8},
-    {"_rgraphtool_cpp_layered_minimize", (DL_FUNC) &_rgraphtool_cpp_layered_minimize, 10},
-    {"_rgraphtool_cpp_nested_layered_entropy", (DL_FUNC) &_rgraphtool_cpp_nested_layered_entropy, 7},
-    {"_rgraphtool_cpp_nested_layered_minimize", (DL_FUNC) &_rgraphtool_cpp_nested_layered_minimize, 10},
-    {"_rgraphtool_cpp_layered_mcmc", (DL_FUNC) &_rgraphtool_cpp_layered_mcmc, 9},
-    {"_rgraphtool_cpp_nested_layered_mcmc", (DL_FUNC) &_rgraphtool_cpp_nested_layered_mcmc, 9},
+    {"_rgraphtool_cpp_layered_entropy", (DL_FUNC) &_rgraphtool_cpp_layered_entropy, 11},
+    {"_rgraphtool_cpp_layered_check_moves", (DL_FUNC) &_rgraphtool_cpp_layered_check_moves, 11},
+    {"_rgraphtool_cpp_layered_minimize", (DL_FUNC) &_rgraphtool_cpp_layered_minimize, 14},
+    {"_rgraphtool_cpp_nested_layered_entropy", (DL_FUNC) &_rgraphtool_cpp_nested_layered_entropy, 10},
+    {"_rgraphtool_cpp_nested_layered_minimize", (DL_FUNC) &_rgraphtool_cpp_nested_layered_minimize, 14},
+    {"_rgraphtool_cpp_layered_mcmc", (DL_FUNC) &_rgraphtool_cpp_layered_mcmc, 12},
+    {"_rgraphtool_cpp_nested_layered_mcmc", (DL_FUNC) &_rgraphtool_cpp_nested_layered_mcmc, 12},
     {"_rgraphtool_cpp_sfdp_layout", (DL_FUNC) &_rgraphtool_cpp_sfdp_layout, 17},
     {"_rgraphtool_cpp_graph_bfs", (DL_FUNC) &_rgraphtool_cpp_graph_bfs, 4},
     {"_rgraphtool_cpp_sirs_animation_sim", (DL_FUNC) &_rgraphtool_cpp_sirs_animation_sim, 7},
@@ -2291,9 +2316,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rgraphtool_cpp_latent_multigraph_em", (DL_FUNC) &_rgraphtool_cpp_latent_multigraph_em, 3},
     {"_rgraphtool_cpp_weighted_entropy", (DL_FUNC) &_rgraphtool_cpp_weighted_entropy, 10},
     {"_rgraphtool_cpp_weighted_check_moves", (DL_FUNC) &_rgraphtool_cpp_weighted_check_moves, 9},
-    {"_rgraphtool_cpp_weighted_minimize", (DL_FUNC) &_rgraphtool_cpp_weighted_minimize, 11},
+    {"_rgraphtool_cpp_weighted_minimize", (DL_FUNC) &_rgraphtool_cpp_weighted_minimize, 12},
     {"_rgraphtool_cpp_nested_weighted_entropy", (DL_FUNC) &_rgraphtool_cpp_nested_weighted_entropy, 8},
-    {"_rgraphtool_cpp_nested_weighted_minimize", (DL_FUNC) &_rgraphtool_cpp_nested_weighted_minimize, 11},
+    {"_rgraphtool_cpp_nested_weighted_minimize", (DL_FUNC) &_rgraphtool_cpp_nested_weighted_minimize, 12},
     {"_rgraphtool_cpp_weighted_mcmc", (DL_FUNC) &_rgraphtool_cpp_weighted_mcmc, 10},
     {"_rgraphtool_cpp_nested_weighted_mcmc", (DL_FUNC) &_rgraphtool_cpp_nested_weighted_mcmc, 10},
     {NULL, NULL, 0}

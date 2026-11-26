@@ -9,7 +9,8 @@ compare_layered_models(graph, layers,
   method = c("map", "posterior"),
   evidence_method = c("variational", "importance"), nruns = 1L,
   nsamples = 200L, thin = 5L, burnin = NULL, mle = TRUE, B_min = 1L,
-  B_max = Inf, refine = TRUE)
+  B_max = Inf, refine = TRUE, weights = NULL, types = NULL,
+  params = "microcanonical", nthreads = NULL)
 }
 \arguments{
   \item{graph}{A graph created by \code{\link{graph_create}}.}
@@ -35,6 +36,11 @@ compare_layered_models(graph, layers,
   \code{method = "posterior"}.}
   \item{B_min, B_max}{Bounds on the number of level-0 groups.}
   \item{refine}{Whether to run local refinement sweeps during minimization.}
+  \item{weights}{Optional edge covariates (edge property name(s), vector,
+  matrix, or list) for testing differential co-expression across layers.}
+  \item{types}{Optional covariate type(s) required when \code{weights} is supplied.}
+  \item{params}{Covariate hyperprior specification (default \code{"microcanonical"}).}
+  \item{nthreads}{Optional thread count override.}
 }
 \description{
 Declarative, callback-free model selection between the discrete edge-covariate

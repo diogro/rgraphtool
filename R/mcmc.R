@@ -156,23 +156,39 @@ run_native_mcmc <- function(state, mcmc_opts, eq_opts) {
                                   state$degree_corrected, state$degree_prior,
                                   fit = list(description_length = res$entropy))
   } else if (layered && nested) {
+    w_mat <- if (isTRUE(state$weighted)) state$weights else matrix(0, nrow = 0L, ncol = 0L)
+    w_types <- if (isTRUE(state$weighted)) state$types else character(0)
+    w_params <- if (isTRUE(state$weighted)) state$cpp_params else list()
     res <- cpp_nested_layered_mcmc(pointer, state$levels, state$layers,
                                    state$independent, state$degree_corrected,
-                                   dist, mcmc_opts, eq_opts, q_cache_max())
+                                   dist, mcmc_opts, eq_opts, q_cache_max(),
+                                   w_mat, w_types, w_params)
     linfo <- list(codes = state$layers, levels = state$layer_levels, C = state$C)
+    wspec <- list(W = state$weights, types = state$types,
+                  params = state$params, cpp_params = state$cpp_params,
+                  weighted = isTRUE(state$weighted))
     new_state <- new_nested_layered_state(state$graph, res$bs, linfo,
                                           state$independent, state$degree_corrected,
                                           state$degree_prior,
-                                          fit = list(description_length = res$entropy))
+                                          fit = list(description_length = res$entropy),
+                                          wspec = wspec)
   } else if (layered) {
+    w_mat <- if (isTRUE(state$weighted)) state$weights else matrix(0, nrow = 0L, ncol = 0L)
+    w_types <- if (isTRUE(state$weighted)) state$types else character(0)
+    w_params <- if (isTRUE(state$weighted)) state$cpp_params else list()
     res <- cpp_layered_mcmc(pointer, state$blocks, state$layers,
                             state$independent, state$degree_corrected,
-                            dist, mcmc_opts, eq_opts, q_cache_max())
+                            dist, mcmc_opts, eq_opts, q_cache_max(),
+                            w_mat, w_types, w_params)
     linfo <- list(codes = state$layers, levels = state$layer_levels, C = state$C)
+    wspec <- list(W = state$weights, types = state$types,
+                  params = state$params, cpp_params = state$cpp_params,
+                  weighted = isTRUE(state$weighted))
     new_state <- new_layered_state(state$graph, res$blocks, linfo,
                                    state$independent, state$degree_corrected,
                                    state$degree_prior,
-                                   fit = list(description_length = res$entropy))
+                                   fit = list(description_length = res$entropy),
+                                   wspec = wspec)
   } else if (weighted && nested) {
     res <- cpp_nested_weighted_mcmc(pointer, state$levels, state$weights,
                                     state$types, state$cpp_params,

@@ -318,3 +318,127 @@ test_that("layered SBM validates inputs and edge cases", {
   graph_add_edges(g, rbind(c(1L, 4L)))
   expect_error(layered_description_length(st), "changed")
 })
+
+test_that("single-layer combined layered-weighted SBM matches WeightedBlockState identically", {
+  set.seed(410L)
+  n <- 24L
+  edges <- list()
+  for (i in 1:(n - 1L)) {
+    for (j in (i + 1L):n) {
+      same <- ((i <= 12L && j <= 12L) || (i > 12L && j > 12L))
+      if (stats::runif(1) < if (same) 0.5 else 0.15) edges[[length(edges) + 1L]] <- c(i, j)
+    }
+  }
+  emat <- do.call(rbind, edges)
+  m <- nrow(emat)
+  w_norm <- stats::rnorm(m, mean = ifelse((emat[, 1L] <= 12L) == (emat[, 2L] <= 12L), 1.5, -1.0), sd = 0.6)
+  w_exp <- exp(0.4 * w_norm)
+  w_pois <- stats::rpois(m, lambda = ifelse((emat[, 1L] <= 12L) == (emat[, 2L] <= 12L), 6, 2))
+  lay1 <- rep(1L, m)
+  b0 <- sample.int(3L, n, replace = TRUE)
+  bs <- list(rep(1:4, each = 6L), c(1L, 1L, 2L, 2L), c(1L, 1L))
+
+  for (dir in c(FALSE, TRUE)) {
+    g <- graph_add_edges(graph_create(n, directed = dir), emat)
+    specs <- list(
+      list(w = w_norm, tp = "real-normal", pr = "microcanonical"),
+      list(w = w_norm, tp = "real-normal", pr = "bayesian"),
+      list(w = w_exp,  tp = "real-exponential", pr = "microcanonical"),
+      list(w = w_pois, tp = "discrete-poisson", pr = "microcanonical")
+    )
+    for (sp in specs) {
+      for (dc in c(TRUE, FALSE)) {
+        ws <- weighted_block_state(g, weights = sp$w, types = sp$tp, params = sp$pr,
+                                   blocks = b0, degree_corrected = dc)
+        dl_w <- weighted_description_length(ws)
+        for (indep in c(FALSE, TRUE)) {
+          ls <- layered_block_state(g, layers = lay1, independent = indep,
+                                    blocks = b0, degree_corrected = dc,
+                                    weights = sp$w, types = sp$tp, params = sp$pr)
+          expect_equal(layered_description_length(ls), dl_w, tolerance = 1e-10)
+        }
+
+        nws <- nested_weighted_block_state(g, weights = sp$w, types = sp$tp, params = sp$pr,
+                                           levels = bs, degree_corrected = dc)
+        dl_nw <- nested_weighted_description_length(nws)
+        for (indep in c(FALSE, TRUE)) {
+          nls <- nested_layered_block_state(g, layers = lay1, independent = indep,
+                                            levels = bs, degree_corrected = dc,
+                                            weights = sp$w, types = sp$tp, params = sp$pr)
+          expect_equal(nested_layered_description_length(nls), dl_nw, tolerance = 1e-10)
+        }
+      }
+    }
+  }
+})
+
+test_that("layered-weighted incremental moves match full entropy recomputation", {
+  set.seed(411L)
+  n <- 20L
+  edges <- rbind(t(utils::combn(1:10, 2)), t(utils::combn(11:20, 2)),
+                 cbind(1:8, 11:18))
+  m <- nrow(edges)
+  edges <- rbind(edges, edges[1:12, ])
+  lay <- rep(1:2, length.out = nrow(edges))
+  w <- matrix(stats::rnorm(nrow(edges), 0, 1.5), ncol = 1L)
+  b_init <- sample.int(4L, n, replace = TRUE)
+
+  for (dir in c(FALSE, TRUE)) {
+    g <- graph_add_edges(graph_create(n, directed = dir), edges)
+    for (indep in c(FALSE, TRUE)) {
+      for (dc in c(TRUE, FALSE)) {
+        err <- rgraphtool:::cpp_layered_check_moves(
+          rgraphtool:::graph_pointer(g), b_init, lay, indep, dc, TRUE, 35L, Inf,
+          w, "real-normal", list(c(NaN, NaN, NaN, NaN))
+        )
+        expect_lt(max(err), 1e-8)
+      }
+    }
+  }
+})
+
+test_that("compare_layered_models detects conserved vs rewired co-expression weights", {
+  set.seed(412L)
+  n <- 24L
+  blocks <- rep(1:2, each = 12L)
+  ed_list <- list()
+  lay <- integer(0)
+  w_conserved <- numeric(0)
+  w_rewired <- numeric(0)
+
+  for (i in 1:(n - 1L)) {
+    for (j in (i + 1L):n) {
+      same <- (blocks[i] == blocks[j])
+      if (stats::runif(1) < 0.7) {
+        for (l in 1:2) {
+          ed_list[[length(ed_list) + 1L]] <- c(i, j)
+          lay <- c(lay, l)
+          mu_c <- if (same) 2.5 else -1.5
+          mu_r <- if (l == 1L) (if (same) 2.5 else -1.5) else (if (same) -2.5 else 1.5)
+          w_conserved <- c(w_conserved, stats::rnorm(1, mu_c, 0.35))
+          w_rewired <- c(w_rewired, stats::rnorm(1, mu_r, 0.35))
+        }
+      }
+    }
+  }
+  emat <- do.call(rbind, ed_list)
+  g <- graph_add_edges(
+    graph_create(n, directed = FALSE), emat,
+    properties = list(layer = lay, w_conserved = w_conserved, w_rewired = w_rewired)
+  )
+
+  cmp_cons <- compare_layered_models(
+    g, layers = "layer", weights = "w_conserved", types = "real-normal",
+    nested = TRUE, method = "posterior", nsamples = 30L, burnin = 15L, thin = 2L
+  )
+  expect_equal(cmp_cons$best_model, "edge_covariates")
+  expect_gt(cmp_cons$log_bayes_factors["edge_covariates", "independent_layers"], 5.0)
+  expect_output(print(cmp_cons), "Best layered model: edge_covariates")
+
+  cmp_rew <- compare_layered_models(
+    g, layers = "layer", weights = "w_rewired", types = "real-normal",
+    nested = TRUE, method = "posterior", nsamples = 30L, burnin = 15L, thin = 2L
+  )
+  expect_equal(cmp_rew$best_model, "independent_layers")
+  expect_gt(cmp_rew$log_bayes_factors["independent_layers", "edge_covariates"], 5.0)
+})

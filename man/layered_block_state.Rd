@@ -11,18 +11,24 @@
 \title{Flat and nested layered stochastic block models}
 \usage{
 layered_block_state(graph, layers, independent = TRUE, blocks = NULL,
-  degree_corrected = TRUE, degree_prior = c("distributed", "uniform"))
+  degree_corrected = TRUE, degree_prior = c("distributed", "uniform"),
+  weights = NULL, types = NULL, params = "microcanonical")
 layered_description_length(state, lmemb = TRUE, degree_prior = NULL)
 minimize_layered_blockmodel_dl(graph, layers, independent = TRUE,
   degree_corrected = TRUE, degree_prior = c("distributed", "uniform"),
-  B_min = 1L, B_max = Inf, refine = TRUE, epsilon = 1e-3)
+  B_min = 1L, B_max = Inf, refine = TRUE, epsilon = 1e-3,
+  weights = NULL, types = NULL, params = "microcanonical",
+  nthreads = NULL)
 nested_layered_block_state(graph, layers, independent = TRUE, levels = NULL,
-  degree_corrected = TRUE, degree_prior = c("distributed", "uniform"))
+  degree_corrected = TRUE, degree_prior = c("distributed", "uniform"),
+  weights = NULL, types = NULL, params = "microcanonical")
 nested_layered_level_entropy(state, degree_prior = NULL)
 nested_layered_description_length(state, degree_prior = NULL)
 minimize_nested_layered_blockmodel_dl(graph, layers, independent = TRUE,
   degree_corrected = TRUE, degree_prior = c("distributed", "uniform"),
-  B_min = 1L, B_max = Inf, refine = TRUE, epsilon = 1e-3)
+  B_min = 1L, B_max = Inf, refine = TRUE, epsilon = 1e-3,
+  weights = NULL, types = NULL, params = "microcanonical",
+  nthreads = NULL)
 }
 \arguments{
   \item{graph}{A graph created by \code{\link{graph_create}}.}
@@ -49,6 +55,14 @@ minimize_nested_layered_blockmodel_dl(graph, layers, independent = TRUE,
   \item{B_min, B_max}{Minimum and maximum number of occupied level-0 groups.}
   \item{refine}{Whether to run local refinement sweeps during minimization.}
   \item{epsilon}{Convergence tolerance in nats.}
+  \item{weights}{Optional edge covariate values (same formats accepted by
+  \code{\link{weighted_block_state}}) for combined layered-weighted SBMs.}
+  \item{types}{Optional character vector of covariate distribution types
+  (required when \code{weights} is supplied).}
+  \item{params}{Optional covariate hyperprior specification (default
+  \code{"microcanonical"}).}
+  \item{nthreads}{Optional thread count override (defaults to
+  \code{rgraphtool_num_threads()}).}
 }
 \description{
 Construct, evaluate, and infer flat and hierarchical (nested) layered
