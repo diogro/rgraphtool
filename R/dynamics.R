@@ -17,6 +17,9 @@
 .DYN_POTTS_GLAUBER  <- 9L
 
 .dyn_normalize_s <- function(s, fix_mean = FALSE) {
+  if (!is.null(attr(s, "gram"))) {
+    return(s)
+  }
   if (is.matrix(s)) {
     s_list <- list(s)
   } else if (is.list(s) && length(s) >= 1L) {
@@ -99,7 +102,13 @@
                              xl1, tl1, sbm, nested, blocks,
                              degree_corrected, degree_prior, fix_mean, q_max) {
   s_list <- .dyn_normalize_s(s, fix_mean = fix_mean)
+  gram_attr <- attr(s_list, "gram")
   N <- nrow(s_list[[1L]])
+  n_obs_val <- if (!is.null(gram_attr)) {
+    as.numeric(gram_attr$n_eff)
+  } else {
+    sum(vapply(s_list, ncol, integer(1L)))
+  }
   degree_prior <- match.arg(degree_prior, c("distributed", "uniform"))
   dist_flag <- identical(degree_prior, "distributed")
   nested <- isTRUE(nested)
@@ -160,7 +169,7 @@
       self_loops = self_loops,
       q_t = as.integer(q_t),
       s_list = s_list,
-      n_obs = sum(vapply(s_list, ncol, integer(1L))),
+      n_obs = n_obs_val,
       f_mat = f_mat,
       has_zero = isTRUE(has_zero),
       exposed = isTRUE(exposed),
@@ -324,7 +333,7 @@ epidemics_block_state <- function(s, graph = NULL, directed = TRUE, exposed = FA
 
 #' @noRd
 #' @export
-pseudo_normal_block_state <- function(s, graph = NULL, fix_mean = FALSE,
+pseudo_normal_block_state <- function(s = NULL, graph = NULL, fix_mean = FALSE,
                                       positive = TRUE, pslack = 1e-6,
                                       x = 0.1, x_range = c(-Inf, Inf),
                                       theta = c(0, 0),
@@ -335,7 +344,49 @@ pseudo_normal_block_state <- function(s, graph = NULL, fix_mean = FALSE,
                                       nested = TRUE, blocks = NULL,
                                       degree_corrected = TRUE,
                                       degree_prior = c("distributed", "uniform"),
-                                      self_loops = FALSE, q_max = Inf) {
+                                      self_loops = FALSE, q_max = Inf,
+                                      cov = NULL, n_eff = NULL, mean = NULL) {
+  has_s <- !is.null(s)
+  has_cov <- !is.null(cov)
+  if (has_s == has_cov) {
+    stop("Specify exactly one of 's' (sample matrix) or 'cov' (covariance matrix with 'n_eff')",
+         call. = FALSE)
+  }
+  if (has_cov) {
+    if (is.data.frame(cov)) cov <- as.matrix(cov)
+    if (!is.matrix(cov) || !is.numeric(cov) || nrow(cov) != ncol(cov) ||
+        nrow(cov) < 1L || anyNA(cov) || any(!is.finite(cov))) {
+      stop("cov must be a finite square N x N numeric matrix", call. = FALSE)
+    }
+    if (!isSymmetric(unname(cov), tol = 1e-10)) {
+      stop("cov must be symmetric", call. = FALSE)
+    }
+    if (any(diag(cov) <= 0)) {
+      stop("cov must have strictly positive diagonal entries", call. = FALSE)
+    }
+    if (is.null(n_eff) || !is.numeric(n_eff) || length(n_eff) != 1L ||
+        is.na(n_eff) || !is.finite(n_eff) || n_eff <= 0) {
+      stop("n_eff must be a single positive finite number when cov is provided",
+           call. = FALSE)
+    }
+    N_cov <- nrow(cov)
+    if (is.null(mean)) {
+      mean_vec <- numeric(N_cov)
+    } else {
+      if (!is.numeric(mean) || length(mean) != N_cov || anyNA(mean) || any(!is.finite(mean))) {
+        stop("mean must be a finite numeric vector of length nrow(cov)", call. = FALSE)
+      }
+      mean_vec <- as.numeric(mean)
+    }
+    storage.mode(cov) <- "double"
+    cov <- 0.5 * (cov + t(cov))
+    s <- list(matrix(0, nrow = N_cov, ncol = 0L))
+    attr(s, "gram") <- list(
+      cov = cov,
+      n_eff = as.numeric(n_eff),
+      mean = if (isTRUE(fix_mean)) numeric(N_cov) else mean_vec
+    )
+  }
   .dyn_build_state(
     .DYN_PSEUDO_NORMAL, "pseudo_normal", s, graph, directed = FALSE, self_loops = self_loops,
     q_t = 2L, f_mat = matrix(0, 0, 0), has_zero = FALSE, exposed = FALSE,
@@ -546,15 +597,19 @@ reconstruct_dynamics <- function(state, niter = 25L, nsamples = 0L, burnin = 50L
                                  threshold = 0.5, sbm = NULL,
                                  xdist = NULL, tdist = NULL,
                                  xl1 = NULL, tl1 = NULL,
-                                 normal = FALSE, mu = 0, sigma = 1) {
+                                 normal = FALSE, mu = 0, sigma = 1,
+                                 refresh_every = 3L, merge_split = TRUE) {
   .check_dynamics_state(state)
   niter <- as.integer(niter)
   nsamples <- as.integer(nsamples)
   burnin <- as.integer(burnin)
   thin <- as.integer(thin)
   k_cand <- as.integer(k_cand)
+  refresh_every <- as.integer(refresh_every)
+  merge_split <- isTRUE(merge_split)
   if (is.na(niter) || niter < 0L) stop("niter must be >= 0", call. = FALSE)
   if (is.na(nsamples) || nsamples < 0L) stop("nsamples must be >= 0", call. = FALSE)
+  if (is.na(refresh_every) || refresh_every < 0L) stop("refresh_every must be >= 0", call. = FALSE)
   if (niter == 0L && nsamples == 0L) stop("At least one of niter or nsamples must be > 0", call. = FALSE)
 
   opts <- .dyn_merge_prior(
@@ -569,7 +624,8 @@ reconstruct_dynamics <- function(state, niter = 25L, nsamples = 0L, burnin = 50L
     state$tmin, state$tmax, state$edges, state$x, state$theta, state$bs,
     state$degree_corrected, state$dist, opts,
     niter, nsamples, burnin, thin, as.numeric(beta),
-    k_cand, as.numeric(w_step), as.numeric(t_step), as.numeric(tol), state$q_max
+    k_cand, as.numeric(w_step), as.numeric(t_step), as.numeric(tol), state$q_max,
+    refresh_every, merge_split
   )
 
   edges_df <- data.frame(
@@ -611,6 +667,7 @@ reconstruct_dynamics <- function(state, niter = 25L, nsamples = 0L, burnin = 50L
       graph = g_rec,
       theta = res$theta_mean,
       theta_sd = res$theta_sd,
+      bs_samples = if (length(res$bs_samples) > 0L) res$bs_samples else NULL,
       state = new_state,
       prior = opts,
       entropies = res$entropies,

@@ -248,6 +248,7 @@ public:
     int size(int r) const { return _wr[r]; }
     const std::vector<int>& occupied() const { return _occupied; }
     const std::vector<int>& blocks() const { return _b; }
+    const std::vector<int>& members(int r) const { return _members[r]; }
     const std::vector<gt_hash_map<int, long>>& m_out() const { return _m_out; }
     const std::vector<gt_hash_map<int, long>>& m_in() const { return _m_in; }
     int empty_group() const { return _empty.empty() ? -1 : _empty.back(); }
@@ -638,6 +639,9 @@ public:
     int size(int r) const { return _wr[r]; }
     const std::vector<int>& blocks() const { return _b; }
     const std::vector<int>& occupied() const { return _occupied; }
+    const std::vector<int>& members(int r) const { return _members[r]; }
+    const std::vector<gt_hash_map<int, long>>& adj_out() const { return _adj_out; }
+    const std::vector<gt_hash_map<int, long>>& adj_in() const { return _adj_in; }
     const std::vector<gt_hash_map<int, long>>& m_out() const { return _m_out; }
     const std::vector<gt_hash_map<int, long>>& m_in() const { return _m_in; }
     const gt_hash_map<uint64_t, long>& edge_weights() const { return _w; }
@@ -1352,6 +1356,209 @@ public:
                 }
                 if (accept) { total_dS += dS; ++nmoves; }
                 else upper_move(l, x, r, true);
+            }
+        }
+    }
+
+    // Greedy (beta = Inf) multilevel split + merge sweep to escape single-node local traps
+    void merge_split_sweep(Rng& rng, double& total_dS, size_t& nattempts, size_t& nmoves) {
+        if (_base.N() <= 1) return;
+
+        // 1. Level-0 BFS-seeded split pass
+        std::vector<int> occ = _base.occupied();
+        rng.shuffle(occ);
+        std::vector<int> vis_stamp(_base.N(), 0);
+        int cur_stamp = 0;
+        for (int r : occ) {
+            if (_base.size(r) < 4 || _base.empty_group() < 0) continue;
+            int s = _base.empty_group();
+            inherit(0, s, r);
+            std::vector<int> vs = _base.members(r);
+            size_t sz = vs.size();
+            size_t half = sz / 2;
+
+            // Seed BFS inside subgraph induced by block r
+            ++cur_stamp;
+            int seed = vs[rng.index(sz)];
+            std::vector<int> bfs_q;
+            bfs_q.reserve(half + 1);
+            vis_stamp[seed] = cur_stamp;
+            bfs_q.push_back(seed);
+            size_t q_head = 0;
+            const auto& g_out = _base.adj_out();
+            const auto& g_in = _base.adj_in();
+            while (q_head < bfs_q.size() && bfs_q.size() < half) {
+                int u = bfs_q[q_head++];
+                std::vector<int> nbrs;
+                for (const auto& [w, _m] : g_out[u]) {
+                    if (w != u && _base.group(w) == r && vis_stamp[w] != cur_stamp) nbrs.push_back(w);
+                }
+                if (_base.directed()) {
+                    for (const auto& [w, _m] : g_in[u]) {
+                        if (w != u && _base.group(w) == r && vis_stamp[w] != cur_stamp) nbrs.push_back(w);
+                    }
+                }
+                rng.shuffle(nbrs);
+                for (int w : nbrs) {
+                    if (vis_stamp[w] == cur_stamp) continue;
+                    vis_stamp[w] = cur_stamp;
+                    bfs_q.push_back(w);
+                    if (bfs_q.size() >= half) break;
+                }
+            }
+
+            // Move the visited component/half (or random half if single isolated node) to block s
+            std::vector<int> to_move;
+            if (bfs_q.size() >= 2 && bfs_q.size() <= sz - 2) {
+                to_move = bfs_q;
+            } else {
+                rng.shuffle(vs);
+                to_move.assign(vs.begin() + static_cast<ptrdiff_t>(half), vs.end());
+            }
+
+            double dS = 0.0;
+            for (int v : to_move) {
+                dS += vertex_move(v, s);
+            }
+            for (int pass = 0; pass < 4; ++pass) {
+                rng.shuffle(vs);
+                bool any_flip = false;
+                for (int v : vs) {
+                    int cur = _base.group(v);
+                    int other = (cur == r) ? s : r;
+                    if (_base.size(cur) <= 1) continue;
+                    double dd = vertex_move_dS(v, other);
+                    if (dd < -1e-12) {
+                        dS += vertex_move(v, other);
+                        any_flip = true;
+                    }
+                }
+                if (!any_flip) break;
+            }
+            ++nattempts;
+            if (dS < -1e-9 && _base.size(r) > 0 && _base.size(s) > 0) {
+                total_dS += dS;
+                ++nmoves;
+            } else {
+                std::vector<int> s_vs = _base.members(s);
+                for (int v : s_vs) {
+                    vertex_move(v, r);
+                }
+            }
+        }
+
+        // 2. Level-0 merge pass (within same parent)
+        occ = _base.occupied();
+        rng.shuffle(occ);
+        for (int r : occ) {
+            if (_base.size(r) == 0 || _base.B() <= 1) continue;
+            std::vector<std::pair<long, int>> nbrs;
+            gt_hash_map<int, long> conn;
+            for (const auto& [t, m] : _base.m_out()[r]) {
+                if (t != r && _base.size(t) > 0 && same_parent(0, r, t)) conn[t] += m;
+            }
+            if (_base.directed()) {
+                for (const auto& [t, m] : _base.m_in()[r]) {
+                    if (t != r && _base.size(t) > 0 && same_parent(0, r, t)) conn[t] += m;
+                }
+            }
+            nbrs.reserve(conn.size());
+            for (const auto& [t, c] : conn) nbrs.emplace_back(c, t);
+            std::sort(nbrs.begin(), nbrs.end(), [](const auto& a, const auto& b) {
+                if (a.first != b.first) return a.first > b.first;
+                return a.second < b.second;
+            });
+            std::vector<int> cands;
+            cands.reserve(6);
+            for (size_t i = 0; i < std::min<size_t>(3, nbrs.size()); ++i) {
+                cands.push_back(nbrs[i].second);
+            }
+            const auto& cur_occ = _base.occupied();
+            int n_rand = 0;
+            for (int tries = 0; tries < 16 && n_rand < 3; ++tries) {
+                int t = cur_occ[rng.index(cur_occ.size())];
+                if (t == r || !same_parent(0, r, t)) continue;
+                if (std::find(cands.begin(), cands.end(), t) != cands.end()) continue;
+                cands.push_back(t);
+                ++n_rand;
+            }
+
+            for (int s : cands) {
+                if (_base.size(s) == 0) continue;
+                std::vector<int> vs = _base.members(r);
+                double dS = 0.0;
+                for (int v : vs) dS += vertex_move(v, s);
+                ++nattempts;
+                if (dS < -1e-9) {
+                    total_dS += dS;
+                    ++nmoves;
+                    break;
+                } else {
+                    inherit(0, r, s);
+                    for (int v : vs) vertex_move(v, r);
+                }
+            }
+        }
+
+        // 3. Upper-level greedy sweeps + sibling merges
+        for (int l = 1; l < levels(); ++l) {
+            const auto& nodes = (l == 1) ? _base.occupied() : _up[l - 2].occupied();
+            if (nodes.size() <= 1) continue;
+            std::vector<int> ord = nodes;
+            rng.shuffle(ord);
+            for (int x : ord) {
+                int r = _up[l - 1].group(x);
+                std::vector<int> cands = _up[l - 1].occupied();
+                int emp = _up[l - 1].empty_group();
+                if (emp >= 0 && _up[l - 1].size(r) > 1) cands.push_back(emp);
+                if (cands.size() <= 1) continue;
+                int best_t = r;
+                double best_dS = 0.0;
+                int checked = 0;
+                for (int t : cands) {
+                    if (t == r) continue;
+                    if (_up[l - 1].size(r) == 1 && !same_parent(l, r, t)) continue;
+                    if (_up[l - 1].size(t) == 0) inherit(l, t, r);
+                    ++nattempts;
+                    double dd = upper_move(l, x, t, false);
+                    if (dd < best_dS) {
+                        best_dS = dd;
+                        best_t = t;
+                    }
+                    if (++checked >= 16) break;
+                }
+                if (best_t != r && best_dS < -1e-9) {
+                    if (_up[l - 1].size(best_t) == 0) inherit(l, best_t, r);
+                    total_dS += upper_move(l, x, best_t, true);
+                    ++nmoves;
+                }
+            }
+
+            std::vector<int> u_occ = _up[l - 1].occupied();
+            rng.shuffle(u_occ);
+            for (int r : u_occ) {
+                if (_up[l - 1].size(r) == 0 || _up[l - 1].B() <= 1) continue;
+                const auto& cur_u = _up[l - 1].occupied();
+                std::vector<int> ucands;
+                for (int t : cur_u) {
+                    if (t != r && same_parent(l, r, t)) ucands.push_back(t);
+                    if (ucands.size() >= 6) break;
+                }
+                for (int s : ucands) {
+                    if (_up[l - 1].size(s) == 0) continue;
+                    std::vector<int> xs = _up[l - 1].members(r);
+                    double dS = 0.0;
+                    for (int x : xs) dS += upper_move(l, x, s, true);
+                    ++nattempts;
+                    if (dS < -1e-9) {
+                        total_dS += dS;
+                        ++nmoves;
+                        break;
+                    } else {
+                        inherit(l, r, s);
+                        for (int x : xs) upper_move(l, x, r, true);
+                    }
+                }
             }
         }
     }

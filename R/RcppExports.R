@@ -105,8 +105,8 @@ cpp_dynamics_check_moves <- function(model, N, directed, self_loops, s_list, f_m
     .Call(`_rgraphtool_cpp_dynamics_check_moves`, model, N, directed, self_loops, s_list, f_mat, has_zero, exposed, positive, pslack, xmin, xmax, tmin, tmax, init_edges, init_x, init_theta, bs_list, dc, dist, prior_opts, nmoves, q_max)
 }
 
-cpp_dynamics_reconstruct <- function(model, N, directed, self_loops, s_list, f_mat, has_zero, exposed, positive, pslack, xmin, xmax, tmin, tmax, init_edges, init_x, init_theta, bs_list, dc, dist, prior_opts, niter, nsamples, burnin, thin, beta, k_cand, w_step, t_step, tol, q_max) {
-    .Call(`_rgraphtool_cpp_dynamics_reconstruct`, model, N, directed, self_loops, s_list, f_mat, has_zero, exposed, positive, pslack, xmin, xmax, tmin, tmax, init_edges, init_x, init_theta, bs_list, dc, dist, prior_opts, niter, nsamples, burnin, thin, beta, k_cand, w_step, t_step, tol, q_max)
+cpp_dynamics_reconstruct <- function(model, N, directed, self_loops, s_list, f_mat, has_zero, exposed, positive, pslack, xmin, xmax, tmin, tmax, init_edges, init_x, init_theta, bs_list, dc, dist, prior_opts, niter, nsamples, burnin, thin, beta, k_cand, w_step, t_step, tol, q_max, refresh_every = 3L, merge_split = TRUE) {
+    .Call(`_rgraphtool_cpp_dynamics_reconstruct`, model, N, directed, self_loops, s_list, f_mat, has_zero, exposed, positive, pslack, xmin, xmax, tmin, tmax, init_edges, init_x, init_theta, bs_list, dc, dist, prior_opts, niter, nsamples, burnin, thin, beta, k_cand, w_step, t_step, tol, q_max, refresh_every, merge_split)
 }
 
 cpp_sim_ising <- function(pointer, weights, theta, n_samples, burnin, thin, async_eq, has_zero, init_state) {

@@ -14,13 +14,16 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <iterator>
 #include <limits>
+#include <map>
 #include <numeric>
 #include <tuple>
 #include <utility>
 #include <vector>
 #include "dyn_sbm.h"
 #include "graph_types.h"
+#include "parallel.h"
 
 namespace {
 
@@ -88,34 +91,17 @@ inline double laplace_bin_nll(double v, double lam, double delta) {
     return lam * std::abs(v) - log_sinh_half(lam * delta);
 }
 
-// Quantized MDL distribution prior matching Peixoto (2025 PRX) & graph-tool 3.9
-// (including the 128-nat floating-point range encoding constant when E > 0)
-double quantized_dist_nll(const std::vector<double>& vals, double delta, double lam,
-                          bool uniform, bool exclude_zero) {
-    size_t E = vals.size();
-    if (E == 0) return 0.0;
-    gt_hash_map<int64_t, int64_t> cnt;
-    int64_t k_min = std::numeric_limits<int64_t>::max();
-    int64_t k_max = std::numeric_limits<int64_t>::min();
-    for (double v : vals) {
-        int64_t q = static_cast<int64_t>(std::llround(v / delta));
-        cnt[q]++;
-        if (q < k_min) k_min = q;
-        if (q > k_max) k_max = q;
-    }
-    int64_t K = static_cast<int64_t>(cnt.size());
-    int64_t Ei = static_cast<int64_t>(E);
-
+inline double quantized_nll_from_stats(int64_t E, int64_t K, int64_t k_min, int64_t k_max,
+                                       double sum_lgam_m, double delta, double lam,
+                                       bool uniform, bool exclude_zero) {
+    if (E <= 0) return 0.0;
     double S = 0.0;
     if (uniform) {
-        S += static_cast<double>(Ei) * std::log(static_cast<double>(K));
+        S += static_cast<double>(E) * std::log(static_cast<double>(K));
     } else {
-        S += std::log(static_cast<double>(Ei)) +
-             lbinom_d(static_cast<double>(Ei - 1), static_cast<double>(K - 1)) +
-             lgam(static_cast<double>(Ei + 1));
-        for (const auto& [q, m] : cnt) {
-            S -= lgam(static_cast<double>(m + 1));
-        }
+        S += std::log(static_cast<double>(E)) +
+             lbinom_d(static_cast<double>(E - 1), static_cast<double>(K - 1)) +
+             lgam(static_cast<double>(E + 1)) - sum_lgam_m;
     }
 
     int64_t span = k_max - k_min;
@@ -136,6 +122,172 @@ double quantized_dist_nll(const std::vector<double>& vals, double delta, double 
     }
     return S;
 }
+
+// Quantized MDL distribution prior matching Peixoto (2025 PRX) & graph-tool 3.9
+// (including the 128-nat floating-point range encoding constant when E > 0)
+double quantized_dist_nll(const std::vector<double>& vals, double delta, double lam,
+                          bool uniform, bool exclude_zero) {
+    size_t E = vals.size();
+    if (E == 0) return 0.0;
+    gt_hash_map<int64_t, int64_t> cnt;
+    int64_t k_min = std::numeric_limits<int64_t>::max();
+    int64_t k_max = std::numeric_limits<int64_t>::min();
+    for (double v : vals) {
+        int64_t q = static_cast<int64_t>(std::llround(v / delta));
+        cnt[q]++;
+        if (q < k_min) k_min = q;
+        if (q > k_max) k_max = q;
+    }
+    double sum_lgam_m = 0.0;
+    for (const auto& [q, m] : cnt) {
+        sum_lgam_m += lgam(static_cast<double>(m + 1));
+    }
+    return quantized_nll_from_stats(
+        static_cast<int64_t>(E), static_cast<int64_t>(cnt.size()),
+        k_min, k_max, sum_lgam_m, delta, lam, uniform, exclude_zero);
+}
+
+// O(log K) incremental quantized value histogram for fast edge / theta moves
+struct QuantHist {
+    bool ready = false;
+    double delta = 0.0;
+    int64_t E = 0;
+    double sum_lgam_m = 0.0;
+    std::map<int64_t, int64_t> cnt;
+
+    void clear() {
+        ready = false;
+        delta = 0.0;
+        E = 0;
+        sum_lgam_m = 0.0;
+        cnt.clear();
+    }
+
+    static inline int64_t quantize(double v, double d) {
+        return static_cast<int64_t>(std::llround(v / d));
+    }
+
+    void rebuild_from_map(double d, const gt_hash_map<uint64_t, double>& edges) {
+        cnt.clear();
+        E = 0;
+        for (const auto& [k, w] : edges) {
+            cnt[quantize(w, d)]++;
+            ++E;
+        }
+        refresh_sum();
+        delta = d;
+        ready = true;
+    }
+
+    void rebuild_from_theta(double d, const std::vector<std::vector<double>>& theta, int l) {
+        cnt.clear();
+        E = static_cast<int64_t>(theta.size());
+        for (int i = 0; i < E; ++i) {
+            cnt[quantize(theta[i][l], d)]++;
+        }
+        refresh_sum();
+        delta = d;
+        ready = true;
+    }
+
+    void refresh_sum() {
+        double s = 0.0;
+        for (const auto& [q, m] : cnt) {
+            s += lgam(static_cast<double>(m + 1));
+        }
+        sum_lgam_m = s;
+    }
+
+    double nll(double lam, bool uniform, bool exclude_zero) const {
+        if (E <= 0) return 0.0;
+        return quantized_nll_from_stats(
+            E, static_cast<int64_t>(cnt.size()),
+            cnt.begin()->first, cnt.rbegin()->first,
+            sum_lgam_m, delta, lam, uniform, exclude_zero);
+    }
+
+    double delta_nll(bool has_old, double v_old, bool has_new, double v_new,
+                     double lam, bool uniform, bool exclude_zero, double old_nll) const {
+        int64_t q_old = has_old ? quantize(v_old, delta) : 0;
+        int64_t q_new = has_new ? quantize(v_new, delta) : 0;
+        if (has_old == has_new && (!has_old || q_old == q_new)) return 0.0;
+
+        int64_t m_old = 0;
+        if (has_old) {
+            auto it = cnt.find(q_old);
+            if (it != cnt.end()) m_old = it->second;
+        }
+        int64_t m_new = 0;
+        if (has_new) {
+            auto it = cnt.find(q_new);
+            if (it != cnt.end()) m_new = it->second;
+        }
+
+        int64_t E1 = E + (has_new ? 1 : 0) - (has_old ? 1 : 0);
+        if (E1 <= 0) return -old_nll;
+
+        int64_t K1 = static_cast<int64_t>(cnt.size()) -
+                     ((has_old && m_old == 1) ? 1 : 0) +
+                     ((has_new && m_new == 0) ? 1 : 0);
+
+        double sum1 = sum_lgam_m;
+        if (has_old) {
+            sum1 += lgam(static_cast<double>(m_old)) - lgam(static_cast<double>(m_old + 1));
+        }
+        if (has_new) {
+            sum1 += lgam(static_cast<double>(m_new + 2)) - lgam(static_cast<double>(m_new + 1));
+        }
+
+        int64_t k_min1, k_max1;
+        if (E == 0) {
+            k_min1 = q_new;
+            k_max1 = q_new;
+        } else {
+            bool drop_old = has_old && (m_old == 1);
+            if (drop_old && q_old == cnt.begin()->first) {
+                k_min1 = (cnt.size() >= 2) ? std::next(cnt.begin())->first : q_new;
+            } else {
+                k_min1 = cnt.begin()->first;
+            }
+            if (has_new && q_new < k_min1) k_min1 = q_new;
+
+            if (drop_old && q_old == cnt.rbegin()->first) {
+                k_max1 = (cnt.size() >= 2) ? std::next(cnt.rbegin())->first : q_new;
+            } else {
+                k_max1 = cnt.rbegin()->first;
+            }
+            if (has_new && q_new > k_max1) k_max1 = q_new;
+        }
+
+        return quantized_nll_from_stats(
+            E1, K1, k_min1, k_max1, sum1, delta, lam, uniform, exclude_zero) - old_nll;
+    }
+
+    void apply(bool has_old, double v_old, bool has_new, double v_new) {
+        if (!ready) return;
+        int64_t q_old = has_old ? quantize(v_old, delta) : 0;
+        int64_t q_new = has_new ? quantize(v_new, delta) : 0;
+        if (has_old == has_new && (!has_old || q_old == q_new)) return;
+
+        if (has_old) {
+            auto it = cnt.find(q_old);
+            if (it != cnt.end()) {
+                int64_t m = it->second;
+                sum_lgam_m += lgam(static_cast<double>(m)) - lgam(static_cast<double>(m + 1));
+                --E;
+                if (m == 1) cnt.erase(it);
+                else it->second = m - 1;
+            }
+        }
+        if (has_new) {
+            auto [it, ins] = cnt.emplace(q_new, 0);
+            int64_t m = it->second;
+            sum_lgam_m += lgam(static_cast<double>(m + 2)) - lgam(static_cast<double>(m + 1));
+            it->second = m + 1;
+            ++E;
+        }
+    }
+};
 
 struct PriorOpts {
     bool sbm = true;
@@ -262,6 +414,64 @@ public:
                 }
             }
         }
+        // Auto-enable O(deg) Gram sufficient statistics for large-M Gaussian cohorts
+        if (_model == DYN_PSEUDO_NORMAL && _N <= 4000 && _M >= 64) {
+            _use_gram = true;
+            _M_eff = static_cast<double>(_M);
+            _G.assign(static_cast<size_t>(_N) * _N, 0.0);
+            _s_sum.assign(_N, 0.0);
+            _pn_C.assign(_N, 0.0);
+            _pn_D.assign(_N, 0.0);
+            _pn_H.assign(_N, 0.0);
+            for (int i = 0; i < _N; ++i) {
+                const double* si = &_s_prev[static_cast<size_t>(i) * _M];
+                double sum = 0.0;
+                for (int m = 0; m < _M; ++m) sum += si[m];
+                _s_sum[i] = sum;
+            }
+            rgt_parallel::parallel_for(static_cast<size_t>(_N), 0, [&](int /*tid*/, size_t lo, size_t hi) {
+                for (size_t ii = lo; ii < hi; ++ii) {
+                    int i = static_cast<int>(ii);
+                    const double* si = &_s_prev[static_cast<size_t>(i) * _M];
+                    for (int j = i; j < _N; ++j) {
+                        const double* sj = &_s_prev[static_cast<size_t>(j) * _M];
+                        double dot = 0.0;
+                        for (int m = 0; m < _M; ++m) dot += si[m] * sj[m];
+                        _G[static_cast<size_t>(i) * _N + j] = dot;
+                        _G[static_cast<size_t>(j) * _N + i] = dot;
+                    }
+                }
+            });
+        }
+    }
+
+    // Load sufficient statistics directly from an N x N covariance matrix, mean vector, and n_eff
+    void set_gram(const Rcpp::NumericMatrix& cov_mat, double n_eff,
+                  const Rcpp::NumericVector& mean_vec) {
+        if (cov_mat.nrow() != _N || cov_mat.ncol() != _N) {
+            Rcpp::stop("cov matrix dimensions must equal N x N.");
+        }
+        if (mean_vec.size() != _N) {
+            Rcpp::stop("mean vector length must equal N.");
+        }
+        if (!std::isfinite(n_eff) || n_eff <= 0.0) {
+            Rcpp::stop("n_eff must be a positive finite number.");
+        }
+        _use_gram = true;
+        _M_eff = n_eff;
+        _M = std::max(1, static_cast<int>(std::llround(n_eff)));
+        _G.resize(static_cast<size_t>(_N) * _N);
+        _s_sum.resize(_N);
+        _pn_C.assign(_N, 0.0);
+        _pn_D.assign(_N, 0.0);
+        _pn_H.assign(_N, 0.0);
+        for (int i = 0; i < _N; ++i) {
+            _s_sum[i] = n_eff * mean_vec[i];
+            for (int j = 0; j < _N; ++j) {
+                _G[static_cast<size_t>(i) * _N + j] =
+                    n_eff * (cov_mat(i, j) + mean_vec[i] * mean_vec[j]);
+            }
+        }
     }
 
     void init_state(const std::vector<std::tuple<int, int, double>>& init_edges,
@@ -298,8 +508,32 @@ public:
         }
         _theta = theta_init;
         _prior.init(sbm_edges, bs);
+        _x_hist.clear();
+        _t_hist.clear();
         rebuild_active();
         recompute_all_fields_and_nll();
+    }
+
+    void ensure_x_hist(double delta) const {
+        if (!_x_hist.ready || _x_hist.delta != delta) {
+            _x_hist.rebuild_from_map(delta, _x);
+        }
+    }
+
+    void ensure_t_hist(int l, double delta) const {
+        if (static_cast<int>(_t_hist.size()) != _q_t) {
+            _t_hist.resize(_q_t);
+        }
+        if (!_t_hist[l].ready || _t_hist[l].delta != delta) {
+            _t_hist[l].rebuild_from_theta(delta, _theta, l);
+        }
+    }
+
+    void refresh_quant_hists() {
+        if (_x_hist.ready) _x_hist.refresh_sum();
+        for (auto& h : _t_hist) {
+            if (h.ready) h.refresh_sum();
+        }
     }
 
     void rebuild_active() {
@@ -313,7 +547,11 @@ public:
 
     // Recompute cached fields and per-vertex NLL from scratch
     void recompute_all_fields_and_nll() {
-        if (_model == DYN_PSEUDO_POTTS || _model == DYN_POTTS_GLAUBER) {
+        if (_use_gram) {
+            _pn_C.assign(_N, 0.0);
+            _pn_D.assign(_N, 0.0);
+            _pn_H.assign(_N, 0.0);
+        } else if (_model == DYN_PSEUDO_POTTS || _model == DYN_POTTS_GLAUBER) {
             _h_potts.assign(static_cast<size_t>(_N) * _f_q * _M, 0.0);
         } else {
             _h.assign(static_cast<size_t>(_N) * _M, 0.0);
@@ -339,10 +577,8 @@ public:
 
     double x_prior(const PriorOpts& opts) const {
         if (opts.xdist) {
-            std::vector<double> vals;
-            vals.reserve(_x.size());
-            for (const auto& [k, w] : _x) vals.push_back(w);
-            return quantized_dist_nll(vals, opts.xdelta, opts.xl1, opts.xdist_uniform, true);
+            ensure_x_hist(opts.xdelta);
+            return _x_hist.nll(opts.xl1, opts.xdist_uniform, true);
         }
         double S = 0.0;
         if (opts.normal_prior) {
@@ -384,9 +620,8 @@ public:
             double lam = (l < static_cast<int>(opts.tl1.size())) ? opts.tl1[l] : 0.0;
             double del = (l < static_cast<int>(opts.tdelta.size())) ? opts.tdelta[l] : 1e-8;
             if (td) {
-                std::vector<double> vals(_N);
-                for (int i = 0; i < _N; ++i) vals[i] = _theta[i][l];
-                S += quantized_dist_nll(vals, del, lam, tu, false);
+                ensure_t_hist(l, del);
+                S += _t_hist[l].nll(lam, tu, false);
             } else if (lam > 0.0) {
                 for (int i = 0; i < _N; ++i) S += laplace_bin_nll(_theta[i][l], lam, del);
             }
@@ -443,19 +678,10 @@ public:
 
         double dS_xp = 0.0;
         if (opts.xdist) {
-            double old_xp = x_prior(opts);
-            // Temporarily evaluate new x_prior
-            std::vector<double> vals;
-            vals.reserve(_x.size() + 1);
-            for (const auto& [ek, ew] : _x) {
-                if (ek == k) {
-                    if (present_new) vals.push_back(w_new);
-                } else {
-                    vals.push_back(ew);
-                }
-            }
-            if (!present_old && present_new) vals.push_back(w_new);
-            dS_xp = quantized_dist_nll(vals, opts.xdelta, opts.xl1, opts.xdist_uniform, true) - old_xp;
+            ensure_x_hist(opts.xdelta);
+            double old_xp = _x_hist.nll(opts.xl1, opts.xdist_uniform, true);
+            dS_xp = _x_hist.delta_nll(present_old, w_old, present_new, w_new,
+                                      opts.xl1, opts.xdist_uniform, true, old_xp);
         } else {
             if (opts.normal_prior) {
                 double inv_s2 = 1.0 / (opts.normal_sigma * opts.normal_sigma);
@@ -549,6 +775,7 @@ public:
         }
 
         if (dE != 0) _prior.edge_delta(u, v, dE, true);
+        if (_x_hist.ready) _x_hist.apply(present_old, w_old, present_new, w_new);
     }
 
     // Exact incremental delta for updating node i's parameter theta[i][l] -> t_new
@@ -572,11 +799,9 @@ public:
         double lam = (l < static_cast<int>(opts.tl1.size())) ? opts.tl1[l] : 0.0;
         double del = (l < static_cast<int>(opts.tdelta.size())) ? opts.tdelta[l] : 1e-8;
         if (td) {
-            std::vector<double> v0(_N), v1(_N);
-            for (int j = 0; j < _N; ++j) { v0[j] = _theta[j][l]; v1[j] = _theta[j][l]; }
-            v1[i] = t_new;
-            dS_tp = quantized_dist_nll(v1, del, lam, tu, false) -
-                    quantized_dist_nll(v0, del, lam, tu, false);
+            ensure_t_hist(l, del);
+            double old_tp = _t_hist[l].nll(lam, tu, false);
+            dS_tp = _t_hist[l].delta_nll(true, t_old, true, t_new, lam, tu, false, old_tp);
         } else if (lam > 0.0) {
             dS_tp = laplace_bin_nll(t_new, lam, del) - laplace_bin_nll(t_old, lam, del);
         }
@@ -584,15 +809,211 @@ public:
     }
 
     void apply_theta_move(int i, int l, double t_new) {
-        if (_theta[i][l] == t_new) return;
+        double t_old = _theta[i][l];
+        if (t_old == t_new) return;
         _theta[i][l] = t_new;
+        if (static_cast<size_t>(l) < _t_hist.size() && _t_hist[l].ready) {
+            _t_hist[l].apply(true, t_old, true, t_new);
+        }
         double nll_new = compute_vertex_nll(i);
         _total_nll += (nll_new - _node_nll[i]);
         _node_nll[i] = nll_new;
     }
 
+    // Fast exact O(1)/O(log K)-per-eval 1D edge optimizer for undirected Gram PseudoNormal
+    double optimize_edge_weight_pn_gram(int u, int v, const PriorOpts& opts, double& best_dS) {
+        if (u > v) std::swap(u, v);
+        uint64_t k = pair_key(u, v);
+        auto it = _x.find(k);
+        bool present_old = (it != _x.end());
+        double w_old = present_old ? it->second : 0.0;
+
+        long E0 = static_cast<long>(_x.size());
+        long dE_add = present_old ? 0L : 1L;
+        double dS_geom = (dE_add != 0)
+            ? (geom_edge_prior(E0 + dE_add, opts.density, opts.aE) - geom_edge_prior(E0, opts.density, opts.aE))
+            : 0.0;
+        double dS_sbm = (opts.sbm && dE_add != 0) ? _prior.edge_delta(u, v, dE_add, false) : 0.0;
+        double dS_struct = dS_geom + dS_sbm;
+
+        double th0_u_base = _theta[u][0], mu_u = _theta[u][1];
+        double th0_v_base = _theta[v][0], mu_v = _theta[v][1];
+        double G_uu = _G[static_cast<size_t>(u) * _N + u];
+        double G_vv = _G[static_cast<size_t>(v) * _N + v];
+        double G_uv = _G[static_cast<size_t>(u) * _N + v];
+        double quad_u = G_uu - 2.0 * mu_u * _s_sum[u] + _M_eff * mu_u * mu_u;
+        double quad_v = G_vv - 2.0 * mu_v * _s_sum[v] + _M_eff * mu_v * mu_v;
+
+        double p_uv = 0.0;
+        const double* gv = &_G[static_cast<size_t>(v) * _N];
+        for (const auto& [kn, wn] : _adj_in[u]) p_uv += wn * gv[kn];
+
+        double p_vu = 0.0;
+        const double* gu = &_G[static_cast<size_t>(u) * _N];
+        for (const auto& [kn, wn] : _adj_in[v]) p_vu += wn * gu[kn];
+
+        double old_xp = 0.0;
+        if (opts.xdist) {
+            ensure_x_hist(opts.xdelta);
+            old_xp = _x_hist.nll(opts.xl1, opts.xdist_uniform, true);
+        } else {
+            if (opts.normal_prior) {
+                double inv_s2_p = 1.0 / (opts.normal_sigma * opts.normal_sigma);
+                double d0 = w_old - opts.normal_mu;
+                old_xp += 0.5 * d0 * d0 * inv_s2_p;
+            }
+            if (opts.xl1 > 0.0) {
+                if (opts.sbm) {
+                    old_xp += present_old
+                        ? (opts.xl1 * (std::abs(w_old) - 0.5 * opts.xdelta) - log_sinh_half(opts.xl1 * opts.xdelta))
+                        : 0.0;
+                } else {
+                    old_xp += laplace_bin_nll(w_old, opts.xl1, opts.xdelta);
+                }
+            }
+        }
+        double inv_norm_s2 = opts.normal_prior ? (1.0 / (opts.normal_sigma * opts.normal_sigma)) : 0.0;
+        double base_nll_uv = _node_nll[u] + _node_nll[v];
+        double abs_old = std::abs(w_old);
+        double cu_lin = G_uv - mu_u * _s_sum[v];
+        double cv_lin = G_uv - mu_v * _s_sum[u];
+
+        auto eval_w = [&](double w_new) -> double {
+            if (w_new < _xmin || w_new > _xmax) return INF;
+            double dw = w_new - w_old;
+            double d_abs = std::abs(w_new) - abs_old;
+
+            double th0_u = th0_u_base;
+            if (_positive) {
+                double k_abs = _abs_deg[u] + d_abs;
+                if (k_abs > 0.0) th0_u = std::min(-0.5 * std::log(k_abs) - _pslack, th0_u);
+            }
+            double s2_u = std::exp(2.0 * th0_u);
+            double inv_s2_u = std::exp(-2.0 * th0_u);
+            double ci_u = _pn_C[u] + dw * G_uv;
+            double di_u = _pn_D[u] + dw * _s_sum[v];
+            double hi_u = _pn_H[u] + 2.0 * dw * p_uv + dw * dw * G_vv;
+            double nll_u = 0.5 * (quad_u * inv_s2_u + 2.0 * (ci_u - mu_u * di_u) + s2_u * hi_u) +
+                           _M_eff * (th0_u + HALF_LOG_2PI);
+
+            double th0_v = th0_v_base;
+            if (_positive) {
+                double k_abs = _abs_deg[v] + d_abs;
+                if (k_abs > 0.0) th0_v = std::min(-0.5 * std::log(k_abs) - _pslack, th0_v);
+            }
+            double s2_v = std::exp(2.0 * th0_v);
+            double inv_s2_v = std::exp(-2.0 * th0_v);
+            double ci_v = _pn_C[v] + dw * G_uv;
+            double di_v = _pn_D[v] + dw * _s_sum[u];
+            double hi_v = _pn_H[v] + 2.0 * dw * p_vu + dw * dw * G_uu;
+            double nll_v = 0.5 * (quad_v * inv_s2_v + 2.0 * (ci_v - mu_v * di_v) + s2_v * hi_v) +
+                           _M_eff * (th0_v + HALF_LOG_2PI);
+
+            double dS_xp = 0.0;
+            if (opts.xdist) {
+                dS_xp = _x_hist.delta_nll(present_old, w_old, true, w_new,
+                                          opts.xl1, opts.xdist_uniform, true, old_xp);
+            } else {
+                double new_xp = 0.0;
+                if (opts.normal_prior) {
+                    double d1 = w_new - opts.normal_mu;
+                    new_xp += 0.5 * d1 * d1 * inv_norm_s2;
+                }
+                if (opts.xl1 > 0.0) {
+                    if (opts.sbm) {
+                        new_xp += opts.xl1 * (std::abs(w_new) - 0.5 * opts.xdelta) -
+                                  log_sinh_half(opts.xl1 * opts.xdelta);
+                    } else {
+                        new_xp += laplace_bin_nll(w_new, opts.xl1, opts.xdelta);
+                    }
+                }
+                dS_xp = new_xp - old_xp;
+            }
+            return (nll_u + nll_v - base_nll_uv) + dS_struct + dS_xp;
+        };
+
+        // Quadratic Newton / soft-threshold proposal around w = 0
+        double th0_u0 = th0_u_base, th0_v0 = th0_v_base;
+        if (_positive) {
+            double ku0 = _abs_deg[u] - abs_old;
+            double kv0 = _abs_deg[v] - abs_old;
+            if (ku0 > 0.0) th0_u0 = std::min(-0.5 * std::log(ku0) - _pslack, th0_u0);
+            if (kv0 > 0.0) th0_v0 = std::min(-0.5 * std::log(kv0) - _pslack, th0_v0);
+        }
+        double s2_u0 = std::exp(2.0 * th0_u0), s2_v0 = std::exp(2.0 * th0_v0);
+        double p_uv0 = p_uv - w_old * G_vv;
+        double p_vu0 = p_vu - w_old * G_uu;
+        double grad_0 = (cu_lin + s2_u0 * p_uv0) + (cv_lin + s2_v0 * p_vu0) -
+                        (opts.normal_prior ? opts.normal_mu * inv_norm_s2 : 0.0);
+        double hess = s2_u0 * G_vv + s2_v0 * G_uu + inv_norm_s2;
+
+        double lo = std::max(_xmin, w_old - 2.0);
+        double hi = std::min(_xmax, w_old + 2.0);
+        if (std::isinf(lo) || std::isinf(hi)) {
+            lo = std::max(_xmin, -5.0);
+            hi = std::min(_xmax, 5.0);
+        }
+
+        double best_w = (w_old != 0.0) ? w_old : 0.5 * (lo + hi);
+        best_dS = eval_w(best_w);
+
+        auto try_pt = [&](double wg) {
+            if (wg == 0.0 || wg < _xmin || wg > _xmax) return;
+            double d = eval_w(wg);
+            if (d < best_dS) { best_dS = d; best_w = wg; }
+        };
+        int n_grid = 9;
+        for (int g = 0; g <= n_grid; ++g) {
+            try_pt(lo + (hi - lo) * static_cast<double>(g) / static_cast<double>(n_grid));
+        }
+        // Only jump outside [lo, hi] if Newton/proximal step leaves the local bracket
+        bool used_ext = false;
+        if (hess > 1e-12) {
+            double w_ext = -grad_0 / hess;
+            if (opts.xl1 > 0.0) {
+                double g_sh = std::abs(grad_0) - opts.xl1;
+                if (g_sh > 0.0) w_ext = (grad_0 > 0.0 ? -g_sh : g_sh) / hess;
+            }
+            if ((w_ext < lo || w_ext > hi) && w_ext >= _xmin && w_ext <= _xmax && w_ext != 0.0) {
+                double d_ext = eval_w(w_ext);
+                if (d_ext < best_dS) {
+                    best_dS = d_ext;
+                    best_w = w_ext;
+                    used_ext = true;
+                }
+            }
+        }
+
+        double step = (hi - lo) / static_cast<double>(n_grid);
+        double a = used_ext ? std::max(_xmin, best_w - step) : std::max(_xmin, best_w - step);
+        double b = used_ext ? std::min(_xmax, best_w + step) : std::min(_xmax, best_w + step);
+        constexpr double gr = 0.6180339887498948482;
+        double c = b - gr * (b - a);
+        double d = a + gr * (b - a);
+        double fc = eval_w(c);
+        double fd = eval_w(d);
+        for (int it = 0; it < 18; ++it) {
+            if (fc < fd) {
+                b = d; d = c; fd = fc;
+                c = b - gr * (b - a);
+                fc = eval_w(c);
+            } else {
+                a = c; c = d; fc = fd;
+                d = a + gr * (b - a);
+                fd = eval_w(d);
+            }
+        }
+        double mid = 0.5 * (a + b);
+        double fmid = eval_w(mid);
+        if (fmid < best_dS) { best_dS = fmid; best_w = mid; }
+        return best_w;
+    }
+
     // 1D golden-section minimization on [lo, hi] for edge weight (u, v) or node theta(i, l)
     double optimize_edge_weight(int u, int v, const PriorOpts& opts, double& best_dS) {
+        if (_model == DYN_PSEUDO_NORMAL && _use_gram && !_directed && u != v) {
+            return optimize_edge_weight_pn_gram(u, v, opts, best_dS);
+        }
         double w0 = get_x(u, v);
         // Bracket search around w0 (or around 0 if adding new edge)
         double lo = std::max(_xmin, w0 - 2.0);
@@ -701,6 +1122,48 @@ public:
         // For larger N: screen top k_per_node partners per vertex via normalized correlation
         std::vector<double> mean_p(_N, 0.0), sd_p(_N, 0.0);
         std::vector<double> mean_n(_N, 0.0), sd_n(_N, 0.0);
+        if (_use_gram) {
+            for (int i = 0; i < _N; ++i) {
+                mean_p[i] = _s_sum[i] / _M_eff;
+                double v_i = std::max(0.0, _G[static_cast<size_t>(i) * _N + i] -
+                                           (_s_sum[i] * _s_sum[i]) / _M_eff);
+                sd_p[i] = std::sqrt(v_i) + 1e-12;
+            }
+            std::vector<std::vector<int>> top_u(_N);
+            int k_keep = std::min(_N - 1, std::max(4, k_per_node));
+            rgt_parallel::parallel_for(static_cast<size_t>(_N), 0, [&](int /*tid*/, size_t lo, size_t hi) {
+                std::vector<std::pair<double, int>> scores;
+                scores.reserve(_N);
+                for (size_t vi = lo; vi < hi; ++vi) {
+                    int v = static_cast<int>(vi);
+                    scores.clear();
+                    for (int u = 0; u < _N; ++u) {
+                        if (!_self_loops && u == v) continue;
+                        double cov_uv = _G[static_cast<size_t>(u) * _N + v] -
+                                        (_s_sum[u] * _s_sum[v]) / _M_eff;
+                        double corr = std::abs(cov_uv) / (sd_p[u] * sd_p[v]);
+                        scores.emplace_back(corr, u);
+                    }
+                    if (static_cast<int>(scores.size()) > k_keep) {
+                        std::nth_element(scores.begin(), scores.begin() + k_keep, scores.end(),
+                                         [](const auto& a, const auto& b) { return a.first > b.first; });
+                        scores.resize(k_keep);
+                    }
+                    top_u[v].reserve(scores.size());
+                    for (const auto& [sc, u] : scores) {
+                        top_u[v].push_back(u);
+                    }
+                }
+            });
+            gt_hash_map<uint64_t, int> seen;
+            for (int v = 0; v < _N; ++v) {
+                for (int u : top_u[v]) {
+                    uint64_t k = key(u, v);
+                    if (seen.emplace(k, 1).second) cands.push_back(k);
+                }
+            }
+            return cands;
+        }
         for (int i = 0; i < _N; ++i) {
             double sp = 0.0, sn = 0.0;
             for (int m = 0; m < _M; ++m) {
@@ -720,30 +1183,323 @@ public:
             sd_n[i] = std::sqrt(vn) + 1e-12;
         }
 
-        gt_hash_map<uint64_t, int> seen;
-        std::vector<std::pair<double, int>> scores;
-        scores.reserve(_N);
+        std::vector<std::vector<int>> top_u(_N);
         int k_keep = std::min(_N - 1, std::max(4, k_per_node));
+        rgt_parallel::parallel_for(static_cast<size_t>(_N), 0, [&](int /*tid*/, size_t lo, size_t hi) {
+            std::vector<std::pair<double, int>> scores;
+            scores.reserve(_N);
+            for (size_t vi = lo; vi < hi; ++vi) {
+                int v = static_cast<int>(vi);
+                scores.clear();
+                for (int u = 0; u < _N; ++u) {
+                    if (!_self_loops && u == v) continue;
+                    double dot = 0.0;
+                    const double* pu = &_s_prev[static_cast<size_t>(u) * _M];
+                    const double* pv = &_s_next[static_cast<size_t>(v) * _M];
+                    double mu = mean_p[u], mv = mean_n[v];
+                    for (int m = 0; m < _M; ++m) dot += (pu[m] - mu) * (pv[m] - mv);
+                    double corr = std::abs(dot) / (sd_p[u] * sd_n[v]);
+                    scores.emplace_back(corr, u);
+                }
+                if (static_cast<int>(scores.size()) > k_keep) {
+                    std::nth_element(scores.begin(), scores.begin() + k_keep, scores.end(),
+                                     [](const auto& a, const auto& b) { return a.first > b.first; });
+                    scores.resize(k_keep);
+                }
+                top_u[v].reserve(scores.size());
+                for (const auto& [sc, u] : scores) {
+                    top_u[v].push_back(u);
+                }
+            }
+        });
+
+        gt_hash_map<uint64_t, int> seen;
         for (int v = 0; v < _N; ++v) {
-            scores.clear();
-            for (int u = 0; u < _N; ++u) {
-                if (!_self_loops && u == v) continue;
-                double dot = 0.0;
-                const double* pu = &_s_prev[static_cast<size_t>(u) * _M];
-                const double* pv = &_s_next[static_cast<size_t>(v) * _M];
-                double mu = mean_p[u], mv = mean_n[v];
-                for (int m = 0; m < _M; ++m) dot += (pu[m] - mu) * (pv[m] - mv);
-                double corr = std::abs(dot) / (sd_p[u] * sd_n[v]);
-                scores.emplace_back(corr, u);
-            }
-            if (static_cast<int>(scores.size()) > k_keep) {
-                std::nth_element(scores.begin(), scores.begin() + k_keep, scores.end(),
-                                 [](const auto& a, const auto& b) { return a.first > b.first; });
-                scores.resize(k_keep);
-            }
-            for (const auto& [sc, u] : scores) {
+            for (int u : top_u[v]) {
                 uint64_t k = key(u, v);
                 if (seen.emplace(k, 1).second) cands.push_back(k);
+            }
+        }
+        return cands;
+    }
+
+    // Residual-driven active-set candidate refresh (Peixoto 2024):
+    // combines active edges + top-k partial residual correlation + 2-hop + block-informed pairs.
+    std::vector<uint64_t> refresh_candidates(int k_per_node, Rng& rng, const PriorOpts& opts) const {
+        if (_N <= 1) return std::vector<uint64_t>();
+        if (_M_dyads <= static_cast<int64_t>(_N) * std::max(k_per_node, 20) || _N <= 45) {
+            return build_candidates(k_per_node);
+        }
+
+        int k_keep = std::min(_N - 1, std::max(4, k_per_node));
+        std::vector<std::vector<int>> top_u(_N);
+
+        if (_model == DYN_PSEUDO_NORMAL && _use_gram) {
+            std::vector<double> sd_s(_N, 1.0);
+            std::vector<double> s2_v(_N, 1.0);
+            for (int i = 0; i < _N; ++i) {
+                double vi = std::max(0.0, _G[static_cast<size_t>(i) * _N + i] -
+                                          (_s_sum[i] * _s_sum[i]) / _M_eff);
+                sd_s[i] = std::sqrt(vi) + 1e-12;
+                double th0 = _theta[i][0];
+                if (_positive && _abs_deg[i] > 0.0) {
+                    th0 = std::min(-0.5 * std::log(_abs_deg[i]) - _pslack, th0);
+                }
+                s2_v[i] = std::exp(2.0 * th0);
+            }
+
+            rgt_parallel::parallel_for(static_cast<size_t>(_N), 0, [&](int /*tid*/, size_t lo, size_t hi) {
+                std::vector<double> p_row(_N, 0.0);
+                std::vector<std::pair<double, int>> scores;
+                scores.reserve(_N);
+                for (size_t vi = lo; vi < hi; ++vi) {
+                    int v = static_cast<int>(vi);
+                    std::fill(p_row.begin(), p_row.end(), 0.0);
+                    for (const auto& [k, wk] : _adj_in[v]) {
+                        const double* gk = &_G[static_cast<size_t>(k) * _N];
+                        for (int u = 0; u < _N; ++u) p_row[u] += wk * gk[u];
+                    }
+                    const double* gv = &_G[static_cast<size_t>(v) * _N];
+                    double sv_sum = _s_sum[v];
+                    double dv = _pn_D[v];
+                    double s2 = s2_v[v];
+                    scores.clear();
+                    for (int u = 0; u < _N; ++u) {
+                        if (!_self_loops && u == v) continue;
+                        double cov_vu = gv[u] - (sv_sum * _s_sum[u]) / _M_eff;
+                        double cov_pu = p_row[u] - (dv * _s_sum[u]) / _M_eff;
+                        double rcov = cov_vu + s2 * cov_pu;
+                        double sc = std::abs(rcov) / sd_s[u];
+                        scores.emplace_back(sc, u);
+                    }
+                    if (static_cast<int>(scores.size()) > k_keep) {
+                        std::nth_element(scores.begin(), scores.begin() + k_keep, scores.end(),
+                            [](const auto& a, const auto& b) {
+                                if (a.first != b.first) return a.first > b.first;
+                                return a.second < b.second;
+                            });
+                        scores.resize(k_keep);
+                    }
+                    std::sort(scores.begin(), scores.end(),
+                        [](const auto& a, const auto& b) {
+                            if (a.first != b.first) return a.first > b.first;
+                            return a.second < b.second;
+                        });
+                    top_u[v].reserve(scores.size());
+                    for (const auto& [sc, u] : scores) top_u[v].push_back(u);
+                }
+            });
+        } else if (_model != DYN_PSEUDO_POTTS && _model != DYN_POTTS_GLAUBER && _M > 0) {
+            std::vector<double> R_norm(static_cast<size_t>(_N) * _M, 0.0);
+            std::vector<double> S_norm(static_cast<size_t>(_N) * _M, 0.0);
+            rgt_parallel::parallel_for(static_cast<size_t>(_N), 0, [&](int /*tid*/, size_t lo, size_t hi) {
+                for (size_t ii = lo; ii < hi; ++ii) {
+                    int i = static_cast<int>(ii);
+                    const double* sp = &_s_prev[static_cast<size_t>(i) * _M];
+                    const double* sn = &_s_next[static_cast<size_t>(i) * _M];
+                    const double* hi_row = &_h[static_cast<size_t>(i) * _M];
+                    double* r_row = &R_norm[static_cast<size_t>(i) * _M];
+                    double* s_row = &S_norm[static_cast<size_t>(i) * _M];
+
+                    double r_sum = 0.0, s_sum = 0.0;
+                    if (_model == DYN_PSEUDO_NORMAL || _model == DYN_NORMAL_GLAUBER) {
+                        double th0 = _theta[i][0];
+                        if (_model == DYN_PSEUDO_NORMAL && _positive && _abs_deg[i] > 0.0) {
+                            th0 = std::min(-0.5 * std::log(_abs_deg[i]) - _pslack, th0);
+                        }
+                        double mu = (_model == DYN_PSEUDO_NORMAL) ? _theta[i][1] : 0.0;
+                        double s2 = std::exp(2.0 * th0);
+                        for (int m = 0; m < _M; ++m) {
+                            double rv = sn[m] - (mu - s2 * hi_row[m]);
+                            r_row[m] = rv; s_row[m] = sp[m];
+                            r_sum += rv; s_sum += sp[m];
+                        }
+                    } else if (_model == DYN_LINEAR_NORMAL) {
+                        for (int m = 0; m < _M; ++m) {
+                            double rv = sn[m] - sp[m] - hi_row[m];
+                            r_row[m] = rv; s_row[m] = sp[m];
+                            r_sum += rv; s_sum += sp[m];
+                        }
+                    } else if (_model == DYN_PSEUDO_ISING || _model == DYN_ISING_GLAUBER) {
+                        double th = _theta[i][0];
+                        for (int m = 0; m < _M; ++m) {
+                            double fld = hi_row[m] + th;
+                            double mean_s = _has_zero
+                                ? (2.0 * std::sinh(fld) / (1.0 + 2.0 * std::cosh(fld)))
+                                : std::tanh(fld);
+                            double rv = sn[m] - mean_s;
+                            r_row[m] = rv; s_row[m] = sp[m];
+                            r_sum += rv; s_sum += sp[m];
+                        }
+                    } else if (_model == DYN_PSEUDO_CISING || _model == DYN_CISING_GLAUBER) {
+                        double th = _theta[i][0];
+                        for (int m = 0; m < _M; ++m) {
+                            double fld = hi_row[m] + th;
+                            double mean_s = (std::abs(fld) < 1e-4)
+                                ? (fld / 3.0 - (fld * fld * fld) / 45.0)
+                                : (1.0 / std::tanh(fld) - 1.0 / fld);
+                            double rv = sn[m] - mean_s;
+                            r_row[m] = rv; s_row[m] = sp[m];
+                            r_sum += rv; s_sum += sp[m];
+                        }
+                    } else { // DYN_EPIDEMICS
+                        double log_1m_r = log1mexp_d(_theta[i][0]);
+                        double target_inf = _exposed ? -1.0 : 1.0;
+                        for (int m = 0; m < _M; ++m) {
+                            double rv = 0.0;
+                            if (sp[m] == 0.0) {
+                                double p_inf = -std::expm1(log_1m_r + hi_row[m]);
+                                rv = ((sn[m] == target_inf) ? 1.0 : 0.0) - p_inf;
+                            }
+                            r_row[m] = rv; s_row[m] = sp[m];
+                            r_sum += rv; s_sum += sp[m];
+                        }
+                    }
+                    double r_mu = r_sum / _M, s_mu = s_sum / _M;
+                    double r_n2 = 0.0, s_n2 = 0.0;
+                    for (int m = 0; m < _M; ++m) {
+                        r_row[m] -= r_mu; s_row[m] -= s_mu;
+                        r_n2 += r_row[m] * r_row[m];
+                        s_n2 += s_row[m] * s_row[m];
+                    }
+                    double r_inv = 1.0 / (std::sqrt(r_n2) + 1e-12);
+                    double s_inv = 1.0 / (std::sqrt(s_n2) + 1e-12);
+                    for (int m = 0; m < _M; ++m) {
+                        r_row[m] *= r_inv;
+                        s_row[m] *= s_inv;
+                    }
+                }
+            });
+
+            rgt_parallel::parallel_for(static_cast<size_t>(_N), 0, [&](int /*tid*/, size_t lo, size_t hi) {
+                std::vector<std::pair<double, int>> scores;
+                scores.reserve(_N);
+                for (size_t vi = lo; vi < hi; ++vi) {
+                    int v = static_cast<int>(vi);
+                    const double* rv = &R_norm[static_cast<size_t>(v) * _M];
+                    scores.clear();
+                    for (int u = 0; u < _N; ++u) {
+                        if (!_self_loops && u == v) continue;
+                        const double* su = &S_norm[static_cast<size_t>(u) * _M];
+                        double dot = 0.0;
+                        for (int m = 0; m < _M; ++m) dot += rv[m] * su[m];
+                        scores.emplace_back(std::abs(dot), u);
+                    }
+                    if (static_cast<int>(scores.size()) > k_keep) {
+                        std::nth_element(scores.begin(), scores.begin() + k_keep, scores.end(),
+                            [](const auto& a, const auto& b) {
+                                if (a.first != b.first) return a.first > b.first;
+                                return a.second < b.second;
+                            });
+                        scores.resize(k_keep);
+                    }
+                    std::sort(scores.begin(), scores.end(),
+                        [](const auto& a, const auto& b) {
+                            if (a.first != b.first) return a.first > b.first;
+                            return a.second < b.second;
+                        });
+                    top_u[v].reserve(scores.size());
+                    for (const auto& [sc, u] : scores) top_u[v].push_back(u);
+                }
+            });
+        } else {
+            return build_candidates(k_per_node);
+        }
+
+        // Source 3: 2-hop neighbors in current graph (serial, deterministic)
+        std::vector<std::vector<int>> two_hop(_N);
+        std::vector<int> stamp(_N, 0), cnt(_N, 0), touched;
+        int cur_stamp = 0;
+        int k_2hop = std::max(k_per_node, 20);
+        for (int u = 0; u < _N; ++u) {
+            ++cur_stamp;
+            touched.clear();
+            auto add_hop = [&](int mid) {
+                for (const auto& [w, _w1] : _adj_in[mid]) {
+                    if (!_self_loops && w == u) continue;
+                    if (stamp[w] != cur_stamp) {
+                        stamp[w] = cur_stamp;
+                        cnt[w] = 1;
+                        touched.push_back(w);
+                    } else {
+                        cnt[w] += 1;
+                    }
+                }
+                if (_directed) {
+                    for (const auto& [w, _w2] : _adj_out[mid]) {
+                        if (!_self_loops && w == u) continue;
+                        if (stamp[w] != cur_stamp) {
+                            stamp[w] = cur_stamp;
+                            cnt[w] = 1;
+                            touched.push_back(w);
+                        } else {
+                            cnt[w] += 1;
+                        }
+                    }
+                }
+            };
+            for (const auto& [mid, _wm] : _adj_in[u]) add_hop(mid);
+            if (_directed) {
+                for (const auto& [mid, _wm2] : _adj_out[u]) add_hop(mid);
+            }
+            if (touched.empty()) continue;
+            std::vector<std::pair<int, int>> ranked;
+            ranked.reserve(touched.size());
+            for (int w : touched) ranked.emplace_back(cnt[w], w);
+            if (static_cast<int>(ranked.size()) > k_2hop) {
+                std::nth_element(ranked.begin(), ranked.begin() + k_2hop, ranked.end(),
+                    [](const auto& a, const auto& b) {
+                        if (a.first != b.first) return a.first > b.first;
+                        return a.second < b.second;
+                    });
+                ranked.resize(k_2hop);
+            }
+            std::sort(ranked.begin(), ranked.end(),
+                [](const auto& a, const auto& b) {
+                    if (a.first != b.first) return a.first > b.first;
+                    return a.second < b.second;
+                });
+            two_hop[u].reserve(ranked.size());
+            for (const auto& [c, w] : ranked) two_hop[u].push_back(w);
+        }
+
+        // Merge sources deterministically: 1. Active edges, 2. Residual partners, 3. 2-hop, 4. Block exploration
+        std::vector<uint64_t> cands;
+        gt_hash_map<uint64_t, int> seen;
+        auto push_cand = [&](int u, int v) {
+            if (!valid_dyad(u, v)) return;
+            uint64_t k = key(u, v);
+            if (seen.emplace(k, 1).second) cands.push_back(k);
+        };
+
+        std::vector<uint64_t> act_sorted = _active;
+        std::sort(act_sorted.begin(), act_sorted.end());
+        for (uint64_t k : act_sorted) {
+            if (seen.emplace(k, 1).second) cands.push_back(k);
+        }
+        for (int v = 0; v < _N; ++v) {
+            for (int u : top_u[v]) push_cand(u, v);
+        }
+        for (int u = 0; u < _N; ++u) {
+            for (int w : two_hop[u]) push_cand(u, w);
+        }
+        if (opts.sbm && _prior.base().B() >= 1) {
+            int n_intra = std::min(4, std::max(1, k_per_node / 4));
+            for (int v = 0; v < _N; ++v) {
+                int g = _prior.base().group(v);
+                const auto& mems = _prior.base().members(g);
+                if (mems.size() > 1) {
+                    for (int t = 0; t < n_intra; ++t) {
+                        int u = mems[rng.index(mems.size())];
+                        push_cand(u, v);
+                    }
+                }
+                int gs = _prior.base().sample_group(v, 1.0, rng);
+                const auto& gmems = _prior.base().members(gs);
+                if (!gmems.empty()) {
+                    int u = gmems[rng.index(gmems.size())];
+                    push_cand(u, v);
+                }
             }
         }
         return cands;
@@ -923,6 +1679,12 @@ private:
     int _f_q = 0;
     std::vector<double> _f;
 
+    // Gram-matrix sufficient statistics for DYN_PSEUDO_NORMAL
+    bool _use_gram = false;
+    double _M_eff = 0.0;
+    std::vector<double> _G, _s_sum;
+    std::vector<double> _pn_C, _pn_D, _pn_H;
+
     // Cached local fields:
     // - Ising / CIsing / Epidemics / Normal / Linear: _h[i * _M + m] = sum_j W_{ij} s_prev[j, m]
     //   (for Epidemics: sum_{j->i, s_prev[j,m]==1} x_{ji})
@@ -931,6 +1693,8 @@ private:
 
     std::vector<uint64_t> _active;
     gt_hash_map<uint64_t, size_t> _active_pos;
+    mutable QuantHist _x_hist;
+    mutable std::vector<QuantHist> _t_hist;
 
     void active_insert(uint64_t k) {
         if (_active_pos.find(k) != _active_pos.end()) return;
@@ -950,6 +1714,22 @@ private:
     }
 
     void recompute_vertex_field(int i) {
+        if (_use_gram) {
+            double c = 0.0, d = 0.0, h = 0.0;
+            const double* gi = &_G[static_cast<size_t>(i) * _N];
+            for (const auto& [k, wk] : _adj_in[i]) {
+                c += wk * gi[k];
+                d += wk * _s_sum[k];
+                const double* gk = &_G[static_cast<size_t>(k) * _N];
+                for (const auto& [k2, wk2] : _adj_in[i]) {
+                    h += wk * wk2 * gk[k2];
+                }
+            }
+            _pn_C[i] = c;
+            _pn_D[i] = d;
+            _pn_H[i] = std::max(0.0, h);
+            return;
+        }
         if (_model == DYN_PSEUDO_POTTS || _model == DYN_POTTS_GLAUBER) {
             double* hi = &_h_potts[static_cast<size_t>(i) * _f_q * _M];
             std::fill(hi, hi + static_cast<size_t>(_f_q) * _M, 0.0);
@@ -981,6 +1761,18 @@ private:
     }
 
     void apply_vertex_field_delta(int i, int j, double dw) {
+        if (_use_gram) {
+            // Note: apply_edge_move() already updated _adj_in[i][j] to w_new
+            double pij_new = 0.0;
+            const double* gj = &_G[static_cast<size_t>(j) * _N];
+            for (const auto& [k, wk] : _adj_in[i]) {
+                pij_new += wk * gj[k];
+            }
+            _pn_C[i] += dw * _G[static_cast<size_t>(i) * _N + j];
+            _pn_D[i] += dw * _s_sum[j];
+            _pn_H[i] = std::max(0.0, _pn_H[i] + 2.0 * dw * pij_new - dw * dw * gj[j]);
+            return;
+        }
         if (_model == DYN_PSEUDO_POTTS || _model == DYN_POTTS_GLAUBER) {
             double* hi = &_h_potts[static_cast<size_t>(i) * _f_q * _M];
             const int* sj = &_si_prev[static_cast<size_t>(j) * _M];
@@ -1003,6 +1795,32 @@ private:
     }
 
     double eval_vertex_nll_with_edge_delta(int i, int j, double dw, double d_abs) const {
+        if (_model == DYN_PSEUDO_NORMAL && _use_gram) {
+            double th0 = _theta[i][0];
+            double mu = _theta[i][1];
+            if (_positive) {
+                double k_abs = _abs_deg[i] + d_abs;
+                if (k_abs > 0.0) th0 = std::min(-0.5 * std::log(k_abs) - _pslack, th0);
+            }
+            double s2 = std::exp(2.0 * th0);
+            double inv_s2 = std::exp(-2.0 * th0);
+            double pij = 0.0;
+            if (dw != 0.0) {
+                const double* gj = &_G[static_cast<size_t>(j) * _N];
+                for (const auto& [k, wk] : _adj_in[i]) {
+                    pij += wk * gj[k];
+                }
+            }
+            double ci = _pn_C[i] + dw * _G[static_cast<size_t>(i) * _N + j];
+            double di = _pn_D[i] + dw * _s_sum[j];
+            double hi_val = _pn_H[i] + 2.0 * dw * pij +
+                            dw * dw * _G[static_cast<size_t>(j) * _N + j];
+            double quad_s = _G[static_cast<size_t>(i) * _N + i] -
+                            2.0 * mu * _s_sum[i] + _M_eff * mu * mu;
+            return 0.5 * (quad_s * inv_s2 + 2.0 * (ci - mu * di) + s2 * hi_val) +
+                   _M_eff * (th0 + HALF_LOG_2PI);
+        }
+
         if (_model == DYN_PSEUDO_POTTS || _model == DYN_POTTS_GLAUBER) {
             const double* hi = &_h_potts[static_cast<size_t>(i) * _f_q * _M];
             const int* sj = &_si_prev[static_cast<size_t>(j) * _M];
@@ -1169,7 +1987,15 @@ DynamicsEngine build_dynamics_engine(
     DynamicsEngine eng(model, N, directed, self_loops, q_t, has_zero, exposed,
                        positive, pslack, xmin, xmax, tmin_v, tmax_v,
                        dc, dist, qm, sbm_L);
-    eng.set_data(s_list, f_mat);
+    if (model == DYN_PSEUDO_NORMAL && s_list.hasAttribute("gram")) {
+        Rcpp::List gr = s_list.attr("gram");
+        Rcpp::NumericMatrix cov_mat = gr["cov"];
+        double n_eff = Rcpp::as<double>(gr["n_eff"]);
+        Rcpp::NumericVector mean_vec = gr["mean"];
+        eng.set_gram(cov_mat, n_eff, mean_vec);
+    } else {
+        eng.set_data(s_list, f_mat);
+    }
 
     std::vector<std::tuple<int, int, double>> edges;
     edges.reserve(init_edges.nrow());
@@ -1295,7 +2121,8 @@ Rcpp::List cpp_dynamics_reconstruct(
     Rcpp::NumericMatrix init_theta, Rcpp::List bs_list,
     bool dc, bool dist, Rcpp::List prior_opts,
     int niter, int nsamples, int burnin, int thin, double beta,
-    int k_cand, double w_step, double t_step, double tol, double q_max) {
+    int k_cand, double w_step, double t_step, double tol, double q_max,
+    int refresh_every = 3, bool merge_split = true) {
     DynamicsEngine eng = build_dynamics_engine(
         model, N, directed, self_loops, s_list, f_mat, has_zero, exposed, positive,
         pslack, xmin, xmax, tmin, tmax, init_edges, init_x, init_theta, bs_list,
@@ -1310,14 +2137,31 @@ Rcpp::List cpp_dynamics_reconstruct(
 
     // Phase 1: Greedy MAP optimization sweeps (when niter > 0)
     double prev_S = eng.total_entropy(opts);
+    bool refreshed_this_iter = true;
     for (int it = 0; it < niter; ++it) {
         double step_dS = 0.0;
         eng.greedy_sweep(rng, cands, opts, true, step_dS, nattempts, nmoves);
+        if (opts.sbm && merge_split && N > 1 &&
+            (it == 0 || (it % 2 == 1) || it == niter - 1)) {
+            eng.prior().merge_split_sweep(rng, step_dS, nattempts, nmoves);
+        }
         total_dS += step_dS;
+        eng.refresh_quant_hists();
         double cur_S = eng.total_entropy(opts);
         entropies.push_back(cur_S);
         if ((it & 3) == 0) Rcpp::checkUserInterrupt();
-        if (it >= 2 && std::abs(prev_S - cur_S) < tol && step_dS >= -tol) break;
+
+        bool periodic_refresh = (refresh_every > 0) && ((it + 1) % refresh_every == 0) && (it + 1 < niter);
+        bool converged = (it >= 2 && std::abs(prev_S - cur_S) < tol && step_dS >= -tol);
+        if (converged && (refresh_every <= 0 || refreshed_this_iter)) {
+            break;
+        }
+        if ((periodic_refresh || (converged && !refreshed_this_iter)) && refresh_every > 0 && it + 1 < niter) {
+            cands = eng.refresh_candidates(k_cand, rng, opts);
+            refreshed_this_iter = true;
+        } else {
+            refreshed_this_iter = false;
+        }
         prev_S = cur_S;
     }
 
@@ -1326,6 +2170,8 @@ Rcpp::List cpp_dynamics_reconstruct(
     gt_hash_map<uint64_t, double> edge_wsum, edge_w2sum;
     std::vector<std::vector<double>> th_sum(N, std::vector<double>(eng.q_t(), 0.0));
     std::vector<std::vector<double>> th_2sum(N, std::vector<double>(eng.q_t(), 0.0));
+
+    Rcpp::List bs_samples = (nsamples > 0 && opts.sbm) ? Rcpp::List(nsamples) : Rcpp::List(0);
 
     if (nsamples > 0) {
         double beta_samp = std::isinf(beta) ? 1.0 : beta;
@@ -1349,6 +2195,9 @@ Rcpp::List cpp_dynamics_reconstruct(
                     th_sum[i][l] += th[i][l];
                     th_2sum[i][l] += th[i][l] * th[i][l];
                 }
+            }
+            if (opts.sbm) {
+                bs_samples[s] = eng.prior().export_bs();
             }
             entropies.push_back(eng.total_entropy(opts));
             if ((s & 7) == 0) Rcpp::checkUserInterrupt();
@@ -1429,6 +2278,7 @@ Rcpp::List cpp_dynamics_reconstruct(
         Rcpp::Named("theta_mean") = th_mean,
         Rcpp::Named("theta_sd") = th_sd,
         Rcpp::Named("final_bs") = eng.prior().export_bs(),
+        Rcpp::Named("bs_samples") = bs_samples,
         Rcpp::Named("entropies") = entropies,
         Rcpp::Named("entropy") = eng.total_entropy(opts),
         Rcpp::Named("nll") = eng.data_nll(),

@@ -505,8 +505,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // cpp_dynamics_reconstruct
-Rcpp::List cpp_dynamics_reconstruct(int model, int N, bool directed, bool self_loops, Rcpp::List s_list, Rcpp::NumericMatrix f_mat, bool has_zero, bool exposed, bool positive, double pslack, double xmin, double xmax, Rcpp::NumericVector tmin, Rcpp::NumericVector tmax, Rcpp::IntegerMatrix init_edges, Rcpp::NumericVector init_x, Rcpp::NumericMatrix init_theta, Rcpp::List bs_list, bool dc, bool dist, Rcpp::List prior_opts, int niter, int nsamples, int burnin, int thin, double beta, int k_cand, double w_step, double t_step, double tol, double q_max);
-RcppExport SEXP _rgraphtool_cpp_dynamics_reconstruct(SEXP modelSEXP, SEXP NSEXP, SEXP directedSEXP, SEXP self_loopsSEXP, SEXP s_listSEXP, SEXP f_matSEXP, SEXP has_zeroSEXP, SEXP exposedSEXP, SEXP positiveSEXP, SEXP pslackSEXP, SEXP xminSEXP, SEXP xmaxSEXP, SEXP tminSEXP, SEXP tmaxSEXP, SEXP init_edgesSEXP, SEXP init_xSEXP, SEXP init_thetaSEXP, SEXP bs_listSEXP, SEXP dcSEXP, SEXP distSEXP, SEXP prior_optsSEXP, SEXP niterSEXP, SEXP nsamplesSEXP, SEXP burninSEXP, SEXP thinSEXP, SEXP betaSEXP, SEXP k_candSEXP, SEXP w_stepSEXP, SEXP t_stepSEXP, SEXP tolSEXP, SEXP q_maxSEXP) {
+Rcpp::List cpp_dynamics_reconstruct(int model, int N, bool directed, bool self_loops, Rcpp::List s_list, Rcpp::NumericMatrix f_mat, bool has_zero, bool exposed, bool positive, double pslack, double xmin, double xmax, Rcpp::NumericVector tmin, Rcpp::NumericVector tmax, Rcpp::IntegerMatrix init_edges, Rcpp::NumericVector init_x, Rcpp::NumericMatrix init_theta, Rcpp::List bs_list, bool dc, bool dist, Rcpp::List prior_opts, int niter, int nsamples, int burnin, int thin, double beta, int k_cand, double w_step, double t_step, double tol, double q_max, int refresh_every, bool merge_split);
+RcppExport SEXP _rgraphtool_cpp_dynamics_reconstruct(SEXP modelSEXP, SEXP NSEXP, SEXP directedSEXP, SEXP self_loopsSEXP, SEXP s_listSEXP, SEXP f_matSEXP, SEXP has_zeroSEXP, SEXP exposedSEXP, SEXP positiveSEXP, SEXP pslackSEXP, SEXP xminSEXP, SEXP xmaxSEXP, SEXP tminSEXP, SEXP tmaxSEXP, SEXP init_edgesSEXP, SEXP init_xSEXP, SEXP init_thetaSEXP, SEXP bs_listSEXP, SEXP dcSEXP, SEXP distSEXP, SEXP prior_optsSEXP, SEXP niterSEXP, SEXP nsamplesSEXP, SEXP burninSEXP, SEXP thinSEXP, SEXP betaSEXP, SEXP k_candSEXP, SEXP w_stepSEXP, SEXP t_stepSEXP, SEXP tolSEXP, SEXP q_maxSEXP, SEXP refresh_everySEXP, SEXP merge_splitSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -541,7 +541,9 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type t_step(t_stepSEXP);
     Rcpp::traits::input_parameter< double >::type tol(tolSEXP);
     Rcpp::traits::input_parameter< double >::type q_max(q_maxSEXP);
-    rcpp_result_gen = Rcpp::wrap(cpp_dynamics_reconstruct(model, N, directed, self_loops, s_list, f_mat, has_zero, exposed, positive, pslack, xmin, xmax, tmin, tmax, init_edges, init_x, init_theta, bs_list, dc, dist, prior_opts, niter, nsamples, burnin, thin, beta, k_cand, w_step, t_step, tol, q_max));
+    Rcpp::traits::input_parameter< int >::type refresh_every(refresh_everySEXP);
+    Rcpp::traits::input_parameter< bool >::type merge_split(merge_splitSEXP);
+    rcpp_result_gen = Rcpp::wrap(cpp_dynamics_reconstruct(model, N, directed, self_loops, s_list, f_mat, has_zero, exposed, positive, pslack, xmin, xmax, tmin, tmax, init_edges, init_x, init_theta, bs_list, dc, dist, prior_opts, niter, nsamples, burnin, thin, beta, k_cand, w_step, t_step, tol, q_max, refresh_every, merge_split));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -2196,7 +2198,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rgraphtool_cpp_closure_infer", (DL_FUNC) &_rgraphtool_cpp_closure_infer, 20},
     {"_rgraphtool_cpp_dynamics_entropy", (DL_FUNC) &_rgraphtool_cpp_dynamics_entropy, 22},
     {"_rgraphtool_cpp_dynamics_check_moves", (DL_FUNC) &_rgraphtool_cpp_dynamics_check_moves, 23},
-    {"_rgraphtool_cpp_dynamics_reconstruct", (DL_FUNC) &_rgraphtool_cpp_dynamics_reconstruct, 31},
+    {"_rgraphtool_cpp_dynamics_reconstruct", (DL_FUNC) &_rgraphtool_cpp_dynamics_reconstruct, 33},
     {"_rgraphtool_cpp_sim_ising", (DL_FUNC) &_rgraphtool_cpp_sim_ising, 9},
     {"_rgraphtool_cpp_sim_epidemics", (DL_FUNC) &_rgraphtool_cpp_sim_epidemics, 9},
     {"_rgraphtool_cpp_sim_normal_dyn", (DL_FUNC) &_rgraphtool_cpp_sim_normal_dyn, 8},

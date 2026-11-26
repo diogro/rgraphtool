@@ -102,7 +102,8 @@ dynamics_description_length(state, sbm = NULL, latent_edges = TRUE,
 reconstruct_dynamics(state, niter = 25L, nsamples = 0L, burnin = 50L,
   thin = 2L, beta = Inf, k_cand = 20L, w_step = 0.25, t_step = 0.25,
   tol = 1e-4, threshold = 0.5, sbm = NULL, xdist = NULL, tdist = NULL,
-  xl1 = NULL, tl1 = NULL, normal = FALSE, mu = 0, sigma = 1)
+  xl1 = NULL, tl1 = NULL, normal = FALSE, mu = 0, sigma = 1,
+  refresh_every = 3L, merge_split = TRUE)
 
 reconstruct_l1_path(state, xl1_values = c(0.25, 0.5, 1, 2, 5, 10),
   tl1 = 0.1, sbm = FALSE, niter = 20L, truth = NULL, k_cand = 20L,
@@ -165,6 +166,8 @@ dynamics_transmission_probs(state)
   \item{w_step, t_step}{Random-walk proposal half-widths for finite-temperature
   edge weight and node parameter MCMC updates.}
   \item{tol}{Stopping tolerance in nats for greedy MAP optimization.}
+  \item{refresh_every}{Active-set candidate refresh period (in greedy MAP iterations) using residual correlations, 2-hop neighbors, and SBM block proposals; set \code{0L} to keep initial candidates fixed.}
+  \item{merge_split}{If \code{TRUE} and \code{sbm = TRUE}, perform multilevel merge-split sweeps inside \code{DynBlockPrior} during greedy MAP optimization.}
   \item{threshold}{Marginal edge-probability threshold for the returned
   \code{graph}.}
   \item{xl1_values}{Grid of L1 regularization strengths \eqn{\lambda} swept
