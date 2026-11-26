@@ -261,3 +261,139 @@ test_that("weighted PP recovers dense weight-only communities and supports compa
   )
   expect_true(cmp_antag$best_model %in% c("sbm_flat", "sbm_nested"))
 })
+
+test_that("layered and layered-weighted PPBlockState match B=1 and C=1 references and incremental moves", {
+  set.seed(503L)
+  edges <- rbind(
+    c(1L, 2L), c(1L, 2L), c(1L, 3L), c(1L, 1L), c(2L, 3L),
+    c(3L, 4L), c(4L, 5L), c(4L, 5L), c(5L, 6L), c(6L, 4L), c(5L, 5L)
+  )
+  m <- nrow(edges)
+  # Vertex 7 is isolated; multi-layer parallel + self-loops present
+  lay1 <- rep(1L, m)
+  lay2 <- rep(1:2, length.out = m)
+  w_norm <- stats::rnorm(m, 0.3, 1.2)
+  w_exp <- exp(0.25 * w_norm)
+  w_pois <- stats::rpois(m, lambda = 4.5)
+  b1 <- rep(1L, 7L)
+  b3 <- c(1L, 1L, 1L, 2L, 2L, 3L, 3L)
+
+  for (dir in c(FALSE, TRUE)) {
+    g <- graph_add_edges(graph_create(7L, directed = dir), edges)
+
+    # C = 1 exact parity with single-layer PPBlockState
+    for (unif in c(FALSE, TRUE)) {
+      p_single <- pp_block_state(g, blocks = b3, uniform = unif, weights = w_norm, types = "real-normal")
+      p_lay1 <- pp_block_state(g, blocks = b3, uniform = unif, weights = w_norm, types = "real-normal",
+                               layers = lay1, independent = FALSE)
+      expect_equal(pp_description_length(p_lay1), pp_description_length(p_single), tolerance = 1e-10)
+    }
+
+    # B = 1 exact parity with LayeredBlockState across unweighted & weighted configs
+    specs <- list(
+      list(w = NULL, tp = NULL, pr = "microcanonical"),
+      list(w = w_norm, tp = "real-normal", pr = "microcanonical"),
+      list(w = w_exp,  tp = "real-exponential", pr = "microcanonical"),
+      list(w = w_pois, tp = "discrete-poisson", pr = "microcanonical")
+    )
+    for (sp in specs) {
+      for (indep in c(FALSE, TRUE)) {
+        for (dc in c(TRUE, FALSE)) {
+          ls <- layered_block_state(g, layers = lay2, independent = indep,
+                                    blocks = b1, degree_corrected = dc,
+                                    weights = sp$w, types = sp$tp, params = sp$pr)
+          dl_l <- layered_description_length(ls)
+          for (unif in c(FALSE, TRUE)) {
+            ps <- pp_block_state(g, blocks = b1, uniform = unif, degree_corrected = dc,
+                                 weights = sp$w, types = sp$tp, params = sp$pr,
+                                 layers = lay2, independent = indep)
+            expect_equal(pp_description_length(ps), dl_l, tolerance = 1e-10)
+          }
+        }
+      }
+    }
+
+    # All 8 (unif x indep x dc) incremental move checks with multi-covariate weights
+    w_multi <- cbind(w_norm, w_pois)
+    tp_multi <- c("real-normal", "discrete-poisson")
+    pr_multi <- list(c(NaN, NaN, NaN, NaN), c(NaN, NaN))
+    for (unif in c(FALSE, TRUE)) {
+      for (indep in c(FALSE, TRUE)) {
+        for (dc in c(TRUE, FALSE)) {
+          err <- rgraphtool:::cpp_pp_check_moves(
+            rgraphtool:::graph_pointer(g), b3, unif, dc, TRUE, 45L, 1000,
+            w_multi, tp_multi, pr_multi, lay2, indep
+          )
+          expect_lt(max(err), 1e-8)
+        }
+      }
+    }
+  }
+})
+
+test_that("layered PP recovers multi-layer communities and integrates with compare_layered_models", {
+  set.seed(504L)
+  n <- 24L
+  truth <- rep(1:2, each = 12L)
+  ed_list <- list()
+  lay <- integer(0)
+  w_cons <- numeric(0)
+  w_rew <- numeric(0)
+
+  for (i in 1:(n - 1L)) {
+    for (j in (i + 1L):n) {
+      same <- (truth[i] == truth[j])
+      if (stats::runif(1) < 0.7) {
+        for (l in 1:2) {
+          ed_list[[length(ed_list) + 1L]] <- c(i, j)
+          lay <- c(lay, l)
+          mu_c <- if (same) 2.4 else -1.2
+          mu_r <- if (l == 1L) (if (same) 2.4 else -1.2) else (if (same) -2.4 else 1.2)
+          w_cons <- c(w_cons, stats::rnorm(1, mu_c, 0.35))
+          w_rew <- c(w_rew, stats::rnorm(1, mu_r, 0.35))
+        }
+      }
+    }
+  }
+  g <- graph_add_edges(
+    graph_create(n, directed = FALSE),
+    do.call(rbind, ed_list),
+    properties = list(layer = lay, w_cons = w_cons, w_rew = w_rew)
+  )
+
+  st_lp <- minimize_pp_blockmodel_dl(
+    g, weights = "w_cons", types = "real-normal", layers = "layer", independent = FALSE
+  )
+  expect_true(isTRUE(st_lp$layered))
+  expect_true(isTRUE(st_lp$weighted))
+  expect_equal(st_lp$C, 2L)
+  expect_gt(partition_overlap(block_membership(st_lp), truth, norm = TRUE), 0.90)
+  asrt <- pp_assortativity(st_lp)
+  expect_equal(dim(asrt$err_layer), c(st_lp$B, 2L))
+  expect_equal(dim(asrt$weight_in_mean_layer), c(2L, 1L))
+  expect_output(print(st_lp), "2 layers \\(edge-covariates\\)")
+
+  sw <- mcmc_sweep(st_lp, beta = 1.0, niter = 6L)
+  expect_true(isTRUE(sw$state$layered))
+  expect_true(isTRUE(sw$state$weighted))
+  expect_equal(sw$entropy, pp_description_length(sw$state), tolerance = 1e-8)
+
+  cmp_cons <- compare_layered_models(
+    g, layers = "layer",
+    models = c("edge_covariates", "independent_layers",
+               "pp_edge_covariates", "pp_independent_layers"),
+    weights = "w_cons", types = "real-normal",
+    nested = TRUE, method = "posterior", nsamples = 25L, burnin = 15L, thin = 2L
+  )
+  expect_equal(cmp_cons$best_model, "pp_edge_covariates")
+
+  cmp_rew <- compare_layered_models(
+    g, layers = "layer",
+    models = c("pp_edge_covariates", "pp_independent_layers",
+               "edge_covariates", "independent_layers"),
+    weights = "w_rew", types = "real-normal",
+    nested = TRUE, method = "posterior", nsamples = 25L, burnin = 15L, thin = 2L
+  )
+  expect_true(cmp_rew$best_model %in% c("pp_independent_layers", "independent_layers"))
+  expect_true(cmp_rew$summary$independent[1L])
+})

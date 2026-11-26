@@ -403,7 +403,10 @@ compare_layered_models <- function(graph, layers,
 
   valid_models <- c("edge_covariates", "independent_layers",
                     "edge_covariates_dc", "edge_covariates_ndc",
-                    "independent_layers_dc", "independent_layers_ndc")
+                    "independent_layers_dc", "independent_layers_ndc",
+                    "pp_edge_covariates", "pp_independent_layers",
+                    "pp_edge_covariates_uniform",
+                    "pp_independent_layers_uniform")
   if (!is.character(models) || !length(models) || anyNA(models) ||
       any(!models %in% valid_models)) {
     stop("models must be a non-empty subset of: ",
@@ -418,12 +421,16 @@ compare_layered_models <- function(graph, layers,
   spec_for <- function(nm) {
     switch(
       nm,
-      edge_covariates        = list(independent = FALSE, dc = degree_corrected),
-      independent_layers     = list(independent = TRUE,  dc = degree_corrected),
-      edge_covariates_dc     = list(independent = FALSE, dc = TRUE),
-      edge_covariates_ndc    = list(independent = FALSE, dc = FALSE),
-      independent_layers_dc  = list(independent = TRUE,  dc = TRUE),
-      independent_layers_ndc = list(independent = TRUE,  dc = FALSE)
+      edge_covariates        = list(independent = FALSE, dc = degree_corrected, pp = FALSE, uniform = FALSE),
+      independent_layers     = list(independent = TRUE,  dc = degree_corrected, pp = FALSE, uniform = FALSE),
+      edge_covariates_dc     = list(independent = FALSE, dc = TRUE,  pp = FALSE, uniform = FALSE),
+      edge_covariates_ndc    = list(independent = FALSE, dc = FALSE, pp = FALSE, uniform = FALSE),
+      independent_layers_dc  = list(independent = TRUE,  dc = TRUE,  pp = FALSE, uniform = FALSE),
+      independent_layers_ndc = list(independent = TRUE,  dc = FALSE, pp = FALSE, uniform = FALSE),
+      pp_edge_covariates         = list(independent = FALSE, dc = degree_corrected, pp = TRUE, uniform = FALSE),
+      pp_independent_layers      = list(independent = TRUE,  dc = degree_corrected, pp = TRUE, uniform = FALSE),
+      pp_edge_covariates_uniform = list(independent = FALSE, dc = degree_corrected, pp = TRUE, uniform = TRUE),
+      pp_independent_layers_uniform = list(independent = TRUE, dc = degree_corrected, pp = TRUE, uniform = TRUE)
     )
   }
 
@@ -441,7 +448,17 @@ compare_layered_models <- function(graph, layers,
     best_st <- NULL
     best_dl <- Inf
     for (run in seq_len(nruns)) {
-      st <- if (nested) {
+      st <- if (isTRUE(sp$pp)) {
+        minimize_pp_blockmodel_dl(
+          graph, uniform = sp$uniform, degree_corrected = sp$dc,
+          degree_prior = degree_prior, B_min = B_min, B_max = B_max,
+          refine = refine,
+          weights = if (wspec$weighted) wspec$W else NULL,
+          types = if (wspec$weighted) wspec$types else NULL,
+          params = if (wspec$weighted) params else "microcanonical",
+          layers = linfo$codes, independent = sp$independent
+        )
+      } else if (nested) {
         minimize_nested_layered_blockmodel_dl(
           graph, layers = linfo$codes, independent = sp$independent,
           degree_corrected = sp$dc, degree_prior = degree_prior,
@@ -463,7 +480,7 @@ compare_layered_models <- function(graph, layers,
         )
       }
       st$layer_levels <- linfo$levels
-      dl <- if (nested) nested_layered_description_length(st) else layered_description_length(st)
+      dl <- state_description_length(st)
       if (dl < best_dl) {
         best_dl <- dl
         best_st <- st
@@ -488,7 +505,7 @@ compare_layered_models <- function(graph, layers,
       model = nm,
       independent = sp$independent,
       degree_corrected = sp$dc,
-      B = if (nested) best_st$B[1L] else best_st$B,
+      B = state_num_groups(best_st),
       description_length = best_dl,
       posterior_entropy = post_h,
       neg_log_evidence = neg_log_ev,

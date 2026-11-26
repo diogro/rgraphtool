@@ -10,13 +10,15 @@
 \usage{
 pp_block_state(graph, blocks = NULL, uniform = FALSE,
   degree_corrected = TRUE, degree_prior = c("distributed", "uniform"),
-  weights = NULL, types = NULL, params = "microcanonical")
+  weights = NULL, types = NULL, params = "microcanonical",
+  layers = NULL, independent = FALSE)
 pp_description_length(state, degree_prior = NULL)
 pp_assortativity(state)
 minimize_pp_blockmodel_dl(graph, uniform = FALSE, degree_corrected = TRUE,
   degree_prior = c("distributed", "uniform"), B_min = 1L, B_max = Inf,
   refine = TRUE, epsilon = 1e-3,
-  weights = NULL, types = NULL, params = "microcanonical")
+  weights = NULL, types = NULL, params = "microcanonical",
+  layers = NULL, independent = FALSE)
 compare_assortative_models(graph,
   models = c("pp", "pp_uniform", "sbm_flat", "sbm_nested"),
   degree_corrected = TRUE, degree_prior = c("distributed", "uniform"),
@@ -67,6 +69,15 @@ compare_assortative_models(graph,
   \item{params}{Hyperprior specification for \code{weights}: \code{"microcanonical"}
   (default) or explicit Bayesian prior hyperparameters as in
   \code{\link{weighted_block_state}}.}
+  \item{layers}{Optional discrete edge layer labels: an edge property name or a
+  vector of length \code{graph_num_edges(graph)} (as in
+  \code{\link{layered_block_state}}). Enables flat multi-layer planted-partition
+  inference, optionally combined with \code{weights}.}
+  \item{independent}{Used when \code{layers} is provided: if \code{FALSE}
+  (default), fit the discrete edge-covariate PP model with pooled degrees and
+  pooled covariate buckets across layers; if \code{TRUE}, fit conditionally
+  independent PP layers with layer-specific degrees, active group sizes, and
+  (when weighted) per-layer covariate distributions.}
 }
 \description{
 Native C++ implementation of the microcanonical Bayesian planted-partition
@@ -110,10 +121,12 @@ when \code{uniform = TRUE}; \eqn{B + 1} buckets \eqn{\{rr\}} and \code{out} when
   or disassortative.
   \item \emph{Extension beyond upstream graph-tool 3.9:} Upstream
   \code{graph-tool} 3.9 \code{PPBlockState} does not support edge covariates
-  (\code{recs}); \code{rgraphtool} extends PP with the exact \code{graph-tool}
-  covariate likelihoods over the 2 or \eqn{B + 1} PP buckets. At \eqn{B = 1},
-  the weighted PP description length matches \code{\link{weighted_block_state}}
-  identically.
+  (\code{recs}) or edge layers; \code{rgraphtool} extends PP to both
+  (flat, single-level) layers and covariates using the exact \code{graph-tool}
+  microcanonical/conjugate likelihoods. At \eqn{B = 1}, the weighted/layered
+  PP description length matches \code{\link{weighted_block_state}} or
+  \code{\link{layered_block_state}} identically, and \code{compare_layered_models()}
+  supports direct comparison against general layered SBMs.
 }
 
 Planted-partition states work directly with \code{\link{block_membership}},
@@ -125,8 +138,9 @@ Planted-partition states work directly with \code{\link{block_membership}},
 \code{pp_block_state()} and \code{minimize_pp_blockmodel_dl()} return a
 \code{rgraphtool_pp_block_state} list with \code{blocks}, \code{graph},
 \code{uniform}, \code{degree_corrected}, \code{degree_prior}, \code{B}, and
-optional \code{fit} (plus \code{weights}, \code{types}, \code{params}, and
-\code{weighted}).
+optional \code{fit} (plus \code{weights}, \code{types}, \code{params},
+\code{weighted}, \code{layers}, \code{layer_levels}, \code{C},
+\code{independent}, and \code{layered}).
 
 \code{pp_description_length()} returns the exact microcanonical description
 length in nats.
@@ -134,7 +148,10 @@ length in nats.
 \code{pp_assortativity()} returns a list with \code{E_in}, \code{E_out},
 \code{E_total}, \code{fraction_in}, \code{B}, effective group count \code{Be},
 and per-group internal edge counts \code{err} (plus \code{weight_in_mean} and
-\code{weight_out_mean} when \code{state} is weighted).
+\code{weight_out_mean} when \code{state} is weighted, and per-layer fields
+\code{E_in_layer}, \code{E_out_layer}, \code{E_total_layer},
+\code{fraction_in_layer}, \code{err_layer}, \code{weight_in_mean_layer}, and
+\code{weight_out_mean_layer} when \code{state} is layered).
 
 \code{compare_assortative_models()} returns a
 \code{rgraphtool_assortative_model_comparison} list with ranked \code{summary},

@@ -47,17 +47,22 @@ layered-weighted SBMs, and weighted planted-partition community detection.
   layer-stratified (`independent = TRUE` / `"independent_layers"`) models, with
   parallel greedy sweeps (`nthreads`) and `Rcpp::Nullable` C++ default bindings.
 
-## Weighted Planted-Partition SBMs
+## Weighted & Layered Planted-Partition SBMs
 
 * Extended `pp_block_state()`, `minimize_pp_blockmodel_dl()`,
   `pp_assortativity()`, `compare_assortative_models()`, and native PP MCMC
   (`mcmc_sweep()`, `mcmc_equilibrate()`, `mcmc_anneal()`, `sample_posterior()`,
-  `model_evidence()`) to support edge covariates (`weights`, `types`, `params`)
-  across 2 (`uniform = TRUE`) or $B + 1$ (`uniform = FALSE`) weight buckets with
-  $O(\deg(v))$ zero-allocation incremental moves.
-* Added `weight_in_mean` and `weight_out_mean` summary fields to
-  `pp_assortativity()`, weighted model dispatch against flat and nested weighted
-  SBMs in `compare_assortative_models()`, and explicit caveats documentation in
+  `model_evidence()`) to support edge covariates (`weights`, `types`, `params`),
+  discrete edge `layers` (`independent = FALSE` or `TRUE`), and simultaneous
+  layered-weighted inference across 2 (`uniform = TRUE`) or $B + 1$
+  (`uniform = FALSE`) weight buckets per stratum with $O(\deg(v))$ incremental
+  moves.
+* Added `pp_edge_covariates`, `pp_independent_layers`,
+  `pp_edge_covariates_uniform`, and `pp_independent_layers_uniform` options to
+  `compare_layered_models()`, `weight_in_mean` / `weight_out_mean` and
+  per-layer (`*_layer`, `err_layer`) diagnostics to `pp_assortativity()`,
+  weighted model dispatch against flat and nested weighted SBMs in
+  `compare_assortative_models()`, and explicit caveats documentation in
   `?pp_block_state` (pooled inter-community `out` weights, mean-ordering / sign
   symmetry particularly at $B = 2$, and extension beyond upstream `graph-tool`
   3.9).

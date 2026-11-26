@@ -133,16 +133,24 @@ run_native_mcmc <- function(state, mcmc_opts, eq_opts) {
     w_mat <- if (isTRUE(state$weighted)) state$weights else NULL
     w_types <- if (isTRUE(state$weighted)) state$types else NULL
     w_params <- if (isTRUE(state$weighted)) state$cpp_params else NULL
+    l_vec <- if (isTRUE(state$layered)) state$layers else NULL
     res <- cpp_pp_mcmc(pointer, state$blocks, state$uniform,
                        state$degree_corrected, dist, mcmc_opts, eq_opts,
-                       q_cache_max(), w_mat, w_types, w_params)
+                       q_cache_max(), w_mat, w_types, w_params,
+                       l_vec, isTRUE(state$independent))
     wspec <- list(W = state$weights, types = state$types,
                   params = state$params, cpp_params = state$cpp_params,
                   weighted = isTRUE(state$weighted))
+    linfo <- if (isTRUE(state$layered)) {
+      list(codes = state$layers, levels = state$layer_levels, C = state$C)
+    } else {
+      NULL
+    }
     new_state <- new_pp_state(state$graph, res$blocks, state$uniform,
                               state$degree_corrected, state$degree_prior,
                               fit = list(description_length = res$entropy),
-                              wspec = wspec)
+                              wspec = wspec, linfo = linfo,
+                              independent = isTRUE(state$independent))
   } else if (ranked && nested) {
     res <- cpp_nested_ranked_mcmc(pointer, state$levels, state$u,
                                   state$distance, state$unique,

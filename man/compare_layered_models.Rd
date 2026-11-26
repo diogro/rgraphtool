@@ -18,9 +18,13 @@ compare_layered_models(graph, layers,
   of length \code{graph_num_edges(graph)}.}
   \item{models}{Character vector naming a subset of \code{"edge_covariates"},
   \code{"independent_layers"}, \code{"edge_covariates_dc"},
-  \code{"edge_covariates_ndc"}, \code{"independent_layers_dc"}, and
-  \code{"independent_layers_ndc"}. The unqualified names use
-  \code{degree_corrected}.}
+  \code{"edge_covariates_ndc"}, \code{"independent_layers_dc"},
+  \code{"independent_layers_ndc"}, \code{"pp_edge_covariates"},
+  \code{"pp_independent_layers"}, \code{"pp_edge_covariates_uniform"}, and
+  \code{"pp_independent_layers_uniform"}. The unqualified and \code{pp_*} names
+  use \code{degree_corrected}; \code{pp_*} variants fit flat layered
+  planted-partition states via \code{\link{minimize_pp_blockmodel_dl}} even when
+  \code{nested = TRUE}.}
   \item{nested}{Whether to fit nested (\code{TRUE}, default) or flat
   (\code{FALSE}) layered SBMs.}
   \item{degree_corrected}{Degree correction setting used for

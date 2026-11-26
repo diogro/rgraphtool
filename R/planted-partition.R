@@ -1,5 +1,6 @@
 new_pp_state <- function(graph, blocks, uniform, degree_corrected, degree_prior,
-                         fit = NULL, wspec = NULL) {
+                         fit = NULL, wspec = NULL, linfo = NULL,
+                         independent = FALSE) {
   if (is.null(wspec)) {
     wspec <- list(
       W = matrix(0, nrow = 0L, ncol = 0L),
@@ -9,12 +10,18 @@ new_pp_state <- function(graph, blocks, uniform, degree_corrected, degree_prior,
       weighted = FALSE
     )
   }
+  layered <- !is.null(linfo)
   structure(list(
     blocks = as.integer(blocks),
     graph = graph,
     uniform = isTRUE(uniform),
     degree_corrected = isTRUE(degree_corrected),
     degree_prior = degree_prior,
+    layers = if (layered) linfo$codes else integer(0),
+    layer_levels = if (layered) linfo$levels else character(0),
+    C = if (layered) linfo$C else 1L,
+    independent = if (layered) isTRUE(independent) else FALSE,
+    layered = layered,
     weights = wspec$W,
     types = wspec$types,
     params = wspec$params,
@@ -45,7 +52,8 @@ pp_block_state <- function(graph, blocks = NULL, uniform = FALSE,
                            degree_corrected = TRUE,
                            degree_prior = c("distributed", "uniform"),
                            weights = NULL, types = NULL,
-                           params = "microcanonical") {
+                           params = "microcanonical",
+                           layers = NULL, independent = FALSE) {
   graph_pointer(graph)
   degree_prior <- match.arg(degree_prior)
   if (!is.logical(uniform) || length(uniform) != 1L || is.na(uniform)) {
@@ -55,7 +63,11 @@ pp_block_state <- function(graph, blocks = NULL, uniform = FALSE,
       is.na(degree_corrected)) {
     stop("degree_corrected must be TRUE or FALSE", call. = FALSE)
   }
+  if (!is.logical(independent) || length(independent) != 1L || is.na(independent)) {
+    stop("independent must be TRUE or FALSE", call. = FALSE)
+  }
   wspec <- resolve_layered_weights(graph, weights, types, params)
+  linfo <- if (!is.null(layers)) resolve_layer_vector(graph, layers) else NULL
   n <- graph_num_vertices(graph)
   if (is.null(blocks)) {
     blocks <- rep.int(1L, n)
@@ -67,7 +79,7 @@ pp_block_state <- function(graph, blocks = NULL, uniform = FALSE,
     }
   }
   new_pp_state(graph, blocks, uniform, degree_corrected, degree_prior,
-               wspec = wspec)
+               wspec = wspec, linfo = linfo, independent = independent)
 }
 
 #' @noRd
@@ -79,9 +91,11 @@ pp_description_length <- function(state, degree_prior = NULL) {
   w_mat <- if (isTRUE(state$weighted)) state$weights else NULL
   w_types <- if (isTRUE(state$weighted)) state$types else NULL
   w_params <- if (isTRUE(state$weighted)) state$cpp_params else NULL
+  l_vec <- if (isTRUE(state$layered)) state$layers else NULL
   cpp_pp_entropy(graph_pointer(state$graph), state$blocks, state$uniform,
                  state$degree_corrected, degree_prior == "distributed",
-                 q_cache_max(), w_mat, w_types, w_params)
+                 q_cache_max(), w_mat, w_types, w_params,
+                 l_vec, isTRUE(state$independent))
 }
 
 #' @noRd
@@ -91,10 +105,12 @@ pp_assortativity <- function(state) {
   w_mat <- if (isTRUE(state$weighted)) state$weights else NULL
   w_types <- if (isTRUE(state$weighted)) state$types else NULL
   w_params <- if (isTRUE(state$weighted)) state$cpp_params else NULL
+  l_vec <- if (isTRUE(state$layered)) state$layers else NULL
   st <- cpp_pp_stats(graph_pointer(state$graph), state$blocks, state$uniform,
                      state$degree_corrected,
                      identical(state$degree_prior, "distributed"),
-                     q_cache_max(), w_mat, w_types, w_params)
+                     q_cache_max(), w_mat, w_types, w_params,
+                     l_vec, isTRUE(state$independent))
   sz <- as.numeric(tabulate(state$blocks, nbins = max(state$blocks, 0L)))
   sz <- sz[sz > 0]
   p <- sz / sum(sz)
@@ -109,9 +125,33 @@ pp_assortativity <- function(state) {
     Be = Be,
     err = st$err
   )
+  if (isTRUE(state$layered)) {
+    lnms <- if (length(state$layer_levels) == length(st$E_total_layer)) {
+      state$layer_levels
+    } else {
+      paste0("layer", seq_along(st$E_total_layer))
+    }
+    out$E_in_layer <- stats::setNames(as.numeric(st$E_in_layer), lnms)
+    out$E_out_layer <- stats::setNames(as.numeric(st$E_out_layer), lnms)
+    out$E_total_layer <- stats::setNames(as.numeric(st$E_total_layer), lnms)
+    out$fraction_in_layer <- ifelse(out$E_total_layer > 0,
+                                    out$E_in_layer / out$E_total_layer, NA_real_)
+    err_mat <- st$err_layer
+    colnames(err_mat) <- lnms
+    out$err_layer <- err_mat
+  }
   if (isTRUE(state$weighted)) {
     out$weight_in_mean <- as.numeric(st$weight_in_mean)
     out$weight_out_mean <- as.numeric(st$weight_out_mean)
+    if (isTRUE(state$layered)) {
+      lnms <- names(out$E_total_layer)
+      win_m <- st$weight_in_mean_layer
+      wout_m <- st$weight_out_mean_layer
+      rownames(win_m) <- lnms
+      rownames(wout_m) <- lnms
+      out$weight_in_mean_layer <- win_m
+      out$weight_out_mean_layer <- wout_m
+    }
   }
   out
 }
@@ -124,7 +164,8 @@ minimize_pp_blockmodel_dl <- function(graph, uniform = FALSE,
                                       B_min = 1L, B_max = Inf,
                                       refine = TRUE, epsilon = 1e-3,
                                       weights = NULL, types = NULL,
-                                      params = "microcanonical") {
+                                      params = "microcanonical",
+                                      layers = NULL, independent = FALSE) {
   pointer <- graph_pointer(graph)
   degree_prior <- match.arg(degree_prior)
   if (!is.logical(uniform) || length(uniform) != 1L || is.na(uniform)) {
@@ -134,22 +175,28 @@ minimize_pp_blockmodel_dl <- function(graph, uniform = FALSE,
       is.na(degree_corrected)) {
     stop("degree_corrected must be TRUE or FALSE", call. = FALSE)
   }
+  if (!is.logical(independent) || length(independent) != 1L || is.na(independent)) {
+    stop("independent must be TRUE or FALSE", call. = FALSE)
+  }
   if (!is.numeric(B_min) || length(B_min) != 1L || is.na(B_min) || B_min < 1 ||
       !is.numeric(B_max) || length(B_max) != 1L || is.na(B_max) || B_max < B_min) {
     stop("B_min and B_max must satisfy 1 <= B_min <= B_max", call. = FALSE)
   }
   wspec <- resolve_layered_weights(graph, weights, types, params)
+  linfo <- if (!is.null(layers)) resolve_layer_vector(graph, layers) else NULL
   w_mat <- if (wspec$weighted) wspec$W else NULL
   w_types <- if (wspec$weighted) wspec$types else NULL
   w_params <- if (wspec$weighted) wspec$cpp_params else NULL
+  l_vec <- if (!is.null(linfo)) linfo$codes else NULL
   res <- cpp_pp_minimize(pointer, uniform, degree_corrected,
                          degree_prior == "distributed",
                          as.integer(floor(B_min)),
                          if (is.finite(B_max)) floor(B_max) else Inf,
                          isTRUE(refine), as.numeric(epsilon), q_cache_max(),
-                         w_mat, w_types, w_params)
+                         w_mat, w_types, w_params, l_vec, isTRUE(independent))
   new_pp_state(graph, res$blocks, uniform, degree_corrected, degree_prior,
-               fit = list(description_length = res$entropy), wspec = wspec)
+               fit = list(description_length = res$entropy),
+               wspec = wspec, linfo = linfo, independent = independent)
 }
 
 #' @noRd
@@ -157,14 +204,21 @@ minimize_pp_blockmodel_dl <- function(graph, uniform = FALSE,
 print.rgraphtool_pp_block_state <- function(x, ...) {
   dl <- pp_description_length(x)
   asrt <- pp_assortativity(x)
+  ltxt <- if (isTRUE(x$layered)) {
+    sprintf(", %d layers (%s)", x$C,
+            if (isTRUE(x$independent)) "independent" else "edge-covariates")
+  } else {
+    ""
+  }
   wtxt <- if (isTRUE(x$weighted)) {
     sprintf(", weighted (%s)", paste(x$types, collapse = ", "))
   } else {
     ""
   }
-  cat(sprintf("<planted-partition block state: %s, %s assortativity%s, B = %d (Be = %.2f), E_in/E = %.1f%%, DL = %.4f nats>\n",
+  cat(sprintf("<planted-partition block state: %s, %s assortativity%s%s, B = %d (Be = %.2f), E_in/E = %.1f%%, DL = %.4f nats>\n",
               if (x$degree_corrected) "degree-corrected" else "non-degree-corrected",
               if (x$uniform) "uniform" else "non-uniform",
+              ltxt,
               wtxt,
               x$B, asrt$Be,
               if (is.finite(asrt$fraction_in)) 100 * asrt$fraction_in else 0,
