@@ -1,6 +1,8 @@
 ^tools$
 ^\.pixi$
 ^\.github$
+^AGENTS\.md$
+^DEVELOPMENT\.md$
 ^ROADMAP\.md$
 ^_pkgdown\.yml$
 ^pkgdown$
