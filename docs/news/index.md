@@ -2,38 +2,35 @@
 
 ## rgraphtool 0.5.0
 
-Feature release adding native gene-expression preprocessing and
-Gram-matrix GMRF network reconstruction, multi-threaded weighted and
-combined layered-weighted SBMs, and weighted planted-partition community
-detection.
-
-### Gene-Expression Network Utilities
-
-- Added zero-dependency expression preprocessing and post-clustering
-  helpers:
-  [`project_fixed_effects()`](https://diogro.github.io/rgraphtool/reference/expression_utils.md)
-  (with `print.rgraphtool_expression_projection()`),
-  [`filter_expression_genes()`](https://diogro.github.io/rgraphtool/reference/expression_utils.md),
-  [`shrinkage_covariance()`](https://diogro.github.io/rgraphtool/reference/expression_utils.md)
-  (analytical Ledoit–Wolf shrinkage toward `"diagonal"` or `"identity"`
-  targets), and
-  [`module_eigengenes()`](https://diogro.github.io/rgraphtool/reference/expression_utils.md).
+Feature release adding Gram-matrix GMRF network reconstruction,
+multi-threaded weighted and combined layered-weighted SBMs, and weighted
+planted-partition community detection.
 
 ### Fast `PseudoNormal` Reconstruction & Merge-Split `DynBlockPrior`
+
+- Added
+  [`shrinkage_covariance()`](https://diogro.github.io/rgraphtool/reference/shrinkage_covariance.md),
+  a zero-dependency analytical Ledoit–Wolf / Schäfer–Strimmer covariance
+  shrinkage estimator toward `"diagonal"` or `"identity"` targets for
+  passing directly to
+  `pseudo_normal_block_state(cov = ..., n_eff = ...)`.
 
 - Added an exact \\(O(\deg)\\) sufficient-statistic Gram-matrix
   `PseudoNormal` backend (`cov`, `n_eff` arguments in
   [`pseudo_normal_block_state()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md),
   auto-enabled for sample matrices when \\(M \ge 64, N \le 4{,}000\\)).
+
 - Extended the precomputed 1D Gram edge-weight optimizer
   (`optimize_edge_weight_pn_gram()`) to both continuous Laplace and
   quantized MDL priors (`xdist = TRUE, tdist = TRUE`) via incremental
   \\(O(\log K)\\) `QuantHist` histogram maintenance.
+
 - Parallelized candidate generation (`build_candidates()`) and added
   periodic partial-residual active-set refreshes (`refresh_every` in
   [`reconstruct_dynamics()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md))
   so greedy reconstruction recovers zero-marginal-correlation suppressor
   edges.
+
 - Added `DynBlockPrior::merge_split_sweep()` (`merge_split = TRUE` in
   [`reconstruct_dynamics()`](https://diogro.github.io/rgraphtool/reference/dynamics_block_state.md))
   with BFS-seeded level-0 splits, local 2-way refinement, same-parent

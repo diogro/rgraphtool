@@ -43,7 +43,7 @@ interactively) for a self-contained HTML5 Canvas animation player, or
 `#>   vertices: 90 | frames: 61 (steps = 60)`\
 `#>   rates: x = 0.002, r = 0.12, s = 0.02 | hide_recovered = TRUE | fear_state = TRUE`\
 `#>   peak infected: 54 | total new infections: 106`\
-`#>   mode: html -> /tmp/Rtmpr9zRS9/filedd56144417874.html`\
+`#>   mode: html -> /tmp/RtmpnzxRxH/file11696044ee838a.html`\
 \
 `# Render an epidemic curve alongside a mid-outbreak snapshot`\
 `peak_t`` ``<-`` `[`which.max`](https://rdrr.io/r/base/which.min.html)`(``anim``$``counts``[``, ``"I"``]``)`\

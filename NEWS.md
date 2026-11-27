@@ -1,18 +1,15 @@
 # rgraphtool 0.5.0
 
-Feature release adding native gene-expression preprocessing and Gram-matrix
-GMRF network reconstruction, multi-threaded weighted and combined
-layered-weighted SBMs, and weighted planted-partition community detection.
-
-## Gene-Expression Network Utilities
-
-* Added zero-dependency expression preprocessing and post-clustering helpers:
-  `project_fixed_effects()` (with `print.rgraphtool_expression_projection()`),
-  `filter_expression_genes()`, `shrinkage_covariance()` (analytical
-  Ledoit--Wolf shrinkage toward `"diagonal"` or `"identity"` targets), and
-  `module_eigengenes()`.
+Feature release adding Gram-matrix GMRF network reconstruction, multi-threaded
+weighted and combined layered-weighted SBMs, and weighted planted-partition
+community detection.
 
 ## Fast `PseudoNormal` Reconstruction & Merge-Split `DynBlockPrior`
+
+* Added `shrinkage_covariance()`, a zero-dependency analytical
+  Ledoit--Wolf / Schäfer--Strimmer covariance shrinkage estimator toward
+  `"diagonal"` or `"identity"` targets for passing directly to
+  `pseudo_normal_block_state(cov = ..., n_eff = ...)`.
 
 * Added an exact $O(\deg)$ sufficient-statistic Gram-matrix `PseudoNormal`
   backend (`cov`, `n_eff` arguments in `pseudo_normal_block_state()`,

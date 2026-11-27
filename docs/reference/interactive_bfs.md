@@ -110,7 +110,7 @@ res <- interactive_bfs(g, pos = pos, source = 1L, max_dist = 3L,
                        mode = "html", output = tempfile(fileext = ".html"))
 print(res)
 #> rgraphtool interactive BFS visualization
-#>   mode: html -> /tmp/RtmpTIoacd/filedc83a21b5f4af.html
+#>   mode: html -> /tmp/RtmpcN5ule/file1159cbd348ec2.html
 #> rgraphtool BFS traversal
 #>   source: 1 (undirected, max_dist = 3)
 #>   reached: 8 / 10 vertices (max distance = 3, tree edges = 7)

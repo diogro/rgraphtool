@@ -23,7 +23,6 @@
 <url><loc>https://diogro.github.io/rgraphtool/reference/compare_weight_models.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/cpp_extensions.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/dynamics_block_state.html</loc></url>
-<url><loc>https://diogro.github.io/rgraphtool/reference/expression_utils.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/football_network.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/graph.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/graph_io.html</loc></url>
@@ -50,6 +49,7 @@
 <url><loc>https://diogro.github.io/rgraphtool/reference/ranked_block_state.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/rgraphtool_threads.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/sfdp_layout.html</loc></url>
+<url><loc>https://diogro.github.io/rgraphtool/reference/shrinkage_covariance.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/simulate_dynamics.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/topology.html</loc></url>
 <url><loc>https://diogro.github.io/rgraphtool/reference/uncertain_block_state.html</loc></url>

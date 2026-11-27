@@ -1,92 +1,4 @@
-test_that("project_fixed_effects removes fixed effects via exact QR projection and recovers GMRF", {
-  set.seed(101)
-  N <- 16L
-  M <- 300L
-  g_true <- graph_create(N, directed = FALSE)
-  edges <- rbind(
-    cbind(1:7, 2:8), c(8L, 1L),
-    cbind(9:15, 10:16), c(16L, 9L)
-  )
-  graph_add_edges(g_true, edges)
-
-  # Pure Gaussian graphical residuals
-  E <- simulate_normal_dynamics(
-    g_true, weights = 0.85, sigma = 0.6, mu = 0,
-    n_samples = M, burnin = 200L, thin = 2L, mode = "equilibrium"
-  )
-
-  # Add massive confounding fixed effects (tissue + cultivar) that dominate correlations
-  col_data <- data.frame(
-    tissue = factor(rep(c("peel", "pericarp"), each = M / 2L)),
-    bg = factor(rep(c("MT", "MM"), times = M / 2L))
-  )
-  X <- model.matrix(~ tissue + bg, data = col_data)
-  B_true <- cbind(
-    rnorm(N, 8, 1),
-    c(rep(5, 8), rep(-5, 8)),
-    c(rep(-4, 4), rep(4, 8), rep(-4, 4))
-  )
-  Y <- B_true %*% t(X) + E
-  rownames(Y) <- paste0("Gene", seq_len(N))
-
-  proj <- project_fixed_effects(Y, ~ tissue + bg, col_data = col_data, transform = "zscore")
-  expect_s3_class(proj, "rgraphtool_expression_projection")
-  expect_equal(proj$df_resid, M - ncol(X))
-  expect_equal(dim(proj$residuals), c(N, M - ncol(X)))
-  expect_lt(max(abs(crossprod(proj$Q, X))), 1e-12)
-  expect_lt(max(abs(crossprod(proj$Q) - diag(M - ncol(X)))), 1e-12)
-  ols_ref <- unname(t(coef(lm(t(Y) ~ X - 1))))
-  expect_lt(max(abs(unname(proj$beta) - ols_ref)), 1e-10)
-  expect_lt(mean(abs(proj$beta - B_true)), 0.35)
-
-  st <- pseudo_normal_block_state(proj$residuals, fix_mean = FALSE, positive = TRUE, nested = TRUE,
-                                  xdelta = 1e-3, tdelta = c(1e-3, 1e-3))
-  rec <- reconstruct_dynamics(st, niter = 25L, sbm = TRUE, xdist = FALSE, tdist = FALSE, xl1 = 1.0, tl1 = 0.1)
-  ap <- t(combn(N, 2L))
-  ek <- function(u, v) paste0(pmin(u, v), ":", pmax(u, v))
-  y_true <- as.integer(ek(ap[, 1L], ap[, 2L]) %in% ek(edges[, 1L], edges[, 2L]))
-  idx_rec <- match(ek(ap[, 1L], ap[, 2L]), ek(rec$edges$from, rec$edges$to))
-  sc <- ifelse(is.na(idx_rec), 0, abs(rec$edges$weight[idx_rec]))
-  ev <- evaluate_edge_prediction(sc, y_true)
-  expect_gt(ev$roc_auc, 0.9)
-
-  proj_npn <- project_fixed_effects(Y, ~ tissue + bg, col_data = col_data, transform = "nonparanormal")
-  expect_true(all(is.finite(proj_npn$residuals)))
-  expect_equal(dim(proj_npn$residuals), c(N, M - ncol(X)))
-})
-
-test_that("filter_expression_genes recovers signal genes beyond nuisance effects", {
-  set.seed(7)
-  M <- 30L
-  N <- 40L
-  col_data <- data.frame(
-    bg = factor(rep(c("MT", "MM"), each = M / 2L)),
-    cond = factor(rep(paste0("C", 1:5), times = M / 5L))
-  )
-  X_bg <- model.matrix(~ bg, data = col_data)
-  X_cond <- model.matrix(~ cond, data = col_data)
-  expr <- matrix(rnorm(N * M, sd = 0.2), nrow = N, ncol = M)
-  # Add background shift to all genes
-  expr <- expr + matrix(rnorm(N, 0, 2), N, 1) %*% t(X_bg[, 2, drop = FALSE])
-  # Add strong condition signal only to genes 1..10
-  sig_beta <- matrix(rnorm(10 * 4, 0, 2.5), nrow = 10, ncol = 4)
-  expr[1:10, ] <- expr[1:10, ] + sig_beta %*% t(X_cond[, -1, drop = FALSE])
-  rownames(expr) <- paste0("G", seq_len(N))
-
-  flt <- filter_expression_genes(
-    expr, col_data = col_data,
-    nuisance = ~ bg, signal = ~ cond,
-    min_var = 0.01, max_padj = 0.01
-  )
-  expect_true(all(paste0("G", 1:10) %in% rownames(flt$expr)))
-  expect_lt(nrow(flt$expr), 20L)
-
-  flt_top <- filter_expression_genes(expr, col_data = col_data, nuisance = ~ bg, signal = ~ cond, top_n = 5L)
-  expect_equal(nrow(flt_top$expr), 5L)
-  expect_true(all(rownames(flt_top$expr) %in% paste0("G", 1:10)))
-})
-
-test_that("module_eigengenes tracks block factors and reconstruct_dynamics returns bs_samples", {
+test_that("parallel build_candidates is deterministic across thread counts and reconstruct_dynamics returns bs_samples", {
   set.seed(99)
   N <- 50L
   M <- 80L
@@ -118,11 +30,6 @@ test_that("module_eigengenes tracks block factors and reconstruct_dynamics retur
   expect_length(rec4$bs_samples, 6L)
   mc <- mode_cluster_state(rec4$bs_samples, nested = TRUE)
   expect_gte(mc$K, 1L)
-
-  cons <- mode_consensus(mc$modes[[which.max(mc$weights)]])[[1L]]
-  me <- module_eigengenes(S_z, cons, min_size = 2L)
-  expect_equal(nrow(me$eigengenes), M)
-  expect_gte(ncol(me$eigengenes), 1L)
 })
 
 test_that("Gram-matrix PseudoNormal matches sample-level PseudoNormal to machine precision", {

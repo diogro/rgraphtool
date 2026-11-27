@@ -996,3 +996,73 @@ print.rgraphtool_l1_path <- function(x, ...) {
   print(x$summary, row.names = FALSE)
   invisible(x)
 }
+
+# ---- Shrinkage covariance helper ----
+
+.check_numeric_matrix <- function(x, min_cols = 2L) {
+  if (is.data.frame(x)) x <- as.matrix(x)
+  if (!is.matrix(x) || !is.numeric(x) || nrow(x) < 1L || ncol(x) < min_cols ||
+      anyNA(x) || any(!is.finite(x))) {
+    stop(sprintf(
+      "x must be a finite numeric matrix with at least 1 row (variable) and %d columns (observations)",
+      min_cols
+    ), call. = FALSE)
+  }
+  storage.mode(x) <- "double"
+  x
+}
+
+#' Analytical Ledoit-Wolf / Schafer-Strimmer shrinkage covariance estimation
+#'
+#' Computes an optimal linear shrinkage covariance matrix
+#' \eqn{(1 - \lambda) S + \lambda T} for high-dimensional data (`N >> M`)
+#' with zero external package dependencies, suitable for passing directly to
+#' `pseudo_normal_block_state(cov = ..., n_eff = ...)`.
+#'
+#' @param x Numeric `N x M` matrix of variables (rows) by observations (columns),
+#'   with `M >= 3`.
+#' @param target Shrinkage target: `"diagonal"` (unequal variable variances,
+#'   zero covariances) or `"identity"` (mean-variance scaled identity).
+#' @return List with `cov` (`N x N` symmetric SPD matrix), `lambda` (shrinkage
+#'   intensity in `[0, 1]`), and `n_obs` (`M`).
+#' @export
+shrinkage_covariance <- function(x, target = c("diagonal", "identity")) {
+  target <- match.arg(target)
+  x <- .check_numeric_matrix(x, min_cols = 3L)
+  N <- nrow(x)
+  M <- ncol(x)
+
+  xc <- x - rowMeans(x)
+  s_mat <- tcrossprod(xc) / (M - 1)
+  dimnames(s_mat) <- list(rownames(x), rownames(x))
+
+  if (N == 1L) {
+    return(list(cov = s_mat, lambda = 0, n_obs = M))
+  }
+
+  # Unbiased variance of sample covariances (Schafer & Strimmer 2005)
+  z_bar <- ((M - 1) / M) * s_mat
+  w2_sum <- tcrossprod(xc * xc)
+  diff_w <- w2_sum - M * (z_bar * z_bar)
+  diff_w[diff_w < 0] <- 0
+  var_s <- (M / ((M - 1)^3)) * diff_w
+
+  if (target == "diagonal") {
+    t_mat <- diag(diag(s_mat), nrow = N, ncol = N)
+    sum_var <- sum(var_s) - sum(diag(var_s))
+    sum_sq <- sum(s_mat * s_mat) - sum(diag(s_mat)^2)
+  } else {
+    v_mean <- mean(diag(s_mat))
+    t_mat <- diag(v_mean, nrow = N, ncol = N)
+    sum_var <- sum(var_s)
+    diff_mat <- s_mat - t_mat
+    sum_sq <- sum(diff_mat * diff_mat)
+  }
+
+  lam <- if (sum_sq > 0) min(1, max(0, sum_var / sum_sq)) else 0
+  cov_sh <- (1 - lam) * s_mat + lam * t_mat
+  cov_sh <- 0.5 * (cov_sh + t(cov_sh))
+  dimnames(cov_sh) <- list(rownames(x), rownames(x))
+
+  list(cov = cov_sh, lambda = lam, n_obs = M)
+}

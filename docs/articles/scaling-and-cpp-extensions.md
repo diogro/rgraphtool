@@ -64,13 +64,13 @@ initialization (`simple_init = TRUE`), and warm-starting
 `  ``t_flat_1t``, ``nthr``, ``t_flat_mt``, ``t_flat_1t`` ``/`` `[`max`](https://rdrr.io/r/base/Extremes.html)`(``t_flat_mt``, ``1e-6``)``,`\
 `  `[`partition_overlap`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md)`(`[`block_membership`](https://diogro.github.io/rgraphtool/reference/block_state.md)`(``st_mt``)``, ``truth``, norm ``=`` ``TRUE``)`\
 `)``)`\
-`#> Flat (1 thr): 1.641 s | Flat (4 thr): 0.485 s (3.38x) | overlap = 0.9992`\
+`#> Flat (1 thr): 1.168 s | Flat (4 thr): 0.325 s (3.59x) | overlap = 0.9992`\
 [`cat`](https://rdrr.io/r/base/cat.html)`(`[`sprintf`](https://rdrr.io/r/base/sprintf.html)`(`\
 `  ``"Nested simple_init (%d thr): %.3f s | B0 = %d | overlap = %.4f\n"``,`\
 `  ``nthr``, ``t_nest_mt``, `[`max`](https://rdrr.io/r/base/Extremes.html)`(`[`nested_levels`](https://diogro.github.io/rgraphtool/reference/minimize_nested_blockmodel_dl.md)`(``nst_mt``)``[[``1L``]``]``)``,`\
 `  `[`partition_overlap`](https://diogro.github.io/rgraphtool/reference/partition_mode_state.md)`(`[`nested_levels`](https://diogro.github.io/rgraphtool/reference/minimize_nested_blockmodel_dl.md)`(``nst_mt``)``[[``1L``]``]``, ``truth``, norm ``=`` ``TRUE``)`\
 `)``)`\
-`#> Nested simple_init (4 thr): 0.729 s | B0 = 26 | overlap = 0.9805`\
+`#> Nested simple_init (4 thr): 0.569 s | B0 = 26 | overlap = 0.9805`\
 \
 `old_par`` ``<-`` ``graphics``::`[`par`](https://rdrr.io/r/graphics/par.html)`(``mfrow ``=`` `[`c`](https://rdrr.io/r/base/c.html)`(``1L``, ``2L``)``, mar ``=`` `[`c`](https://rdrr.io/r/base/c.html)`(``5``, ``4``, ``3``, ``1``)``)`\
 `graphics``::`[`barplot`](https://rdrr.io/r/graphics/barplot.html)`(`\
@@ -138,7 +138,7 @@ as well as ready-to-compile standalone `.cpp` examples discoverable via
 `)``[``3L``]`\
 [`cat`](https://rdrr.io/r/base/cat.html)`(`[`sprintf`](https://rdrr.io/r/base/sprintf.html)`(``"50 x k-core (N=%d, E=%d): checked = %.4f s | unchecked = %.4f s\n"``,`\
 `            ``n_ext``, `[`graph_num_edges`](https://diogro.github.io/rgraphtool/reference/graph.md)`(``g_ext``)``, ``t_chk``, ``t_uchk``)``)`\
-`#> 50 x k-core (N=1500, E=7497): checked = 0.0290 s | unchecked = 0.0100 s`
+`#> 50 x k-core (N=1500, E=7497): checked = 0.0340 s | unchecked = 0.0110 s`
 
 You can also compile inline C++ code directly with
 `compile_cpp_extension(code = ...)`:
