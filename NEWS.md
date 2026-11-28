@@ -17,6 +17,50 @@
 * Workers run single-threaded, and graphs are re-attached to the states
   they return. On Windows the starts run sequentially.
 
+## Network reconstruction from an empty graph
+
+* PseudoNormal (and other dynamics) reconstruction no longer stops at zero
+  edges when edges only pay off jointly.
+  * graph-tool's quantized weight prior charges a one-time entry cost when
+    the graph gets its first edge: a 128-nat range constant plus
+    discretization terms, about 170 nats. Any single edge gains far less, so
+    the greedy search from an empty graph never added one.
+  * From an empty graph, the first edge is now judged without the weight
+    prior. A sweep that ends worse than where it started reverts to the
+    empty graph.
+  * The empty graph with fitted node parameters is kept as a fallback, so
+    the result is never worse than adding no edges.
+  * On a 20-node ring (M = 200), the fit went from 0 edges to the 20 true
+    edges, and its DL from 5029 to 4843. On two 8-gene GMRF chains, gensbm's
+    `mdl_cov` went from 0 edges to 13/14 (M = 100) and 14/14 (M = 400) true
+    edges.
+* Weight and node-parameter line searches expand past their +-2 window when
+  the optimum lies beyond it, so unscaled data converge in fewer sweeps.
+
+## Smaller fixes
+
+* New S3 generic `description_length(state, ...)` for every state family,
+  plus `state_blocks(state, level)`, `is_nested_state()` and `is_block_state()`, so callers need
+  no class switches.
+* `shrinkage_covariance()` computes its shrinkage intensity over column
+  blocks. Peak memory at N = 4000 fell from 1.1 GB to 0.4 GB; results are
+  unchanged (to 1e-13).
+* A `parallel_for()` called from inside a parallel region now runs serially.
+  Before, it deadlocked on the pool's non-recursive run lock.
+* Portability:
+  * The thread RNG no longer needs a 128-bit integer type.
+  * Its range reduction now includes Lemire's rejection step, so it is exactly
+    unbiased.
+  * The vendored adjacency header no longer includes the deprecated
+    `<boost/iterator.hpp>`. The package now builds without compiler warnings.
+* `.gt` I/O:
+  * `write_gt()` warns, naming the properties, when NA in logical or
+    character properties will be written as `FALSE` / `""` (graph-tool has no
+    missing values).
+  * `graph_set_vertex_property()` accepts factors, as `graph_add_edges()`
+    does, and stores them as character.
+  * The remaining round-trip differences are documented in `?read_gt`.
+
 ## Layered models with different vertex sets per layer
 
 * New `present` argument (a vertices x layers logical matrix) for the

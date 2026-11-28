@@ -115,6 +115,20 @@ write_gt <- function(graph, file, comment = NULL,
   vprops <- if (is.environment(graph$attrs)) graph$attrs$vertex_props else list()
   eprops_extra <- if (is.environment(graph$attrs)) graph$attrs$edge_props else list()
 
+  # graph-tool property maps have no missing values: the writer stores NA as
+  # FALSE (logical) or "" (character), so say which properties lose them.
+  lossy <- function(props, kind) {
+    nm <- names(props)[vapply(props, function(v) (is.logical(v) || is.character(v)) &&
+                                anyNA(v), logical(1))]
+    if (length(nm)) paste0(kind, " '", nm, "'") else character(0)
+  }
+  na_props <- c(lossy(gprops, "graph"), lossy(vprops, "vertex"), lossy(eprops_extra, "edge"))
+  if (length(na_props)) {
+    warning("graph-tool files cannot store missing values; NA is written as FALSE ",
+            "(logical) or \"\" (character) in ", paste(na_props, collapse = ", "),
+            call. = FALSE)
+  }
+
   if (is.null(comment)) {
     n_ep <- length(cpp_edge_property_names(pointer)) + length(eprops_extra)
     comment <- sprintf(

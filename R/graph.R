@@ -251,6 +251,7 @@ graph_set_vertex_property <- function(graph, name, values) {
     stop("name must be a non-empty character string", call. = FALSE)
   }
   nv <- graph_num_vertices(graph)
+  if (is.factor(values)) values <- as.character(values)  # as graph_add_edges() does
   vlen <- if (is.matrix(values)) nrow(values) else length(values)
   if (vlen != nv) {
     stop("values must have length graph_num_vertices(graph)", call. = FALSE)

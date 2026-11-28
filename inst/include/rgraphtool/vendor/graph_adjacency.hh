@@ -21,7 +21,7 @@
 #include <vector>
 #include <deque>
 #include <utility>
-#include <boost/iterator.hpp>
+#include <iterator>  // was <boost/iterator.hpp> (deprecated, unused)
 #include <boost/graph/graph_traits.hpp>
 #include <boost/range/irange.hpp>
 #include <boost/property_map/property_map.hpp>

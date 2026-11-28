@@ -62,11 +62,34 @@ struct ThreadRng {
         return result;
     }
 
+    // High and low 64-bit halves of a * b, without relying on a 128-bit type.
+    static inline uint64_t mul_hi_lo(uint64_t a, uint64_t b, uint64_t& lo) {
+#if defined(__SIZEOF_INT128__)
+        __extension__ typedef unsigned __int128 u128;
+        u128 p = static_cast<u128>(a) * static_cast<u128>(b);
+        lo = static_cast<uint64_t>(p);
+        return static_cast<uint64_t>(p >> 64);
+#else
+        uint64_t a_lo = a & 0xffffffffULL, a_hi = a >> 32;
+        uint64_t b_lo = b & 0xffffffffULL, b_hi = b >> 32;
+        uint64_t ll = a_lo * b_lo, lh = a_lo * b_hi, hl = a_hi * b_lo, hh = a_hi * b_hi;
+        uint64_t mid = (ll >> 32) + (lh & 0xffffffffULL) + (hl & 0xffffffffULL);
+        lo = (mid << 32) | (ll & 0xffffffffULL);
+        return hh + (lh >> 32) + (hl >> 32) + (mid >> 32);
+#endif
+    }
+
     inline size_t index(size_t n) {
         if (n <= 1) return 0;
-        // Lemire's fast unbiased multiply-shift range reduction
-        __uint128_t prod = static_cast<__uint128_t>(next_u64()) * static_cast<__uint128_t>(n);
-        return static_cast<size_t>(prod >> 64);
+        // Lemire's multiply-shift range reduction, with the rejection step
+        // that makes it exactly unbiased (taken with probability < n / 2^64).
+        uint64_t n64 = static_cast<uint64_t>(n), lo;
+        uint64_t hi = mul_hi_lo(next_u64(), n64, lo);
+        if (lo < n64) {
+            uint64_t threshold = (0 - n64) % n64;
+            while (lo < threshold) hi = mul_hi_lo(next_u64(), n64, lo);
+        }
+        return static_cast<size_t>(hi);
     }
 
     inline double unif() {
@@ -111,6 +134,13 @@ inline int resolve_threads(int nthreads) {
     return nthreads;
 }
 
+// True on a thread while it runs a parallel_for body (including the calling
+// thread, which works as worker 0).
+inline bool& in_parallel_region() {
+    thread_local bool flag = false;
+    return flag;
+}
+
 // ---------------------------------------------------------------------------
 // Lightweight persistent C++23 thread pool (calling thread participates as
 // worker 0; workers are spawned lazily only when nthreads > 1).
@@ -137,6 +167,10 @@ public:
     template <class Fn>
     void parallel_for(size_t n, int nthreads, Fn&& fn, size_t min_chunk = 1) {
         int nw = resolve_threads(nthreads);
+        // A parallel_for called from inside a parallel region runs serially on
+        // the calling thread: the pool is busy, and its run lock is not
+        // recursive, so dispatching would deadlock.
+        if (in_parallel_region()) nw = 1;
         if (nw <= 1 || n <= min_chunk) {
             if (n > 0) fn(0, size_t(0), n);
             return;
@@ -150,7 +184,7 @@ public:
             return;
         }
 
-        // Serialize nested/concurrent parallel_for entries safely on the pool.
+        // Serialize concurrent parallel_for entries from different threads.
         std::unique_lock<std::mutex> run_lk(_run_mtx);
         ensure_workers(nw - 1);
 
@@ -160,6 +194,9 @@ public:
         std::mutex exc_mtx;
 
         auto worker_body = [&](int tid) {
+            bool& in_region = in_parallel_region();
+            bool was_in = in_region;
+            in_region = true;
             try {
                 while (true) {
                     size_t lo = cursor.fetch_add(chunk, std::memory_order_relaxed);
@@ -171,6 +208,7 @@ public:
                 std::lock_guard<std::mutex> elk(exc_mtx);
                 if (!exc) exc = std::current_exception();
             }
+            in_region = was_in;
         };
 
         {

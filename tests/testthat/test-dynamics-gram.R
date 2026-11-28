@@ -332,3 +332,30 @@ test_that("PseudoNormal reconstruction with quantized priors recovers chains fro
   expect_gte(sum(true_keys %in% got), 13L)
   expect_lt(r$entropy, 9600)
 })
+
+test_that("PseudoNormal reconstruction from an empty graph finds edges that pay off jointly", {
+  # The quantized weight prior's one-time entry cost (graph-tool's 128-nat
+  # range constant) exceeds any single edge's gain, which used to trap the
+  # greedy search at zero edges on clear GMRF structure.
+  set.seed(2026)
+  N <- 20L
+  g_true <- graph_create(N, directed = FALSE)
+  graph_add_edges(g_true, rbind(cbind(1:9, 2:10), c(10L, 1L), cbind(11:19, 12:20), c(20L, 11L)))
+  S <- simulate_normal_dynamics(g_true, weights = 0.6, sigma = 0.7, n_samples = 200L,
+                                burnin = 100L, mode = "equilibrium")
+  S <- S - rowMeans(S)
+  st <- pseudo_normal_block_state(S, positive = TRUE, nested = FALSE,
+                                  xdelta = 1e-3, tdelta = c(1e-3, 1e-3))
+  set.seed(1)
+  rec <- reconstruct_dynamics(st, niter = 20L)
+  key <- function(a, b) paste(pmin(a, b), pmax(a, b))
+  true_keys <- key(graph_edges(g_true)[, 1], graph_edges(g_true)[, 2])
+  found <- key(rec$edges$from, rec$edges$to)
+  expect_gte(sum(found %in% true_keys), 18L)
+  expect_lte(sum(!found %in% true_keys), 3L)
+  # never worse than the empty graph with fitted node parameters
+  empty <- pseudo_normal_block_state(S, graph = graph_create(N, FALSE), theta = rec$theta,
+                                     positive = TRUE, nested = FALSE,
+                                     xdelta = 1e-3, tdelta = c(1e-3, 1e-3))
+  expect_lt(rec$entropy, dynamics_description_length(empty))
+})

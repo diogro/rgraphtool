@@ -1084,27 +1084,41 @@ shrinkage_covariance <- function(x, target = c("diagonal", "identity"),
   # Unbiased variance of the sample covariances (Schafer & Strimmer 2005):
   # Var(s_ij) = M / (M - 1)^3 * sum_k (w_kij - w_bar_ij)^2 for centred data,
   # and 1 / (M (M - 1)) * sum_k (w_kij - w_bar_ij)^2 for known-zero-mean data.
-  z_bar <- if (centred) ((M - 1) / M) * s_mat else s_mat
-  w2_sum <- tcrossprod(xc * xc)
-  diff_w <- w2_sum - M * (z_bar * z_bar)
-  diff_w[diff_w < 0] <- 0
-  var_s <- if (centred) (M / ((M - 1)^3)) * diff_w else diff_w / (M * (M - 1))
+  # Only the sums over pairs are needed, so they are accumulated over blocks
+  # of columns: besides s_mat and the result, memory is N x block.
+  zfac <- if (centred) (M - 1) / M else 1
+  vfac <- if (centred) M / ((M - 1)^3) else 1 / (M * (M - 1))
+  x2 <- xc * xc
+  sum_var_all <- sum_var_diag <- sum_sq_all <- 0
+  block <- max(1L, min(N, as.integer(floor(2^21 / max(1, N)))))  # ~16 MB per temporary
+  for (lo in seq.int(1L, N, by = block)) {
+    J <- lo:min(N, lo + block - 1L)
+    s_blk <- s_mat[, J, drop = FALSE]
+    sum_sq_all <- sum_sq_all + sum(s_blk * s_blk)
+    diff_w <- tcrossprod(x2, x2[J, , drop = FALSE]) - M * (zfac * s_blk)^2
+    diff_w[diff_w < 0] <- 0
+    sum_var_all <- sum_var_all + vfac * sum(diff_w)
+    sum_var_diag <- sum_var_diag + vfac * sum(diff_w[cbind(J, seq_along(J))])
+  }
+  rm(x2)
+  d_s <- diag(s_mat)
 
   if (target == "diagonal") {
-    t_mat <- diag(diag(s_mat), nrow = N, ncol = N)
-    sum_var <- sum(var_s) - sum(diag(var_s))
-    sum_sq <- sum(s_mat * s_mat) - sum(diag(s_mat)^2)
+    t_diag <- d_s
+    sum_var <- sum_var_all - sum_var_diag
+    sum_sq <- sum_sq_all - sum(d_s^2)
   } else {
-    v_mean <- mean(diag(s_mat))
-    t_mat <- diag(v_mean, nrow = N, ncol = N)
-    sum_var <- sum(var_s)
-    diff_mat <- s_mat - t_mat
-    sum_sq <- sum(diff_mat * diff_mat)
+    v_mean <- mean(d_s)
+    t_diag <- rep(v_mean, N)
+    sum_var <- sum_var_all
+    sum_sq <- sum_sq_all - sum(d_s^2) + sum((d_s - v_mean)^2)
   }
 
   lam <- if (sum_sq > 0) min(1, max(0, sum_var / sum_sq)) else 0
-  cov_sh <- (1 - lam) * s_mat + lam * t_mat
-  cov_sh <- 0.5 * (cov_sh + t(cov_sh))
+  # s_mat is symmetric, so (1 - lam) s + lam T needs no re-symmetrizing
+  cov_sh <- (1 - lam) * s_mat
+  rm(s_mat)
+  diag(cov_sh) <- diag(cov_sh) + lam * t_diag
   dimnames(cov_sh) <- list(rownames(x), rownames(x))
 
   list(cov = cov_sh, lambda = lam, n_obs = M)

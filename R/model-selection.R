@@ -6,42 +6,7 @@ logsumexp_vec <- function(x) {
   m + log(sum(exp(x - m)))
 }
 
-state_description_length <- function(state) {
-  if (inherits(state, "rgraphtool_block_state")) {
-    return(block_description_length(state))
-  }
-  if (inherits(state, "rgraphtool_nested_block_state")) {
-    return(nested_description_length(state))
-  }
-  if (inherits(state, "rgraphtool_overlap_block_state")) {
-    return(overlap_description_length(state))
-  }
-  if (inherits(state, "rgraphtool_nested_overlap_block_state")) {
-    return(nested_overlap_description_length(state))
-  }
-  if (inherits(state, "rgraphtool_weighted_block_state")) {
-    return(weighted_description_length(state))
-  }
-  if (inherits(state, "rgraphtool_nested_weighted_block_state")) {
-    return(nested_weighted_description_length(state))
-  }
-  if (inherits(state, "rgraphtool_layered_block_state")) {
-    return(layered_description_length(state))
-  }
-  if (inherits(state, "rgraphtool_nested_layered_block_state")) {
-    return(nested_layered_description_length(state))
-  }
-  if (inherits(state, "rgraphtool_pp_block_state")) {
-    return(pp_description_length(state))
-  }
-  if (inherits(state, "rgraphtool_ranked_block_state")) {
-    return(ranked_description_length(state))
-  }
-  if (inherits(state, "rgraphtool_nested_ranked_block_state")) {
-    return(nested_ranked_description_length(state))
-  }
-  stop("state must be a supported block state object", call. = FALSE)
-}
+state_description_length <- function(state) description_length(state)
 
 state_num_groups <- function(state) {
   if (inherits(state, "rgraphtool_block_state")) {

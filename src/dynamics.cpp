@@ -20,6 +20,7 @@
 #include <numeric>
 #include <tuple>
 #include <utility>
+#include <memory>
 #include <vector>
 #include "dyn_sbm.h"
 #include "graph_types.h"
@@ -1029,13 +1030,32 @@ public:
         double best_w = (w0 != 0.0) ? w0 : 0.5 * (lo + hi);
         best_dS = edge_move_dS(u, v, true, best_w, opts);
         int n_grid = 9;
+        int best_g = -1;
         for (int g = 0; g <= n_grid; ++g) {
             double wg = lo + (hi - lo) * static_cast<double>(g) / static_cast<double>(n_grid);
             if (wg == 0.0) continue;
             double d = edge_move_dS(u, v, true, wg, opts);
-            if (d < best_dS) { best_dS = d; best_w = wg; }
+            if (d < best_dS) { best_dS = d; best_w = wg; best_g = g; }
         }
         double step = (hi - lo) / static_cast<double>(n_grid);
+        // The window is +-2 around the current weight, which is only a few
+        // grid steps on unscaled data. When the best point is on its edge,
+        // expand geometrically outwards while the objective keeps improving,
+        // so a weight can reach its optimum in one sweep at any scale.
+        if (_model != DYN_EPIDEMICS && (best_g == 0 || best_g == n_grid)) {
+            double dir = (best_g == 0) ? -1.0 : 1.0;
+            double width = hi - lo;
+            for (int it = 0; it < 30; ++it) {
+                double wt = best_w + dir * width;
+                if (wt < _xmin || wt > _xmax || wt == 0.0) break;
+                double d = edge_move_dS(u, v, true, wt, opts);
+                if (!(d < best_dS)) break;
+                best_dS = d;
+                best_w = wt;
+                width *= 2.0;
+                step = width;  // the bracket reaches the first point that did not improve
+            }
+        }
         double a = std::max(_xmin, best_w - step);
         double b = std::min(_xmax, best_w + step);
         constexpr double gr = 0.6180339887498948482;
@@ -1071,12 +1091,29 @@ public:
         double best_t = t0;
         best_dS = 0.0;
         int n_grid = 8;
+        int best_g = -1;
         for (int g = 0; g <= n_grid; ++g) {
             double tg = lo + (hi - lo) * static_cast<double>(g) / static_cast<double>(n_grid);
             double d = theta_move_dS(i, l, tg, opts);
-            if (d < best_dS) { best_dS = d; best_t = tg; }
+            if (d < best_dS) { best_dS = d; best_t = tg; best_g = g; }
         }
         double step = (hi - lo) / static_cast<double>(n_grid);
+        // As for edge weights: theta (e.g. a log scale) shifts with the units of
+        // the data, so expand past the +-2 window while the objective improves.
+        if (_model != DYN_EPIDEMICS && (best_g == 0 || best_g == n_grid)) {
+            double dir = (best_g == 0) ? -1.0 : 1.0;
+            double width = hi - lo;
+            for (int it = 0; it < 30; ++it) {
+                double tt = best_t + dir * width;
+                if (tt < _tmin[l] || tt > _tmax[l]) break;
+                double d = theta_move_dS(i, l, tt, opts);
+                if (!(d < best_dS)) break;
+                best_dS = d;
+                best_t = tt;
+                width *= 2.0;
+                step = width;
+            }
+        }
         double a = std::max(_tmin[l], best_t - step);
         double b = std::min(_tmax[l], best_t + step);
         constexpr double gr = 0.6180339887498948482;
@@ -1508,7 +1545,8 @@ public:
     // Greedy MAP / coordinate-descent sweep (beta = Inf)
     void greedy_sweep(Rng& rng, const std::vector<uint64_t>& cands,
                       const PriorOpts& opts, bool update_sbm,
-                      double& total_dS, size_t& nattempts, size_t& nmoves) {
+                      double& total_dS, size_t& nattempts, size_t& nmoves,
+                      bool update_edges = true) {
         // Node parameters and edges are optimized in turn. For PseudoNormal,
         // edges go first (graph-tool's theta_first = False): fitting theta to
         // the empty graph first makes every single-edge addition look costly
@@ -1542,6 +1580,20 @@ public:
             }
             rng.shuffle(ord);
 
+            // The quantized weight prior charges a one-time entry cost (graph-
+            // tool's 128-nat range constant plus the discretization terms) when
+            // the graph goes from 0 to 1 edge, far more than any single edge
+            // gains. From an empty graph, judge the first edge without the
+            // weight prior, and if the sweep ends worse than the empty graph,
+            // remove everything it added: the result is never worse than
+            // before, but edges that only pay off jointly can now be found.
+            const bool from_empty = opts.xdist && _x.empty();
+            PriorOpts opts_noxp = opts;
+            opts_noxp.xdist = false;
+            opts_noxp.xl1 = 0.0;
+            opts_noxp.normal_prior = false;
+            double sweep_dS = 0.0;
+
             for (uint64_t k : ord) {
                 auto [u, v] = unpack_key(k);
                 ++nattempts;
@@ -1549,31 +1601,56 @@ public:
                 double dS_del = cur_pres ? edge_move_dS(u, v, false, 0.0, opts) : 0.0;
                 double dS_opt = INF;
                 double w_opt = optimize_edge_weight(u, v, opts, dS_opt);
+                if (from_empty && _x.empty() && !cur_pres && std::isfinite(dS_opt)) {
+                    double dS_rel = edge_move_dS(u, v, true, w_opt, opts_noxp);
+                    if (dS_rel < -1e-9) {
+                        apply_edge_move(u, v, true, w_opt, opts);
+                        total_dS += dS_opt;
+                        sweep_dS += dS_opt;
+                        ++nmoves;
+                    }
+                    continue;
+                }
                 if (cur_pres) {
                     if (dS_del < dS_opt && dS_del < -1e-9) {
                         apply_edge_move(u, v, false, 0.0, opts);
                         total_dS += dS_del;
+                        sweep_dS += dS_del;
                         ++nmoves;
                     } else if (dS_opt < -1e-9) {
                         apply_edge_move(u, v, true, w_opt, opts);
                         total_dS += dS_opt;
+                        sweep_dS += dS_opt;
                         ++nmoves;
                     }
                 } else {
                     if (dS_opt < -1e-9) {
                         apply_edge_move(u, v, true, w_opt, opts);
                         total_dS += dS_opt;
+                        sweep_dS += dS_opt;
                         ++nmoves;
                     }
                 }
             }
+            if (from_empty && sweep_dS > 0.0 && !_x.empty()) {
+                // Worse than the empty graph we started from: revert to it.
+                std::vector<uint64_t> added;
+                added.reserve(_x.size());
+                for (const auto& kv : _x) added.push_back(kv.first);
+                for (uint64_t key : added) {
+                    auto [a_u, a_v] = unpack_key(key);
+                    double d = edge_move_dS(a_u, a_v, false, 0.0, opts);
+                    apply_edge_move(a_u, a_v, false, 0.0, opts);
+                    total_dS += d;
+                }
+            }
         };
         if (_model == DYN_PSEUDO_NORMAL) {
-            sweep_edges();
+            if (update_edges) sweep_edges();
             sweep_theta();
         } else {
             sweep_theta();
-            sweep_edges();
+            if (update_edges) sweep_edges();
         }
 
         // 3. SBM partition sweep (if sbm = TRUE)
@@ -2149,6 +2226,29 @@ Rcpp::List cpp_dynamics_reconstruct(
     size_t nattempts = 0, nmoves = 0;
     std::vector<double> entropies;
 
+    // From an empty graph, the first greedy sweep may add edges that only pay
+    // off jointly (see greedy_sweep). Keep the empty graph with its node
+    // parameters fitted as a fallback, so the greedy result is never worse
+    // than not adding edges at all.
+    const bool empty_start = (niter > 0) && opts.xdist && eng.weights().empty();
+    std::unique_ptr<DynamicsEngine> eng_empty;
+    double S_empty = INF;
+    if (empty_start) {
+        eng_empty = std::make_unique<DynamicsEngine>(eng);
+        Rng rng_e;
+        double prev_e = eng_empty->total_entropy(opts);
+        double dS_e = 0.0;
+        size_t na_e = 0, nm_e = 0;
+        for (int it = 0; it < niter; ++it) {
+            eng_empty->greedy_sweep(rng_e, cands, opts, false, dS_e, na_e, nm_e, false);
+            eng_empty->refresh_quant_hists();
+            double cur_e = eng_empty->total_entropy(opts);
+            if (std::abs(prev_e - cur_e) < tol) { prev_e = cur_e; break; }
+            prev_e = cur_e;
+        }
+        S_empty = prev_e;
+    }
+
     // Phase 1: Greedy MAP optimization sweeps (when niter > 0)
     double prev_S = eng.total_entropy(opts);
     bool refreshed_this_iter = true;
@@ -2177,6 +2277,11 @@ Rcpp::List cpp_dynamics_reconstruct(
             refreshed_this_iter = false;
         }
         prev_S = cur_S;
+    }
+    if (empty_start && eng_empty && S_empty < eng.total_entropy(opts) - 1e-9) {
+        total_dS += S_empty - eng.total_entropy(opts);
+        eng = std::move(*eng_empty);
+        entropies.push_back(S_empty);
     }
 
     // Phase 2: Optional posterior MCMC sampling (when nsamples > 0)

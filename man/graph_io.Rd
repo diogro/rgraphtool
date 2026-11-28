@@ -56,6 +56,20 @@ property maps. Numeric edge properties loaded from \code{.gt} or imported via
 \code{from_igraph()} are stored directly in C++ so weighted and layered SBM
 inference functions and C++ extensions can access them immediately.
 
+Round-trips are exact for numeric values (including \code{NA} doubles and
+integers) but not for every R type, because \code{graph-tool} property maps
+have no missing values and no factors:
+\itemize{
+  \item \code{NA} in logical properties is written as \code{FALSE}, and in
+  character properties as \code{""}; \code{write_gt()} warns naming the
+  affected properties.
+  \item Edge properties are stored as doubles in memory, so integer edge
+  properties come back as doubles; integer vertex and graph properties stay
+  integer.
+  \item Factors are stored as character.
+  \item \code{int64} values beyond \eqn{2^{53}} lose precision when read.
+}
+
 \code{as_igraph()} and \code{from_igraph()} require the optional \pkg{igraph}
 package and preserve vertex counts, directedness, parallel edges, self-loops,
 and graph, vertex, and edge attributes.
