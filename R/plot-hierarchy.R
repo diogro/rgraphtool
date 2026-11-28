@@ -55,7 +55,8 @@ bundle_path <- function(layout, u, v, beta) {
 #' @export
 plot_hierarchy <- function(state, beta = 0.8, vertex_col = NULL,
                            edge_col = grDevices::adjustcolor("grey30", 0.25),
-                           vertex_cex = 0.6, show_tree = TRUE, main = NULL, ...) {
+                           vertex_cex = 0.6, show_tree = TRUE, main = NULL,
+                           tree_col = "#729fcf", edge_lwd = 1, ...) {
   layout <- hierarchy_layout(state)
   if (!is.numeric(beta) || length(beta) != 1L || is.na(beta) || beta < 0 || beta > 1) {
     stop("beta must be a number between 0 and 1", call. = FALSE)
@@ -68,10 +69,14 @@ plot_hierarchy <- function(state, beta = 0.8, vertex_col = NULL,
   graphics::plot.window(c(-1.05, 1.05), c(-1.05, 1.05), asp = 1)
   edges <- graph_edges(state$graph)
   edges <- edges[edges[, 1] != edges[, 2], , drop = FALSE]
+  # colours and widths follow the non-self-loop edges in graph order, recycled
   edge_col <- rep_len(edge_col, nrow(edges))
-  for (i in seq_len(nrow(edges))) {
+  edge_lwd <- rep_len(as.numeric(edge_lwd), nrow(edges))
+  # draw thin edges first so the heavy ones stay on top
+  for (i in order(edge_lwd)) {
     path <- bundle_path(layout, edges[i, 1], edges[i, 2], beta)
-    graphics::xspline(path[, 1], path[, 2], shape = 1, open = TRUE, border = edge_col[i])
+    graphics::xspline(path[, 1], path[, 2], shape = 1, open = TRUE, border = edge_col[i],
+                      lwd = edge_lwd[i])
   }
   if (show_tree) {
     depth <- length(layout$groups)
@@ -80,8 +85,9 @@ plot_hierarchy <- function(state, beta = 0.8, vertex_col = NULL,
       parent_index <- if (j == 1L) groups0 else layout$levels[[j]]
       parent <- layout$groups[[j]][parent_index, , drop = FALSE]
       graphics::segments(child[, 1], child[, 2], parent[, 1], parent[, 2],
-                         col = grDevices::adjustcolor("firebrick", 0.5), lwd = 0.8)
-      graphics::points(layout$groups[[j]], pch = 15, cex = 0.7, col = "firebrick")
+                         col = grDevices::adjustcolor(tree_col, 0.6), lwd = 0.8)
+      graphics::points(layout$groups[[j]], pch = 15, cex = 0.7,
+                       col = grDevices::adjustcolor(tree_col, 0.6))
     }
   }
   graphics::points(layout$vertices, pch = 19, cex = vertex_cex, col = vertex_col, ...)

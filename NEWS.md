@@ -1,3 +1,13 @@
+# rgraphtool 0.5.4
+
+* `plot_hierarchy()` draws the hierarchy tree in light blue, the default of
+  graph-tool's `draw_hierarchy()`: `#729fcf` at alpha 0.6 for tree edges and
+  group nodes, which have no border. It was firebrick. The new `tree_col`
+  argument sets it.
+* `plot_hierarchy()` takes per-edge widths in `edge_lwd` and draws thin edges
+  first. `ggplot_graph()` accepts an `edge_lwd` vector with one width per edge,
+  in graph order, like `edge_color`.
+
 # rgraphtool 0.5.3
 
 * New edge covariate type `"discrete-negbinomial"` for overdispersed counts,

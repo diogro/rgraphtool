@@ -5,7 +5,7 @@
 \usage{
 plot_hierarchy(state, beta = 0.8, vertex_col = NULL,
   edge_col = grDevices::adjustcolor("grey30", 0.25), vertex_cex = 0.6,
-  show_tree = TRUE, main = NULL, ...)
+  show_tree = TRUE, main = NULL, tree_col = "#729fcf", edge_lwd = 1, ...)
 plot_ranked_hierarchy(state,
   upstream_col = grDevices::adjustcolor("#4878CF", 0.35),
   downstream_col = grDevices::adjustcolor("#D65F5F", 0.55),
@@ -26,6 +26,11 @@ plot_ranked_hierarchy(state,
   \item{edge_col}{Edge colour, recycled over edges.}
   \item{vertex_cex}{Vertex symbol size.}
   \item{show_tree}{Whether to draw the hierarchy tree.}
+  \item{edge_lwd}{Edge line width, recycled over edges like \code{edge_col}.
+    Thin edges are drawn first so heavy ones stay on top.}
+  \item{tree_col}{Colour of the hierarchy tree edges and group nodes, drawn at
+  alpha 0.6 (default \code{"#729fcf"}, the light blue of graph-tool's
+  \code{draw_hierarchy()}).}
   \item{upstream_col, downstream_col, lateral_col}{Colours for upstream
   (\eqn{u_i < u_j}), downstream (\eqn{u_i > u_j}), and lateral
   (\eqn{u_i = u_j}) directed edges in \code{plot_ranked_hierarchy()}.}

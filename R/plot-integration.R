@@ -488,6 +488,10 @@ ggplot_graph <- function(graph, pos = NULL,
   }
 
   if (nrow(edf) > 0L) {
+    # a per-edge width vector (graph order) is subset like the colours
+    if (length(edge_lwd) == nrow(dfs$edges) && length(edge_lwd) > 1L) {
+      edge_lwd <- as.numeric(edge_lwd)[dfs$edges$from != dfs$edges$to]
+    }
     if (is.numeric(edge_color) && length(edge_color) == nrow(dfs$edges)) {
       edf$.ecol <- edge_color[dfs$edges$from != dfs$edges$to]
       if (edge_curve != 0) {

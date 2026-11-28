@@ -75,7 +75,9 @@ ggplot_graph(graph, pos = NULL, vertex_color = "#4C72B0", vertex_size = 2.6,
   vertex_halo_color, vertex_halo_size, vertex_visible, vertex_label,
   vertex_label_cex}{Vertex aesthetics matching \code{\link{plot_graph}}.}
   \item{edge_color, edge_alpha, edge_lwd, edge_curve, edge_visible}{Edge
-  aesthetics matching \code{\link{plot_graph}}.}
+  aesthetics matching \code{\link{plot_graph}}. In \code{ggplot_graph()} a numeric
+  \code{edge_color} or \code{edge_lwd} with one value per edge (graph order)
+  is mapped per edge.}
   \item{vorder, eorder}{Optional z-order numeric vectors.}
   \item{arrows}{Logical or \code{NULL}; defaults to
   \code{isTRUE(graph$directed)}.}
