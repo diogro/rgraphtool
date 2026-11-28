@@ -1,6 +1,6 @@
 new_pp_state <- function(graph, blocks, uniform, degree_corrected, degree_prior,
                          fit = NULL, wspec = NULL, linfo = NULL,
-                         independent = FALSE) {
+                         independent = FALSE, present = NULL) {
   if (is.null(wspec)) {
     wspec <- list(
       W = matrix(0, nrow = 0L, ncol = 0L),
@@ -27,6 +27,7 @@ new_pp_state <- function(graph, blocks, uniform, degree_corrected, degree_prior,
     params = wspec$params,
     cpp_params = wspec$cpp_params,
     weighted = isTRUE(wspec$weighted),
+    present = present,
     num_vertices = graph_num_vertices(graph),
     num_edges = graph_num_edges(graph),
     B = length(unique(blocks)),
@@ -53,7 +54,7 @@ pp_block_state <- function(graph, blocks = NULL, uniform = FALSE,
                            degree_prior = c("distributed", "uniform"),
                            weights = NULL, types = NULL,
                            params = "microcanonical",
-                           layers = NULL, independent = FALSE) {
+                           layers = NULL, independent = FALSE, present = NULL) {
   graph_pointer(graph)
   degree_prior <- match.arg(degree_prior)
   if (!is.logical(uniform) || length(uniform) != 1L || is.na(uniform)) {
@@ -78,8 +79,15 @@ pp_block_state <- function(graph, blocks = NULL, uniform = FALSE,
            call. = FALSE)
     }
   }
+  pres <- if (!is.null(present)) {
+    if (is.null(linfo)) stop("present needs layers", call. = FALSE)
+    resolve_presence(graph, present, linfo)
+  } else {
+    NULL
+  }
   new_pp_state(graph, blocks, uniform, degree_corrected, degree_prior,
-               wspec = wspec, linfo = linfo, independent = independent)
+               wspec = wspec, linfo = linfo, independent = independent,
+               present = pres)
 }
 
 #' @noRd
@@ -95,7 +103,7 @@ pp_description_length <- function(state, degree_prior = NULL) {
   cpp_pp_entropy(graph_pointer(state$graph), state$blocks, state$uniform,
                  state$degree_corrected, degree_prior == "distributed",
                  q_cache_max(), w_mat, w_types, w_params,
-                 l_vec, isTRUE(state$independent))
+                 l_vec, isTRUE(state$independent), state$present)
 }
 
 #' @noRd
@@ -110,7 +118,7 @@ pp_assortativity <- function(state) {
                      state$degree_corrected,
                      identical(state$degree_prior, "distributed"),
                      q_cache_max(), w_mat, w_types, w_params,
-                     l_vec, isTRUE(state$independent))
+                     l_vec, isTRUE(state$independent), state$present)
   sz <- as.numeric(tabulate(state$blocks, nbins = max(state$blocks, 0L)))
   sz <- sz[sz > 0]
   p <- sz / sum(sz)
@@ -165,7 +173,8 @@ minimize_pp_blockmodel_dl <- function(graph, uniform = FALSE,
                                       refine = TRUE, epsilon = 1e-3,
                                       weights = NULL, types = NULL,
                                       params = "microcanonical",
-                                      layers = NULL, independent = FALSE) {
+                                      layers = NULL, independent = FALSE,
+                                      present = NULL) {
   pointer <- graph_pointer(graph)
   degree_prior <- match.arg(degree_prior)
   if (!is.logical(uniform) || length(uniform) != 1L || is.na(uniform)) {
@@ -188,15 +197,17 @@ minimize_pp_blockmodel_dl <- function(graph, uniform = FALSE,
   w_types <- if (wspec$weighted) wspec$types else NULL
   w_params <- if (wspec$weighted) wspec$cpp_params else NULL
   l_vec <- if (!is.null(linfo)) linfo$codes else NULL
+  pres <- if (!is.null(present) && !is.null(linfo)) resolve_presence(graph, present, linfo) else NULL
   res <- cpp_pp_minimize(pointer, uniform, degree_corrected,
                          degree_prior == "distributed",
                          as.integer(floor(B_min)),
                          if (is.finite(B_max)) floor(B_max) else Inf,
                          isTRUE(refine), as.numeric(epsilon), q_cache_max(),
-                         w_mat, w_types, w_params, l_vec, isTRUE(independent))
+                         w_mat, w_types, w_params, l_vec, isTRUE(independent), pres)
   new_pp_state(graph, res$blocks, uniform, degree_corrected, degree_prior,
                fit = list(description_length = res$entropy),
-               wspec = wspec, linfo = linfo, independent = independent)
+               wspec = wspec, linfo = linfo, independent = independent,
+               present = pres)
 }
 
 #' @noRd

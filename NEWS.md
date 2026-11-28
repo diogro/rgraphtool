@@ -17,6 +17,43 @@
 * Workers run single-threaded, and graphs are re-attached to the states
   they return. On Windows the starts run sequentially.
 
+## Layered models with different vertex sets per layer
+
+* New `present` argument (a vertices x layers logical matrix) for the
+  independent layers model in:
+  * `layered_block_state()` and `nested_layered_block_state()`
+  * the layered and nested layered minimizers
+  * `compare_layered_models()`
+  * `pp_block_state()` and `minimize_pp_blockmodel_dl()`
+* Given presence fixes each layer's vertex set. Present vertices may have no
+  edges in that layer, and presence is conditioned on rather than encoded,
+  so the layer-membership term is dropped. Use it when vertex sets differ by
+  design, for example genes measured in only some conditions.
+* With presence inferred from the edges (the default, as in graph-tool), the
+  independent-layers code over-counts. Summed over all graphs on 3 vertices,
+  exp(-DL) reached 6.75. With every vertex present it sums to exactly 1.
+* `layered_description_length()` now defaults to `lmemb = is.null(state$present)`.
+* `present` is checked when the state is built: every edge endpoint must be
+  present in the edge's layer, and named columns must be the layer levels.
+* `compare_layered_models()` now errors with fewer than 2 layers.
+
+## Weighted layered comparisons no longer depend on weight units
+
+* The independent layers model now pools the weight hyperprior over layers,
+  in `layered_block_state()`, `nested_layered_block_state()` and the
+  independent `pp_block_state()`.
+* Before, each layer had its own hyperprior and left its own totals
+  unencoded. Multiplying all weights by s shifted the
+  independent-minus-edge-covariate DL difference by:
+  * (C - 1) log s for real-exponential weights;
+  * 5 (C - 1) log s for flat real-normal weights.
+  So the conserved-vs-rewired verdict depended on the weight units.
+* The difference is now exactly invariant for flat layered and PP states.
+* One fixed offset of -2 log s remains for real-normal weights when the top
+  level has a single block pair: always in nested hierarchies, and in flat
+  fits only at B = 1. It does not depend on the number of layers.
+* Single-layer states are unchanged and still match `weighted_block_state()`.
+
 ## Bug fixes from the 0.5.1 review
 
 * Degree description lengths:

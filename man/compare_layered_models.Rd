@@ -10,7 +10,7 @@ compare_layered_models(graph, layers,
   evidence_method = c("variational", "importance"), nruns = 1L, cores = NULL,
   nsamples = 200L, thin = 5L, burnin = NULL, mle = TRUE, B_min = 1L,
   B_max = Inf, refine = TRUE, weights = NULL, types = NULL,
-  params = "microcanonical", nthreads = NULL)
+  params = "microcanonical", nthreads = NULL, present = NULL)
 }
 \arguments{
   \item{graph}{A graph created by \code{\link{graph_create}}.}
@@ -46,6 +46,10 @@ compare_layered_models(graph, layers,
   \item{types}{Optional covariate type(s) required when \code{weights} is supplied.}
   \item{params}{Covariate hyperprior specification (default \code{"microcanonical"}).}
   \item{nthreads}{Optional thread count override.}
+  \item{present}{Optional known per-layer vertex sets (a vertices x layers
+  logical matrix) passed to the independent layers model; see
+  \code{\link{layered_block_state}}. The edge-covariate model has no per-layer
+  vertex sets and ignores it.}
 }
 \description{
 Declarative, callback-free model selection between the discrete edge-covariate

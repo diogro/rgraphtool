@@ -11,14 +11,14 @@
 pp_block_state(graph, blocks = NULL, uniform = FALSE,
   degree_corrected = TRUE, degree_prior = c("distributed", "uniform"),
   weights = NULL, types = NULL, params = "microcanonical",
-  layers = NULL, independent = FALSE)
+  layers = NULL, independent = FALSE, present = NULL)
 pp_description_length(state, degree_prior = NULL)
 pp_assortativity(state)
 minimize_pp_blockmodel_dl(graph, uniform = FALSE, degree_corrected = TRUE,
   degree_prior = c("distributed", "uniform"), B_min = 1L, B_max = Inf,
   refine = TRUE, epsilon = 1e-3,
   weights = NULL, types = NULL, params = "microcanonical",
-  layers = NULL, independent = FALSE)
+  layers = NULL, independent = FALSE, present = NULL)
 compare_assortative_models(graph,
   models = c("pp", "pp_uniform", "sbm_flat", "sbm_nested"),
   degree_corrected = TRUE, degree_prior = c("distributed", "uniform"),
@@ -78,7 +78,12 @@ compare_assortative_models(graph,
   (default), fit the discrete edge-covariate PP model with pooled degrees and
   pooled covariate buckets across layers; if \code{TRUE}, fit conditionally
   independent PP layers with layer-specific degrees, active group sizes, and
-  (when weighted) per-layer covariate distributions.}
+  (when weighted) per-layer covariate distributions. The weight hyperprior is
+  pooled over layers, so the independent-minus-edge-covariate difference does
+  not depend on the units of the weights.}
+  \item{present}{Optional known per-layer vertex sets for \code{independent =
+  TRUE} (a vertices x layers logical matrix); see
+  \code{\link{layered_block_state}}.}
 }
 \description{
 Native C++ implementation of the microcanonical Bayesian planted-partition

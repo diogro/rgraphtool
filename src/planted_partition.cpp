@@ -165,7 +165,8 @@ public:
             const Rcpp::NumericMatrix& weights = Rcpp::NumericMatrix(0, 0),
             const std::vector<CovSpec>& covs = {},
             const Rcpp::IntegerVector& layers = Rcpp::IntegerVector(),
-            bool independent = false)
+            bool independent = false,
+            const std::vector<std::vector<int>>* presence = nullptr)
         : _N(static_cast<int>(boost::num_vertices(graph.adjacency))),
           _directed(graph.directed), _uniform(uniform), _dc(dc), _dist(dist),
           _covs(covs), _K(static_cast<int>(covs.size())),
@@ -334,7 +335,11 @@ public:
         }
         _C_active = static_cast<int>(_active_layers.size());
 
+        // Per-layer vertex sets: given (known presence; each layer is then an
+        // SBM over its vertex set, zero degrees allowed) or inferred from
+        // incident edges as in graph-tool.
         if (_independent) {
+            _presence_given = (presence != nullptr && !presence->empty());
             for (int v = 0; v < _N; ++v) {
                 std::vector<int> ls;
                 for (const auto& [l, c] : _v_kout_l[v].items)
@@ -342,10 +347,19 @@ public:
                 if (_directed) {
                     for (const auto& [l, c] : _v_kin_l[v].items)
                         if (c > 0) ls.push_back(l);
-                    std::sort(ls.begin(), ls.end());
-                    ls.erase(std::unique(ls.begin(), ls.end()), ls.end());
                 }
-                _v_layers[v] = std::move(ls);
+                std::sort(ls.begin(), ls.end());
+                ls.erase(std::unique(ls.begin(), ls.end()), ls.end());
+                if (_presence_given) {
+                    const std::vector<int>& given = (*presence)[v];
+                    for (int l : ls)
+                        if (!std::binary_search(given.begin(), given.end(), l))
+                            Rcpp::stop("vertex %d has edges in layer %d but is not marked present there",
+                                       v + 1, l + 1);
+                    _v_layers[v] = given;
+                } else {
+                    _v_layers[v] = std::move(ls);
+                }
             }
         }
 
@@ -560,12 +574,63 @@ public:
     }
 
     double lmemb_dl() const {
+        if (_presence_given) return 0.0;  // given presence is conditioned on
         if (!_independent || _C_active <= 1) return 0.0;
         const PPMath& M = ppmath();
         double x = M.lbinom(_C_active, 1);
         if (x > 15.0)
             return static_cast<double>(_C_active) * x - M.lgam1(_C_active);
         return M.lbinom(2 * _C_active - 1, _C_active);
+    }
+
+    long pooled_B_E(long extra) const {
+        long n = extra;
+        for (int st = 0; st < _num_cov_strata; ++st) n += _B_E_c[st];
+        return n;
+    }
+    long pooled_B_E_D(long extra) const {
+        long n = extra;
+        for (int st = 0; st < _num_cov_strata; ++st) n += _B_E_D_c[st];
+        return n;
+    }
+    std::vector<double> pooled_recx2() const {
+        std::vector<double> x(_K, 0.0);
+        for (int st = 0; st < _num_cov_strata; ++st)
+            for (int k = 0; k < _K; ++k) x[k] += _recx2_c[st][k];
+        return x;
+    }
+    std::vector<double> pooled_recdx() const {
+        std::vector<double> x(_K, 0.0);
+        for (int st = 0; st < _num_cov_strata; ++st)
+            for (int k = 0; k < _K; ++k) x[k] += _recdx_c[st][k];
+        return x;
+    }
+    double pooled_recsum(int k) const {
+        double x = 0.0;
+        for (int st = 0; st < _num_cov_strata; ++st) x += _recsum_c[st][k];
+        return x;
+    }
+
+    // Microcanonical hyperprior on the pooled bucket totals.
+    double hyper_neg_log_P(long be, long bed, const std::vector<double>& recx2,
+                           const std::vector<double>& recdx) const {
+        double S = 0.0;
+        for (int k = 0; k < _K; ++k) {
+            const CovSpec& c = _covs[k];
+            if (!c.micro) continue;
+            double rs = pooled_recsum(k);
+            if (c.type == CovType::REAL_NORMAL) {
+                S += -signed_w_log_P(static_cast<double>(be), rs, std::max(0.0, recx2[k]),
+                                     c.p0, c.p1, c.p2, c.p3, c.eps);
+                S += -positive_w_log_P(static_cast<double>(bed), std::max(0.0, recdx[k]),
+                                       c.p2, c.p3, c.eps);
+            } else if (c.type == CovType::REAL_EXPONENTIAL) {
+                S += -positive_w_log_P(static_cast<double>(be), rs, c.p0, c.p1, c.eps);
+            } else {  // discrete types share graph-tool's geometric hyperprior
+                S += -geometric_w_log_P(static_cast<double>(be), rs, NAN, NAN);
+            }
+        }
+        return S;
     }
 
     double cov_entropy() const {
@@ -588,26 +653,11 @@ public:
                 }
                 add_bucket_logp(_independent ? _e_out_l[st] : _e_out, _w_out_s[st]);
             }
-            for (int k = 0; k < _K; ++k) {
-                const CovSpec& c = _covs[k];
-                if (c.type == CovType::REAL_NORMAL) {
-                    if (c.micro) {
-                        S += -signed_w_log_P(static_cast<double>(_B_E_c[st]), _recsum_c[st][k],
-                                             _recx2_c[st][k], c.p0, c.p1, c.p2, c.p3, c.eps);
-                        S += -positive_w_log_P(static_cast<double>(_B_E_D_c[st]), _recdx_c[st][k],
-                                               c.p2, c.p3, c.eps);
-                    }
-                } else if (c.micro) {
-                    if (c.type == CovType::REAL_EXPONENTIAL) {
-                        S += -positive_w_log_P(static_cast<double>(_B_E_c[st]), _recsum_c[st][k],
-                                               c.p0, c.p1, c.eps);
-                    } else {
-                        S += -geometric_w_log_P(static_cast<double>(_B_E_c[st]), _recsum_c[st][k],
-                                                NAN, NAN);
-                    }
-                }
-            }
         }
+        // The weight hyperprior is pooled over strata (layers) so that the
+        // independent and edge-covariate models leave the same statistics
+        // unencoded; otherwise their difference depends on the weight units.
+        S += hyper_neg_log_P(pooled_B_E(0), pooled_B_E_D(0), pooled_recx2(), pooled_recdx());
         return S;
     }
 
@@ -1046,6 +1096,7 @@ private:
     std::vector<long> _E_l, _e_in_l, _e_out_l;
     std::vector<int> _active_layers;
     std::vector<std::vector<int>> _v_layers;
+    bool _presence_given = false;
     std::vector<PPLayerCountVec> _v_kout_l, _v_kin_l;
 
     std::vector<double> _ew_x, _ew_x2;
@@ -1177,36 +1228,22 @@ private:
                 eval_bucket(ms0, _w_rr_s[st][s], ds_st, _last_dw_s_s[st]);
                 eval_bucket(eout0, _w_out_s[st], dout_st, _last_dw_out_s[st]);
             }
-            long be0 = _B_E_c[st], be1 = be0 + _last_d_B_E_c[st];
-            long bed0 = _B_E_D_c[st], bed1 = bed0 + _last_d_B_E_D_c[st];
-            for (int k = 0; k < _K; ++k) {
-                const CovSpec& c = _covs[k];
-                if (c.type == CovType::REAL_NORMAL) {
-                    if (c.micro) {
-                        dS += -signed_w_log_P(static_cast<double>(be1), _recsum_c[st][k],
-                                              std::max(0.0, _recx2_c[st][k] + _last_d_recx2_c[st][k]),
-                                              c.p0, c.p1, c.p2, c.p3, c.eps) -
-                              (-signed_w_log_P(static_cast<double>(be0), _recsum_c[st][k],
-                                               _recx2_c[st][k], c.p0, c.p1, c.p2, c.p3, c.eps));
-                        dS += -positive_w_log_P(static_cast<double>(bed1),
-                                                std::max(0.0, _recdx_c[st][k] + _last_d_recdx_c[st][k]),
-                                                c.p2, c.p3, c.eps) -
-                              (-positive_w_log_P(static_cast<double>(bed0), _recdx_c[st][k],
-                                                 c.p2, c.p3, c.eps));
-                    }
-                } else if (c.micro && be0 != be1) {
-                    if (c.type == CovType::REAL_EXPONENTIAL) {
-                        dS += -positive_w_log_P(static_cast<double>(be1), _recsum_c[st][k],
-                                                c.p0, c.p1, c.eps) -
-                              (-positive_w_log_P(static_cast<double>(be0), _recsum_c[st][k],
-                                                 c.p0, c.p1, c.eps));
-                    } else {
-                        dS += -geometric_w_log_P(static_cast<double>(be1), _recsum_c[st][k], NAN, NAN) -
-                              (-geometric_w_log_P(static_cast<double>(be0), _recsum_c[st][k], NAN, NAN));
-                    }
-                }
+        }
+        if (_touched_strata.empty()) return dS;
+        long dbe = 0, dbed = 0;
+        std::vector<double> x2_0 = pooled_recx2(), dx_0 = pooled_recdx();
+        std::vector<double> x2_1 = x2_0, dx_1 = dx_0;
+        for (int st : _touched_strata) {
+            dbe += _last_d_B_E_c[st];
+            dbed += _last_d_B_E_D_c[st];
+            for (int k : _normal_idx) {
+                x2_1[k] += _last_d_recx2_c[st][k];
+                dx_1[k] += _last_d_recdx_c[st][k];
             }
         }
+        if (dbe == 0 && dbed == 0 && _normal_idx.empty()) return dS;
+        dS += hyper_neg_log_P(pooled_B_E(dbe), pooled_B_E_D(dbed), x2_1, dx_1) -
+              hyper_neg_log_P(pooled_B_E(0), pooled_B_E_D(0), x2_0, dx_0);
         return dS;
     }
 
@@ -1710,6 +1747,26 @@ void pp_mcmc_sweep_once(PPState& s, PPRng& rng, double beta, double c, double d,
 
 }  // namespace
 
+// Optional N x C logical presence matrix -> sorted per-vertex layer lists.
+static std::vector<std::vector<int>> pp_parse_presence(SEXP present, int N,
+                                                       const Rcpp::IntegerVector& L) {
+    std::vector<std::vector<int>> out;
+    if (present == R_NilValue) return out;
+    int C = 1;
+    for (R_xlen_t i = 0; i < L.size(); ++i) if (L[i] > C) C = L[i];
+    Rcpp::LogicalMatrix P(present);
+    if (P.nrow() != N || P.ncol() < C)
+        Rcpp::stop("present must be a %d x %d logical matrix (vertices x layers)", N, C);
+    out.assign(N, {});
+    for (int v = 0; v < N; ++v)
+        for (int l = 0; l < P.ncol(); ++l) {
+            int x = P(v, l);
+            if (x == NA_LOGICAL) Rcpp::stop("present must not contain NA");
+            if (x) out[v].push_back(l);
+        }
+    return out;
+}
+
 // [[Rcpp::export]]
 double cpp_pp_entropy(SEXP pointer, Rcpp::IntegerVector blocks, bool uniform,
                       bool degree_corrected, bool distributed, double q_max,
@@ -1717,7 +1774,8 @@ double cpp_pp_entropy(SEXP pointer, Rcpp::IntegerVector blocks, bool uniform,
                       Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
                       Rcpp::Nullable<Rcpp::List> params = R_NilValue,
                       Rcpp::Nullable<Rcpp::IntegerVector> layers = R_NilValue,
-                      bool independent = false) {
+                      bool independent = false,
+    SEXP present = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) pplog_q().init(pp_q_cache_max(q_max));
@@ -1726,7 +1784,9 @@ double cpp_pp_entropy(SEXP pointer, Rcpp::IntegerVector blocks, bool uniform,
     Rcpp::List P = unwrap_pp_params(params);
     Rcpp::IntegerVector L = unwrap_pp_layers(layers);
     auto covs = parse_covs(W, T, P);
-    PPState st(graph, uniform, degree_corrected, distributed, W, covs, L, independent);
+    auto pres = pp_parse_presence(present, static_cast<int>(boost::num_vertices(graph.adjacency)), L);
+    PPState st(graph, uniform, degree_corrected, distributed, W, covs, L, independent,
+               pres.empty() ? nullptr : &pres);
     st.set_partition(parse_pp_blocks(blocks, N));
     return st.entropy();
 }
@@ -1738,7 +1798,8 @@ Rcpp::List cpp_pp_stats(SEXP pointer, Rcpp::IntegerVector blocks, bool uniform,
                         Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
                         Rcpp::Nullable<Rcpp::List> params = R_NilValue,
                         Rcpp::Nullable<Rcpp::IntegerVector> layers = R_NilValue,
-                        bool independent = false) {
+                        bool independent = false,
+    SEXP present = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) pplog_q().init(pp_q_cache_max(q_max));
@@ -1747,7 +1808,9 @@ Rcpp::List cpp_pp_stats(SEXP pointer, Rcpp::IntegerVector blocks, bool uniform,
     Rcpp::List P = unwrap_pp_params(params);
     Rcpp::IntegerVector L = unwrap_pp_layers(layers);
     auto covs = parse_covs(W, T, P);
-    PPState st(graph, uniform, degree_corrected, distributed, W, covs, L, independent);
+    auto pres = pp_parse_presence(present, static_cast<int>(boost::num_vertices(graph.adjacency)), L);
+    PPState st(graph, uniform, degree_corrected, distributed, W, covs, L, independent,
+               pres.empty() ? nullptr : &pres);
     st.set_partition(parse_pp_blocks(blocks, N));
     Rcpp::List out = Rcpp::List::create(
         Rcpp::Named("E_in") = static_cast<double>(st.E_in()),
@@ -1780,7 +1843,8 @@ Rcpp::NumericVector cpp_pp_check_moves(SEXP pointer, Rcpp::IntegerVector blocks,
                                        Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
                                        Rcpp::Nullable<Rcpp::List> params = R_NilValue,
                                        Rcpp::Nullable<Rcpp::IntegerVector> layers = R_NilValue,
-                                       bool independent = false) {
+                                       bool independent = false,
+    SEXP present = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) pplog_q().init(pp_q_cache_max(q_max));
@@ -1789,7 +1853,9 @@ Rcpp::NumericVector cpp_pp_check_moves(SEXP pointer, Rcpp::IntegerVector blocks,
     Rcpp::List P = unwrap_pp_params(params);
     Rcpp::IntegerVector L = unwrap_pp_layers(layers);
     auto covs = parse_covs(W, T, P);
-    PPState st(graph, uniform, degree_corrected, distributed, W, covs, L, independent);
+    auto pres = pp_parse_presence(present, static_cast<int>(boost::num_vertices(graph.adjacency)), L);
+    PPState st(graph, uniform, degree_corrected, distributed, W, covs, L, independent,
+               pres.empty() ? nullptr : &pres);
     st.set_partition(parse_pp_blocks(blocks, N));
     PPRng rng;
     Rcpp::NumericVector err(nmoves);
@@ -1817,7 +1883,8 @@ Rcpp::List cpp_pp_minimize(SEXP pointer, bool uniform, bool degree_corrected,
                            Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
                            Rcpp::Nullable<Rcpp::List> params = R_NilValue,
                            Rcpp::Nullable<Rcpp::IntegerVector> layers = R_NilValue,
-                           bool independent = false) {
+                           bool independent = false,
+    SEXP present = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) pplog_q().init(pp_q_cache_max(q_max));
@@ -1826,7 +1893,9 @@ Rcpp::List cpp_pp_minimize(SEXP pointer, bool uniform, bool degree_corrected,
     Rcpp::List P = unwrap_pp_params(params);
     Rcpp::IntegerVector L = unwrap_pp_layers(layers);
     auto covs = parse_covs(W, T, P);
-    PPState st(graph, uniform, degree_corrected, distributed, W, covs, L, independent);
+    auto pres = pp_parse_presence(present, static_cast<int>(boost::num_vertices(graph.adjacency)), L);
+    PPState st(graph, uniform, degree_corrected, distributed, W, covs, L, independent,
+               pres.empty() ? nullptr : &pres);
     PPRng rng;
     if (N <= 1) {
         std::vector<int> b(N, 0);
@@ -1903,7 +1972,8 @@ Rcpp::List cpp_pp_mcmc(SEXP pointer, Rcpp::IntegerVector blocks, bool uniform,
                        Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
                        Rcpp::Nullable<Rcpp::List> params = R_NilValue,
                        Rcpp::Nullable<Rcpp::IntegerVector> layers = R_NilValue,
-                       bool independent = false) {
+                       bool independent = false,
+    SEXP present = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) pplog_q().init(pp_q_cache_max(q_max));
@@ -1912,7 +1982,9 @@ Rcpp::List cpp_pp_mcmc(SEXP pointer, Rcpp::IntegerVector blocks, bool uniform,
     Rcpp::List P = unwrap_pp_params(params);
     Rcpp::IntegerVector L = unwrap_pp_layers(layers);
     auto covs = parse_covs(W, T, P);
-    PPState st(graph, uniform, degree_corrected, distributed, W, covs, L, independent);
+    auto pres = pp_parse_presence(present, static_cast<int>(boost::num_vertices(graph.adjacency)), L);
+    PPState st(graph, uniform, degree_corrected, distributed, W, covs, L, independent,
+               pres.empty() ? nullptr : &pres);
     st.set_partition(parse_pp_blocks(blocks, N));
     PPRng rng;
 

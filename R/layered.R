@@ -34,6 +34,40 @@ resolve_layer_vector <- function(graph, layers) {
   list(codes = codes, levels = lvls, C = length(lvls))
 }
 
+# Known per-layer vertex sets for independent layers: NULL (infer presence
+# from incident edges, as graph-tool does) or an N x C logical matrix
+# (vertices x layers; columns may be named by layer level).
+resolve_presence <- function(graph, present, linfo) {
+  if (is.null(present)) return(NULL)
+  N <- graph_num_vertices(graph)
+  P <- as.matrix(present)
+  if (!is.logical(P) || nrow(P) != N || ncol(P) != linfo$C || anyNA(P)) {
+    stop(sprintf("present must be a %d x %d logical matrix (vertices x layers) without NA",
+                 N, linfo$C), call. = FALSE)
+  }
+  if (!is.null(colnames(P))) {
+    lev <- as.character(linfo$levels)
+    if (!setequal(colnames(P), lev) || anyDuplicated(colnames(P))) {
+      stop("colnames(present) must be the layer levels: ", paste(lev, collapse = ", "),
+           call. = FALSE)
+    }
+    P <- P[, lev, drop = FALSE]
+  }
+  storage.mode(P) <- "logical"
+  dimnames(P) <- NULL
+  if (length(linfo$codes) > 0L) {
+    ed <- graph_edges(graph)
+    ok <- P[cbind(ed[, 1L], linfo$codes)] & P[cbind(ed[, 2L], linfo$codes)]
+    if (!all(ok)) {
+      i <- which(!ok)[1L]
+      v <- if (!P[ed[i, 1L], linfo$codes[i]]) ed[i, 1L] else ed[i, 2L]
+      stop(sprintf("vertex %d has edges in layer '%s' but is not marked present there",
+                   v, linfo$levels[linfo$codes[i]]), call. = FALSE)
+    }
+  }
+  P
+}
+
 resolve_layered_weights <- function(graph, weights = NULL, types = NULL,
                                     params = "microcanonical") {
   if (is.null(weights)) {
@@ -61,7 +95,7 @@ resolve_layered_weights <- function(graph, weights = NULL, types = NULL,
 
 new_layered_state <- function(graph, blocks, layer_info, independent,
                               degree_corrected, degree_prior, fit = NULL,
-                              wspec = NULL) {
+                              wspec = NULL, present = NULL) {
   if (is.null(wspec)) {
     wspec <- list(
       W = matrix(0, nrow = 0L, ncol = 0L),
@@ -85,6 +119,7 @@ new_layered_state <- function(graph, blocks, layer_info, independent,
     params = wspec$params,
     cpp_params = wspec$cpp_params,
     weighted = isTRUE(wspec$weighted),
+    present = present,
     num_vertices = graph_num_vertices(graph),
     num_edges = graph_num_edges(graph),
     B = length(unique(blocks)),
@@ -109,7 +144,7 @@ layered_block_state <- function(graph, layers, independent = TRUE,
                                 blocks = NULL, degree_corrected = TRUE,
                                 degree_prior = c("distributed", "uniform"),
                                 weights = NULL, types = NULL,
-                                params = "microcanonical") {
+                                params = "microcanonical", present = NULL) {
   graph_pointer(graph)
   degree_prior <- match.arg(degree_prior)
   if (!is.logical(independent) || length(independent) != 1L || is.na(independent)) {
@@ -132,12 +167,14 @@ layered_block_state <- function(graph, layers, independent = TRUE,
   linfo <- resolve_layer_vector(graph, layers)
   wspec <- resolve_layered_weights(graph, weights, types, params)
   new_layered_state(graph, blocks, linfo, independent, degree_corrected,
-                    degree_prior, wspec = wspec)
+                    degree_prior, wspec = wspec,
+                    present = resolve_presence(graph, present, linfo))
 }
 
 #' @noRd
 #' @export
-layered_description_length <- function(state, lmemb = TRUE, degree_prior = NULL) {
+layered_description_length <- function(state, lmemb = is.null(state$present),
+                                       degree_prior = NULL) {
   validate_layered_state(state)
   if (is.null(degree_prior)) degree_prior <- state$degree_prior
   degree_prior <- match.arg(degree_prior, c("distributed", "uniform"))
@@ -147,7 +184,7 @@ layered_description_length <- function(state, lmemb = TRUE, degree_prior = NULL)
   cpp_layered_entropy(graph_pointer(state$graph), state$blocks, state$layers,
                       state$independent, state$degree_corrected,
                       degree_prior == "distributed", isTRUE(lmemb), q_cache_max(),
-                      w_mat, w_types, w_params)
+                      w_mat, w_types, w_params, state$present)
 }
 
 #' @noRd
@@ -159,7 +196,7 @@ minimize_layered_blockmodel_dl <- function(graph, layers, independent = TRUE,
                                            refine = TRUE, epsilon = 1e-3,
                                            weights = NULL, types = NULL,
                                            params = "microcanonical",
-                                           nthreads = NULL) {
+                                           nthreads = NULL, present = NULL) {
   pointer <- graph_pointer(graph)
   degree_prior <- match.arg(degree_prior)
   if (!is.logical(independent) || length(independent) != 1L || is.na(independent)) {
@@ -176,15 +213,16 @@ minimize_layered_blockmodel_dl <- function(graph, layers, independent = TRUE,
   nt <- if (is.null(nthreads)) 0L else as.integer(nthreads)
   linfo <- resolve_layer_vector(graph, layers)
   wspec <- resolve_layered_weights(graph, weights, types, params)
+  pres <- resolve_presence(graph, present, linfo)
   res <- cpp_layered_minimize(pointer, linfo$codes, independent,
                               degree_corrected, degree_prior == "distributed",
                               as.integer(floor(B_min)),
                               if (is.finite(B_max)) floor(B_max) else Inf,
                               isTRUE(refine), as.numeric(epsilon), q_cache_max(),
-                              wspec$W, wspec$types, wspec$cpp_params, nt)
+                              wspec$W, wspec$types, wspec$cpp_params, nt, pres)
   new_layered_state(graph, res$blocks, linfo, independent, degree_corrected,
                     degree_prior, fit = list(description_length = res$entropy),
-                    wspec = wspec)
+                    wspec = wspec, present = pres)
 }
 
 #' @noRd
@@ -203,7 +241,7 @@ print.rgraphtool_layered_block_state <- function(x, ...) {
 
 new_nested_layered_state <- function(graph, levels, layer_info, independent,
                                      degree_corrected, degree_prior,
-                                     fit = NULL, wspec = NULL) {
+                                     fit = NULL, wspec = NULL, present = NULL) {
   if (is.null(wspec)) {
     wspec <- list(
       W = matrix(0, nrow = 0L, ncol = 0L),
@@ -227,6 +265,7 @@ new_nested_layered_state <- function(graph, levels, layer_info, independent,
     params = wspec$params,
     cpp_params = wspec$cpp_params,
     weighted = isTRUE(wspec$weighted),
+    present = present,
     num_vertices = graph_num_vertices(graph),
     num_edges = graph_num_edges(graph),
     B = vapply(levels, function(b) length(unique(b)), integer(1)),
@@ -252,7 +291,7 @@ nested_layered_block_state <- function(graph, layers, independent = TRUE,
                                        levels = NULL, degree_corrected = TRUE,
                                        degree_prior = c("distributed", "uniform"),
                                        weights = NULL, types = NULL,
-                                       params = "microcanonical") {
+                                       params = "microcanonical", present = NULL) {
   graph_pointer(graph)
   degree_prior <- match.arg(degree_prior)
   if (!is.logical(independent) || length(independent) != 1L || is.na(independent)) {
@@ -285,7 +324,8 @@ nested_layered_block_state <- function(graph, layers, independent = TRUE,
   linfo <- resolve_layer_vector(graph, layers)
   wspec <- resolve_layered_weights(graph, weights, types, params)
   new_nested_layered_state(graph, levels, linfo, independent, degree_corrected,
-                           degree_prior, wspec = wspec)
+                           degree_prior, wspec = wspec,
+                           present = resolve_presence(graph, present, linfo))
 }
 
 #' @noRd
@@ -301,7 +341,7 @@ nested_layered_level_entropy <- function(state, degree_prior = NULL) {
                              state$layers, state$independent,
                              state$degree_corrected,
                              degree_prior == "distributed", q_cache_max(),
-                             w_mat, w_types, w_params)
+                             w_mat, w_types, w_params, state$present)
 }
 
 #' @noRd
@@ -319,7 +359,7 @@ minimize_nested_layered_blockmodel_dl <- function(graph, layers, independent = T
                                                   refine = TRUE, epsilon = 1e-3,
                                                   weights = NULL, types = NULL,
                                                   params = "microcanonical",
-                                                  nthreads = NULL) {
+                                                  nthreads = NULL, present = NULL) {
   pointer <- graph_pointer(graph)
   degree_prior <- match.arg(degree_prior)
   if (graph_num_vertices(graph) < 1L) {
@@ -339,6 +379,7 @@ minimize_nested_layered_blockmodel_dl <- function(graph, layers, independent = T
   nt <- if (is.null(nthreads)) 0L else as.integer(nthreads)
   linfo <- resolve_layer_vector(graph, layers)
   wspec <- resolve_layered_weights(graph, weights, types, params)
+  pres <- resolve_presence(graph, present, linfo)
   res <- cpp_nested_layered_minimize(pointer, linfo$codes, independent,
                                      degree_corrected,
                                      degree_prior == "distributed",
@@ -346,12 +387,12 @@ minimize_nested_layered_blockmodel_dl <- function(graph, layers, independent = T
                                      if (is.finite(B_max)) floor(B_max) else Inf,
                                      isTRUE(refine), as.numeric(epsilon),
                                      q_cache_max(), wspec$W, wspec$types,
-                                     wspec$cpp_params, nt)
+                                     wspec$cpp_params, nt, pres)
   new_nested_layered_state(graph, pad_hierarchy(res$bs, graph_num_vertices(graph)), linfo, independent, degree_corrected,
                            degree_prior,
                            fit = list(description_length = res$entropy,
                                       level_entropy = res$level_entropy),
-                           wspec = wspec)
+                           wspec = wspec, present = pres)
 }
 
 #' @noRd
@@ -384,7 +425,7 @@ compare_layered_models <- function(graph, layers,
                                    B_min = 1L, B_max = Inf, refine = TRUE,
                                    weights = NULL, types = NULL,
                                    params = "microcanonical",
-                                   nthreads = NULL) {
+                                   nthreads = NULL, present = NULL) {
   graph_pointer(graph)
   degree_prior <- match.arg(degree_prior)
   method <- match.arg(method)
@@ -417,6 +458,13 @@ compare_layered_models <- function(graph, layers,
 
   # Resolve layers & optional weights once for validation
   linfo <- resolve_layer_vector(graph, layers)
+  if (linfo$C < 2L) {
+    stop("compare_layered_models() needs at least 2 layers with edges (found ", linfo$C,
+         "); conserved vs rewired is undefined for a single layer", call. = FALSE)
+  }
+  # Resolve presence against the layer labels once; the fits below receive the
+  # integer layer codes, so they get the validated, unnamed matrix.
+  present <- resolve_presence(graph, present, linfo)
   wspec <- resolve_layered_weights(graph, weights, types, params)
 
   spec_for <- function(nm) {
@@ -457,7 +505,7 @@ compare_layered_models <- function(graph, layers,
           weights = if (wspec$weighted) wspec$W else NULL,
           types = if (wspec$weighted) wspec$types else NULL,
           params = if (wspec$weighted) params else "microcanonical",
-          layers = linfo$codes, independent = sp$independent
+          layers = linfo$codes, independent = sp$independent, present = present
         )
       } else if (nested) {
         minimize_nested_layered_blockmodel_dl(
@@ -467,7 +515,7 @@ compare_layered_models <- function(graph, layers,
           weights = if (wspec$weighted) wspec$W else NULL,
           types = if (wspec$weighted) wspec$types else NULL,
           params = if (wspec$weighted) params else "microcanonical",
-          nthreads = nthreads
+          nthreads = nthreads, present = present
         )
       } else {
         minimize_layered_blockmodel_dl(
@@ -477,7 +525,7 @@ compare_layered_models <- function(graph, layers,
           weights = if (wspec$weighted) wspec$W else NULL,
           types = if (wspec$weighted) wspec$types else NULL,
           params = if (wspec$weighted) params else "microcanonical",
-          nthreads = nthreads
+          nthreads = nthreads, present = present
         )
       }
       st

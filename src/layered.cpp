@@ -260,7 +260,11 @@ public:
           _dc(dc), _dist(dist), _is_base(is_base), _is_top(is_top),
           _covs(std::move(covs)),
           _K(static_cast<int>(_covs.size())),
-          _num_cov_strata((_K == 0) ? 0 : (independent ? C : 1)),
+          // One hyperprior stratum in both modes: independent layers draw their
+          // (layer, r, s) weight parameters from the same pooled hyperprior, so both
+          // models leave the same statistics unencoded and their difference does
+          // not depend on the units of the weights.
+          _num_cov_strata((_K == 0) ? 0 : 1),
           _cap(std::max(2, N)),
           _adj(N), _kout(N, 0), _kin(directed ? N : 0, 0),
           _v_layers(independent ? N : 0),
@@ -325,13 +329,13 @@ public:
             }
             if (_K > 0) {
                 if (e.single_layer >= 0) {
-                    int st = _independent ? e.single_layer : 0;
+                    int st = 0;
                     for (int k = 0; k < _K; ++k) _recsum_c[st][k] += e.w.x(k);
                 } else if (!_independent) {
                     for (int k = 0; k < _K; ++k) _recsum_c[0][k] += e.w.x(k);
                 } else {
                     for (const auto& wi : e.wl.items) {
-                        for (int k = 0; k < _K; ++k) _recsum_c[wi.l][k] += wi.w.x(k);
+                        for (int k = 0; k < _K; ++k) _recsum_c[0][k] += wi.w.x(k);
                     }
                 }
             }
@@ -376,7 +380,11 @@ public:
         for (int l = 0; l < _C; ++l)
             if (_E_l[l] > 0) _C_active++;
 
-        // Populate _v_layers for independent = TRUE
+        // Populate _v_layers for independent = TRUE. At the base level the
+        // per-layer vertex sets are either given (`upper_v_layers` carries a
+        // known presence list: each layer is then an SBM over its given
+        // vertex set, zero degrees allowed) or, as in graph-tool, inferred
+        // from incident edges.
         if (_independent) {
             if (_is_base) {
                 for (int v = 0; v < _N; ++v) {
@@ -386,10 +394,20 @@ public:
                     if (_directed) {
                         for (const auto& [l, c] : _v_kin_l[v].items)
                             if (c > 0) ls.push_back(l);
-                        std::sort(ls.begin(), ls.end());
-                        ls.erase(std::unique(ls.begin(), ls.end()), ls.end());
                     }
-                    _v_layers[v] = std::move(ls);
+                    std::sort(ls.begin(), ls.end());
+                    ls.erase(std::unique(ls.begin(), ls.end()), ls.end());
+                    _presence_given = (upper_v_layers != nullptr);
+                    if (upper_v_layers != nullptr) {
+                        const std::vector<int>& given = (*upper_v_layers)[v];
+                        for (int l : ls)
+                            if (!std::binary_search(given.begin(), given.end(), l))
+                                Rcpp::stop("vertex %d has edges in layer %d but is not marked present there",
+                                           v + 1, l + 1);
+                        _v_layers[v] = given;
+                    } else {
+                        _v_layers[v] = std::move(ls);
+                    }
                 }
             } else if (upper_v_layers != nullptr) {
                 _v_layers = *upper_v_layers;
@@ -628,7 +646,7 @@ public:
             } else {
                 for (const auto& wi : ps.wl.items) {
                     if (wi.m_cov <= 0) continue;
-                    int st = wi.l;
+                    int st = 0;
                     ++_B_E_c[st];
                     if (wi.m_cov > 1) ++_B_E_D_c[st];
                     for (int k : _normal_idx) {
@@ -646,7 +664,8 @@ public:
 
     // Exact graph-tool 3.9 lmemb term (only at base level l=0 when independent=TRUE)
     double lmemb_dl() const {
-        if (!_is_base || !_independent || _C_active <= 1) return 0.0;
+        // Given presence is conditioned on, not encoded: no membership term.
+        if (!_is_base || !_independent || _C_active <= 1 || _presence_given) return 0.0;
         const LMath& M = lmath();
         double x = M.lbinom(_C_active, 1);
         if (x > 15.0)
@@ -928,6 +947,7 @@ private:
     std::vector<std::vector<LAdjRef>> _adj;
     std::vector<long> _kout, _kin;
     std::vector<std::vector<int>> _v_layers;
+    bool _presence_given = false;
     std::vector<LayerCountVec> _v_kout_l, _v_kin_l;
     std::vector<long> _E_l;
 
@@ -1353,7 +1373,7 @@ private:
                         long mc0 = old_it ? old_it->m_cov : 0;
                         long mc1 = mc0 + dwi.m_cov;
                         if (mc0 <= 0 && mc1 <= 0) continue;
-                        int st = dwi.l;
+                        int st = 0;
                         buf.touched_strata[st] = 1;
                         buf.d_B_E_c[st] += (mc1 > 0 ? 1 : 0) - (mc0 > 0 ? 1 : 0);
                         buf.d_B_E_D_c[st] += (mc1 > 1 ? 1 : 0) - (mc0 > 1 ? 1 : 0);
@@ -1968,6 +1988,13 @@ double layered_minimize_flat(LayeredLevel& lv, LRng& rng, size_t B_min,
 
 class NestedLayeredSBM {
 public:
+    int num_layers() const { return _C; }
+    // Known per-layer vertex sets for the base level (empty: infer from edges).
+    void set_presence(std::vector<std::vector<int>> pres) { _base_presence = std::move(pres); }
+    const std::vector<std::vector<int>>* base_presence_ptr() const {
+        return (_independent && !_base_presence.empty()) ? &_base_presence : nullptr;
+    }
+
     NestedLayeredSBM(const Graph& graph, const Rcpp::IntegerVector& layers,
                      bool independent, bool dc, bool dist,
                      const Rcpp::NumericMatrix& weights = Rcpp::NumericMatrix(0, 0),
@@ -1997,7 +2024,8 @@ public:
                             is_base, is_top,
                             is_base ? _base_covs : _up_covs);
             lv.set_edges(std::move(cur_edges),
-                         (!is_base && _independent) ? &cur_v_layers : nullptr);
+                         is_base ? base_presence_ptr()
+                                 : (_independent ? &cur_v_layers : nullptr));
             lv.set_partition(bs[l]);
 
             if (l + 1 < L) {
@@ -2118,7 +2146,7 @@ public:
 
         // Build base level first to extract coarsened graph
         LayeredLevel lv0(_base_N, _C, _directed, _independent, _dc, _dist, true, false, _base_covs);
-        lv0.set_edges(_base_edges);
+        lv0.set_edges(_base_edges, base_presence_ptr());
         lv0.set_partition(b0);
 
         std::vector<LGraphEdge> cur_edges;
@@ -2264,6 +2292,8 @@ public:
     }
 
 private:
+    std::vector<std::vector<int>> _base_presence;
+
     bool _directed, _independent, _dc, _dist;
     int _base_N, _C = 1;
     std::vector<CovSpec> _base_covs, _up_covs;
@@ -2720,6 +2750,23 @@ inline Rcpp::List unwrap_params(Rcpp::Nullable<Rcpp::List> params) {
 // ---------------------------------------------------------------------------
 // Rcpp exports
 
+// Optional N x C logical presence matrix -> sorted per-vertex layer lists.
+static std::vector<std::vector<int>> parse_presence(SEXP present, int N, int C) {
+    std::vector<std::vector<int>> out;
+    if (present == R_NilValue) return out;
+    Rcpp::LogicalMatrix P(present);
+    if (P.nrow() != N || P.ncol() != C)
+        Rcpp::stop("present must be a %d x %d logical matrix (vertices x layers)", N, C);
+    out.assign(N, {});
+    for (int v = 0; v < N; ++v)
+        for (int l = 0; l < C; ++l) {
+            int x = P(v, l);
+            if (x == NA_LOGICAL) Rcpp::stop("present must not contain NA");
+            if (x) out[v].push_back(l);
+        }
+    return out;
+}
+
 // [[Rcpp::export]]
 double cpp_layered_entropy(SEXP pointer, Rcpp::IntegerVector blocks,
                            Rcpp::IntegerVector layers, bool independent,
@@ -2727,7 +2774,8 @@ double cpp_layered_entropy(SEXP pointer, Rcpp::IntegerVector blocks,
                            bool include_lmemb, double q_max,
                            Rcpp::Nullable<Rcpp::NumericMatrix> weights = R_NilValue,
                            Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
-                           Rcpp::Nullable<Rcpp::List> params = R_NilValue) {
+                           Rcpp::Nullable<Rcpp::List> params = R_NilValue,
+    SEXP present = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) llog_q().init(l_q_cache_max(q_max));
@@ -2738,9 +2786,11 @@ double cpp_layered_entropy(SEXP pointer, Rcpp::IntegerVector blocks,
     int C = 1;
     auto edges = build_base_layered_edges(
         graph, layers, W, static_cast<int>(covs.size()), C);
+    auto pres = parse_presence(present, N, C);
+    const std::vector<std::vector<int>>* pres_ptr = (independent && !pres.empty()) ? &pres : nullptr;
     LayeredLevel lv(N, C, graph.directed, independent, degree_corrected,
                     distributed, true, true, covs);
-    lv.set_edges(std::move(edges));
+    lv.set_edges(std::move(edges), pres_ptr);
     lv.set_partition(parse_l_blocks(blocks, N));
     return lv.entropy(include_lmemb);
 }
@@ -2755,7 +2805,8 @@ Rcpp::NumericVector cpp_layered_check_moves(SEXP pointer,
                                             double q_max,
                                             Rcpp::Nullable<Rcpp::NumericMatrix> weights = R_NilValue,
                                             Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
-                                            Rcpp::Nullable<Rcpp::List> params = R_NilValue) {
+                                            Rcpp::Nullable<Rcpp::List> params = R_NilValue,
+    SEXP present = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) llog_q().init(l_q_cache_max(q_max));
@@ -2766,9 +2817,11 @@ Rcpp::NumericVector cpp_layered_check_moves(SEXP pointer,
     int C = 1;
     auto edges = build_base_layered_edges(
         graph, layers, W, static_cast<int>(covs.size()), C);
+    auto pres = parse_presence(present, N, C);
+    const std::vector<std::vector<int>>* pres_ptr = (independent && !pres.empty()) ? &pres : nullptr;
     LayeredLevel lv(N, C, graph.directed, independent, degree_corrected,
                     distributed, true, true, covs);
-    lv.set_edges(std::move(edges));
+    lv.set_edges(std::move(edges), pres_ptr);
     lv.set_partition(parse_l_blocks(blocks, N));
     LRng rng;
     Rcpp::NumericVector err(nmoves);
@@ -2796,7 +2849,8 @@ Rcpp::List cpp_layered_minimize(SEXP pointer, Rcpp::IntegerVector layers,
                                 Rcpp::Nullable<Rcpp::NumericMatrix> weights = R_NilValue,
                                 Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
                                 Rcpp::Nullable<Rcpp::List> params = R_NilValue,
-                                int nthreads = 0) {
+                                int nthreads = 0,
+    SEXP present = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) llog_q().init(l_q_cache_max(q_max));
@@ -2807,9 +2861,11 @@ Rcpp::List cpp_layered_minimize(SEXP pointer, Rcpp::IntegerVector layers,
     int C = 1;
     auto edges = build_base_layered_edges(
         graph, layers, W, static_cast<int>(covs.size()), C);
+    auto pres = parse_presence(present, N, C);
+    const std::vector<std::vector<int>>* pres_ptr = (independent && !pres.empty()) ? &pres : nullptr;
     LayeredLevel lv(N, C, graph.directed, independent, degree_corrected,
                     distributed, true, true, covs);
-    lv.set_edges(std::move(edges));
+    lv.set_edges(std::move(edges), pres_ptr);
     LRng rng;
     size_t bmax = std::isinf(B_max) ? std::numeric_limits<size_t>::max()
                                     : static_cast<size_t>(B_max);
@@ -2829,7 +2885,8 @@ Rcpp::NumericVector cpp_nested_layered_entropy(SEXP pointer, Rcpp::List bs,
                                                bool distributed, double q_max,
                                                Rcpp::Nullable<Rcpp::NumericMatrix> weights = R_NilValue,
                                                Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
-                                               Rcpp::Nullable<Rcpp::List> params = R_NilValue) {
+                                               Rcpp::Nullable<Rcpp::List> params = R_NilValue,
+    SEXP present = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) llog_q().init(l_q_cache_max(q_max));
@@ -2839,6 +2896,7 @@ Rcpp::NumericVector cpp_nested_layered_entropy(SEXP pointer, Rcpp::List bs,
     auto covs = parse_covs(W, T, P);
     NestedLayeredSBM nw(graph, layers, independent, degree_corrected, distributed,
                         W, covs);
+    nw.set_presence(parse_presence(present, N, nw.num_layers()));
     std::vector<std::vector<int>> b_vec;
     b_vec.reserve(bs.size());
     int cur_n = N;
@@ -2861,7 +2919,8 @@ Rcpp::List cpp_nested_layered_minimize(SEXP pointer, Rcpp::IntegerVector layers,
                                        Rcpp::Nullable<Rcpp::NumericMatrix> weights = R_NilValue,
                                        Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
                                        Rcpp::Nullable<Rcpp::List> params = R_NilValue,
-                                       int nthreads = 0) {
+                                       int nthreads = 0,
+    SEXP present = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) llog_q().init(l_q_cache_max(q_max));
@@ -2872,10 +2931,12 @@ Rcpp::List cpp_nested_layered_minimize(SEXP pointer, Rcpp::IntegerVector layers,
     int C = 1;
     auto edges = build_base_layered_edges(
         graph, layers, W, static_cast<int>(covs.size()), C);
+    auto pres = parse_presence(present, N, C);
+    const std::vector<std::vector<int>>* pres_ptr = (independent && !pres.empty()) ? &pres : nullptr;
     // Sweep base level without flat top-level edges_dl penalty so nested-scale B candidates are explored
     LayeredLevel lv0(N, C, graph.directed, independent, degree_corrected,
                      distributed, true, false, covs);
-    lv0.set_edges(std::move(edges));
+    lv0.set_edges(std::move(edges), pres_ptr);
     LRng rng;
     size_t bmax = std::isinf(B_max) ? std::numeric_limits<size_t>::max()
                                     : static_cast<size_t>(B_max);
@@ -2884,10 +2945,12 @@ Rcpp::List cpp_nested_layered_minimize(SEXP pointer, Rcpp::IntegerVector layers,
 
     NestedLayeredSBM best_nw(graph, layers, independent, degree_corrected, distributed,
                              W, covs);
+        best_nw.set_presence(pres);
     double best_S = L_INF;
     for (const auto& b0 : cps) {
         NestedLayeredSBM cand(graph, layers, independent, degree_corrected, distributed,
                               W, covs);
+        cand.set_presence(pres);
         cand.optimize_from_base(b0, rng, false, epsilon, nthreads);
         double s_cand = cand.entropy();
         if (s_cand < best_S) {
@@ -2913,7 +2976,8 @@ Rcpp::List cpp_layered_mcmc(SEXP pointer, Rcpp::IntegerVector blocks,
                             double q_max,
                             Rcpp::Nullable<Rcpp::NumericMatrix> weights = R_NilValue,
                             Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
-                            Rcpp::Nullable<Rcpp::List> params = R_NilValue) {
+                            Rcpp::Nullable<Rcpp::List> params = R_NilValue,
+    SEXP present = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) llog_q().init(l_q_cache_max(q_max));
@@ -2924,9 +2988,11 @@ Rcpp::List cpp_layered_mcmc(SEXP pointer, Rcpp::IntegerVector blocks,
     int C = 1;
     auto edges = build_base_layered_edges(
         graph, layers, W, static_cast<int>(covs.size()), C);
+    auto pres = parse_presence(present, N, C);
+    const std::vector<std::vector<int>>* pres_ptr = (independent && !pres.empty()) ? &pres : nullptr;
     LayeredLevel lv(N, C, graph.directed, independent, degree_corrected,
                     distributed, true, true, covs);
-    lv.set_edges(std::move(edges));
+    lv.set_edges(std::move(edges), pres_ptr);
     lv.set_partition(parse_l_blocks(blocks, N));
     LRng rng;
 
@@ -3050,7 +3116,8 @@ Rcpp::List cpp_nested_layered_mcmc(SEXP pointer, Rcpp::List bs,
                                    double q_max,
                                    Rcpp::Nullable<Rcpp::NumericMatrix> weights = R_NilValue,
                                    Rcpp::Nullable<Rcpp::CharacterVector> types = R_NilValue,
-                                   Rcpp::Nullable<Rcpp::List> params = R_NilValue) {
+                                   Rcpp::Nullable<Rcpp::List> params = R_NilValue,
+    SEXP present = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) llog_q().init(l_q_cache_max(q_max));
@@ -3060,6 +3127,7 @@ Rcpp::List cpp_nested_layered_mcmc(SEXP pointer, Rcpp::List bs,
     auto covs = parse_covs(W, T, P);
     NestedLayeredSBM nw(graph, layers, independent, degree_corrected, distributed,
                         W, covs);
+    nw.set_presence(parse_presence(present, N, nw.num_layers()));
     std::vector<std::vector<int>> b_vec;
     b_vec.reserve(bs.size());
     int cur_n = N;
