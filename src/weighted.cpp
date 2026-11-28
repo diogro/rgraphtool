@@ -1944,7 +1944,11 @@ void weighted_flat_mcmc_sweep(WeightedLevel& s, WRng& rng, double beta,
 
     // 2. Merge-split moves (auxiliary Gibbs 2-way split / merge, exact MH)
     if (multiflip && s.B() >= 1) {
-        size_t n_ms = std::max<size_t>(1, static_cast<size_t>(s.B()));
+        // A state-independent number of merge-split attempts per sweep (as in
+        // blockmodel.cpp: psplit + pmerge = 2). Using s.B() made the number of
+        // pi-invariant steps depend on the current state, which breaks
+        // invariance (states with more groups got more merge attempts).
+        const size_t n_ms = 2;
         for (size_t step = 0; step < n_ms; ++step) {
             bool try_split = (rng.unif() < 0.5);
             if (try_split) {
@@ -1969,14 +1973,19 @@ void weighted_flat_mcmc_sweep(WeightedLevel& s, WRng& rng, double beta,
                     for (int v : mem) if (s.group(v) != r) s.move(v, r);
                     continue;
                 }
-                // Log proposal ratio: forward splits r uniformly into 2^(nr)-2 ways (ordered -> /2),
-                // reverse picks ordered pair (r, t) among B_after*(B_after-1) pairs!
-                // Wait: picking r uniformly (1/B_before) and ordered non-empty split (1/(2^nr - 2)):
-                // reverse picks unordered pair {r, t} (2 / (B_after*(B_after - 1))):
-                double log_pfwd = -std::log(static_cast<double>(B_before)) -
-                                  std::log(std::ldexp(1.0, static_cast<int>(std::min<size_t>(nr, 50))) - 2.0);
-                double log_prev = std::log(2.0) -
-                                  std::log(static_cast<double>(B_before + 1) * static_cast<double>(B_before));
+                // Exact proposal probabilities of this scheme (the 1/2 for
+                // choosing split vs merge cancels):
+                //  - split: pick r with 1/B, send each member to t with 1/2;
+                //    trivial outcomes are rejected (self-transitions), and an
+                //    unordered split {S, S^c} arises from 2 assignments, so
+                //    q_split = (1/B) 2^(1 - n_r);
+                //  - reverse merge: r and t drawn independently from B + 1
+                //    groups (r == t rejected), so an unordered pair has
+                //    q_merge = 2 / (B + 1)^2.
+                const double LN2 = std::log(2.0);
+                double log_pfwd = -std::log(static_cast<double>(B_before)) +
+                                  (1.0 - static_cast<double>(nr)) * LN2;
+                double log_prev = LN2 - 2.0 * std::log(static_cast<double>(B_before + 1));
                 bool accept = false;
                 if (std::isinf(beta)) {
                     accept = (dS < 0.0);
@@ -2000,10 +2009,12 @@ void weighted_flat_mcmc_sweep(WeightedLevel& s, WRng& rng, double beta,
                 std::vector<int> r_mem = s.members(r);
                 size_t nr_tot = r_mem.size() + static_cast<size_t>(s.size(t));
                 double dS = s.merge(r, t);
-                double log_pfwd = std::log(2.0) -
-                                  std::log(static_cast<double>(B_before) * static_cast<double>(B_before - 1));
-                double log_prev = -std::log(static_cast<double>(B_before - 1)) -
-                                  std::log(std::ldexp(1.0, static_cast<int>(std::min<size_t>(nr_tot, 50))) - 2.0);
+                // Merge of an unordered pair drawn as two independent picks:
+                // 2 / B^2; reverse split of the merged group: (1/(B-1)) 2^(1-n).
+                const double LN2 = std::log(2.0);
+                double log_pfwd = LN2 - 2.0 * std::log(static_cast<double>(B_before));
+                double log_prev = -std::log(static_cast<double>(B_before - 1)) +
+                                  (1.0 - static_cast<double>(nr_tot)) * LN2;
                 bool accept = false;
                 if (std::isinf(beta)) {
                     accept = (dS < 0.0);

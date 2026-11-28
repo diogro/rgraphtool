@@ -1489,9 +1489,12 @@ void pp_greedy_sweeps(PPState& st, PPRng& rng, size_t B_min, size_t B_max,
     }
 }
 
+// exact_ms = false (used by the minimizer only) keeps the Gibbs-guided
+// merge-split heuristic at every beta; sampling must use exact_ms = true.
 void pp_mcmc_sweep_once(PPState& s, PPRng& rng, double beta, double c, double d,
                         bool multiflip, size_t B_min, size_t B_max,
-                        double& total_dS, size_t& nattempts, size_t& nmoves) {
+                        double& total_dS, size_t& nattempts, size_t& nmoves,
+                        bool exact_ms = true) {
     if (s.N() <= 1 || s.E() == 0) return;
     std::vector<int> vs(s.N());
     std::iota(vs.begin(), vs.end(), 0);
@@ -1552,82 +1555,154 @@ void pp_mcmc_sweep_once(PPState& s, PPRng& rng, double beta, double c, double d,
     }
 
     if (multiflip && s.B() >= 1) {
-        size_t n_ms = std::max<size_t>(1, static_cast<size_t>(s.B()));
-        for (size_t step = 0; step < n_ms; ++step) {
-            bool try_split = (rng.unif() < 0.5);
-            if (try_split) {
-                if (static_cast<size_t>(s.B()) >= B_max || s.empty_group() < 0) continue;
-                int r = s.random_occupied(rng);
-                if (s.size(r) < 2) continue;
-                ++nattempts;
-                int t = s.empty_group();
-                std::vector<int> mem = s.members(r);
-                size_t nr = mem.size();
-                size_t B_before = static_cast<size_t>(s.B());
-                double dS = 0.0, log_q = 0.0;
-                int cnt_t = 0;
-                for (int v : mem) {
-                    if (rng.unif() < 0.5) { dS += s.move(v, t); ++cnt_t; }
-                }
-                if (cnt_t == 0) { dS += s.move(mem[0], t); cnt_t = 1; }
-                else if (cnt_t == static_cast<int>(nr)) { dS += s.move(mem[0], r); --cnt_t; }
-                for (int gsw = 0; gsw < 8; ++gsw) {
-                    rng.shuffle(mem);
+        if (std::isinf(beta) || !exact_ms) {
+            // Greedy (beta = Inf) minimization: detailed balance is irrelevant,
+            // so keep the Gibbs-guided splits that find improving moves.
+            size_t n_ms = std::max<size_t>(1, static_cast<size_t>(s.B()));
+            for (size_t step = 0; step < n_ms; ++step) {
+                bool try_split = (rng.unif() < 0.5);
+                if (try_split) {
+                    if (static_cast<size_t>(s.B()) >= B_max || s.empty_group() < 0) continue;
+                    int r = s.random_occupied(rng);
+                    if (s.size(r) < 2) continue;
+                    ++nattempts;
+                    int t = s.empty_group();
+                    std::vector<int> mem = s.members(r);
+                    size_t nr = mem.size();
+                    size_t B_before = static_cast<size_t>(s.B());
+                    double dS = 0.0, log_q = 0.0;
+                    int cnt_t = 0;
                     for (int v : mem) {
-                        int cur = s.group(v);
-                        int oth = (cur == r) ? t : r;
-                        if (s.size(cur) <= 1) continue;
-                        double d_mv = s.virtual_move(v, oth);
-                        double p_oth;
-                        if (std::isinf(beta)) p_oth = (d_mv < 0.0) ? 1.0 : 0.0;
-                        else {
-                            double z = -beta * d_mv;
-                            p_oth = (z > 35.0) ? 1.0 : (z < -35.0 ? 0.0 : 1.0 / (1.0 + std::exp(-z)));
-                        }
-                        if (rng.unif() < p_oth) {
-                            s.apply_last_virtual_move(v, oth);
-                            dS += d_mv;
-                            if (gsw == 7) log_q += std::log(std::max(1e-300, p_oth));
-                        } else {
-                            if (gsw == 7) log_q += std::log(std::max(1e-300, 1.0 - p_oth));
+                        if (rng.unif() < 0.5) { dS += s.move(v, t); ++cnt_t; }
+                    }
+                    if (cnt_t == 0) { dS += s.move(mem[0], t); cnt_t = 1; }
+                    else if (cnt_t == static_cast<int>(nr)) { dS += s.move(mem[0], r); --cnt_t; }
+                    for (int gsw = 0; gsw < 8; ++gsw) {
+                        rng.shuffle(mem);
+                        for (int v : mem) {
+                            int cur = s.group(v);
+                            int oth = (cur == r) ? t : r;
+                            if (s.size(cur) <= 1) continue;
+                            double d_mv = s.virtual_move(v, oth);
+                            double p_oth;
+                            if (std::isinf(beta)) p_oth = (d_mv < 0.0) ? 1.0 : 0.0;
+                            else {
+                                double z = -beta * d_mv;
+                                p_oth = (z > 35.0) ? 1.0 : (z < -35.0 ? 0.0 : 1.0 / (1.0 + std::exp(-z)));
+                            }
+                            if (rng.unif() < p_oth) {
+                                s.apply_last_virtual_move(v, oth);
+                                dS += d_mv;
+                                if (gsw == 7) log_q += std::log(std::max(1e-300, p_oth));
+                            } else {
+                                if (gsw == 7) log_q += std::log(std::max(1e-300, 1.0 - p_oth));
+                            }
                         }
                     }
+                    bool accept = false;
+                    if (std::isinf(beta)) accept = (dS < 0.0);
+                    else {
+                        size_t B_after = static_cast<size_t>(s.B());
+                        double log_pf = -std::log(static_cast<double>(B_before)) + log_q;
+                        double log_pr = -std::log(static_cast<double>(B_after) * (B_after - 1) / 2.0);
+                        double log_a = -beta * dS + log_pr - log_pf;
+                        accept = (log_a >= 0.0 || rng.unif() < std::exp(log_a));
+                    }
+                    if (accept) { total_dS += dS; ++nmoves; }
+                    else {
+                        std::vector<int> mem_t = s.members(t);
+                        for (int v : mem_t) s.move(v, r);
+                    }
+                } else {
+                    if (static_cast<size_t>(s.B()) <= B_min || s.B() < 2) continue;
+                    ++nattempts;
+                    int r = s.random_occupied(rng);
+                    int t = s.random_occupied(rng);
+                    if (r == t) continue;
+                    size_t B_before = static_cast<size_t>(s.B());
+                    std::vector<int> mem_r = s.members(r);
+                    double dS = s.merge(r, t);
+                    bool accept = false;
+                    if (std::isinf(beta)) accept = (dS < 0.0);
+                    else {
+                        size_t B_after = static_cast<size_t>(s.B());
+                        double log_pf = -std::log(static_cast<double>(B_before) * (B_before - 1) / 2.0);
+                        double log_pr = -std::log(static_cast<double>(B_after)) -
+                                        static_cast<double>(mem_r.size()) * PP_LOG2;
+                        double log_a = -beta * dS + log_pr - log_pf;
+                        accept = (log_a >= 0.0 || rng.unif() < std::exp(log_a));
+                    }
+                    if (accept) { total_dS += dS; ++nmoves; }
+                    else { for (int v : mem_r) s.move(v, r); }
                 }
-                bool accept = false;
-                if (std::isinf(beta)) accept = (dS < 0.0);
-                else {
-                    size_t B_after = static_cast<size_t>(s.B());
-                    double log_pf = -std::log(static_cast<double>(B_before)) + log_q;
-                    double log_pr = -std::log(static_cast<double>(B_after) * (B_after - 1) / 2.0);
-                    double log_a = -beta * dS + log_pr - log_pf;
-                    accept = (log_a >= 0.0 || rng.unif() < std::exp(log_a));
+            }
+        } else {
+            // Finite beta: exact MH kernel.
+            // A state-independent number of merge-split attempts per sweep (as in
+            // blockmodel.cpp: psplit + pmerge = 2). Using s.B() made the number of
+            // pi-invariant steps depend on the current state, which breaks
+            // invariance (states with more groups got more merge attempts).
+            const size_t n_ms = 2;
+            for (size_t step = 0; step < n_ms; ++step) {
+                // Uniform random 2-way split / pair merge with exact proposal
+                // probabilities (see weighted.cpp): q_split = (1/B) 2^(1 - n_r),
+                // q_merge = 2 / B^2 for an unordered pair. The earlier Gibbs
+                // split proposal ignored the random launch and the earlier
+                // sweeps in its proposal probability, which broke detailed
+                // balance (TV ~0.15 against exact enumeration).
+                const double LN2 = std::log(2.0);
+                bool try_split = (rng.unif() < 0.5);
+                if (try_split) {
+                    if (static_cast<size_t>(s.B()) >= B_max || s.empty_group() < 0) continue;
+                    int r = s.random_occupied(rng);
+                    if (s.size(r) < 2) continue;
+                    ++nattempts;
+                    int t = s.empty_group();
+                    std::vector<int> mem = s.members(r);
+                    size_t nr = mem.size();
+                    size_t B_before = static_cast<size_t>(s.B());
+                    double dS = 0.0;
+                    size_t cnt_t = 0;
+                    for (int v : mem) {
+                        if (rng.unif() < 0.5) { dS += s.move(v, t); ++cnt_t; }
+                    }
+                    if (cnt_t == 0 || cnt_t == nr) {
+                        for (int v : mem) if (s.group(v) != r) s.move(v, r);
+                        continue;
+                    }
+                    bool accept = false;
+                    if (std::isinf(beta)) accept = (dS < 0.0);
+                    else {
+                        double log_pf = -std::log(static_cast<double>(B_before)) +
+                                        (1.0 - static_cast<double>(nr)) * LN2;
+                        double log_pr = LN2 - 2.0 * std::log(static_cast<double>(B_before + 1));
+                        double log_a = -beta * dS + log_pr - log_pf;
+                        accept = (log_a >= 0.0 || rng.unif() < std::exp(log_a));
+                    }
+                    if (accept) { total_dS += dS; ++nmoves; }
+                    else { for (int v : mem) if (s.group(v) != r) s.move(v, r); }
+                } else {
+                    if (static_cast<size_t>(s.B()) <= B_min || s.B() < 2) continue;
+                    ++nattempts;
+                    int r = s.random_occupied(rng);
+                    int t = s.random_occupied(rng);
+                    if (r == t) continue;
+                    size_t B_before = static_cast<size_t>(s.B());
+                    std::vector<int> mem_r = s.members(r);
+                    size_t n_tot = mem_r.size() + static_cast<size_t>(s.size(t));
+                    double dS = s.merge(r, t);
+                    bool accept = false;
+                    if (std::isinf(beta)) accept = (dS < 0.0);
+                    else {
+                        double log_pf = LN2 - 2.0 * std::log(static_cast<double>(B_before));
+                        double log_pr = -std::log(static_cast<double>(B_before - 1)) +
+                                        (1.0 - static_cast<double>(n_tot)) * LN2;
+                        double log_a = -beta * dS + log_pr - log_pf;
+                        accept = (log_a >= 0.0 || rng.unif() < std::exp(log_a));
+                    }
+                    if (accept) { total_dS += dS; ++nmoves; }
+                    else { for (int v : mem_r) s.move(v, r); }
                 }
-                if (accept) { total_dS += dS; ++nmoves; }
-                else {
-                    std::vector<int> mem_t = s.members(t);
-                    for (int v : mem_t) s.move(v, r);
-                }
-            } else {
-                if (static_cast<size_t>(s.B()) <= B_min || s.B() < 2) continue;
-                ++nattempts;
-                int r = s.random_occupied(rng);
-                int t = s.random_occupied(rng);
-                if (r == t) continue;
-                size_t B_before = static_cast<size_t>(s.B());
-                std::vector<int> mem_r = s.members(r);
-                double dS = s.merge(r, t);
-                bool accept = false;
-                if (std::isinf(beta)) accept = (dS < 0.0);
-                else {
-                    size_t B_after = static_cast<size_t>(s.B());
-                    double log_pf = -std::log(static_cast<double>(B_before) * (B_before - 1) / 2.0);
-                    double log_pr = -std::log(static_cast<double>(B_after)) -
-                                    static_cast<double>(mem_r.size()) * PP_LOG2;
-                    double log_a = -beta * dS + log_pr - log_pf;
-                    accept = (log_a >= 0.0 || rng.unif() < std::exp(log_a));
-                }
-                if (accept) { total_dS += dS; ++nmoves; }
-                else { for (int v : mem_r) s.move(v, r); }
             }
         }
     }
@@ -1786,14 +1861,14 @@ Rcpp::List cpp_pp_minimize(SEXP pointer, bool uniform, bool degree_corrected,
         int warm_sw = refine ? 40 : 15;
         for (int sw = 0; sw < warm_sw; ++sw) {
             double b_cur = (sw < warm_sw / 2) ? 1.0 : ((sw < 3 * warm_sw / 4) ? 2.0 : 4.0);
-            pp_mcmc_sweep_once(st, rng, b_cur, 0.5, 0.05, true, bmin, bmax, tot_dS, na, nm);
+            pp_mcmc_sweep_once(st, rng, b_cur, 0.5, 0.05, true, bmin, bmax, tot_dS, na, nm, false);
         }
 
         double cur_S = st.entropy();
         int no_imp = 0;
         int max_sw = refine ? 60 : 20;
         for (int sw = 0; sw < max_sw; ++sw) {
-            pp_mcmc_sweep_once(st, rng, PP_INF, 0.5, 0.05, true, bmin, bmax, tot_dS, na, nm);
+            pp_mcmc_sweep_once(st, rng, PP_INF, 0.5, 0.05, true, bmin, bmax, tot_dS, na, nm, false);
             double new_S = st.entropy();
             if (new_S < cur_S - epsilon) {
                 cur_S = new_S;

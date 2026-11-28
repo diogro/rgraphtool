@@ -351,8 +351,10 @@ test_that("compare_weight_models selects true weight model with Jacobian adjustm
     g, weights = "w",
     candidates = c("real-exponential", "log-normal"),
     nested = FALSE, method = "posterior",
-    nsamples = 20L, burnin = 15L, thin = 2L
+    nsamples = 20L, burnin = 15L, thin = 2L, nruns = 3L
   )
+  # (best of 3 starts: a single minimization can stop at B = 1, and a short
+  # exact-MH chain need not leave it within the burn-in)
   expect_equal(cmp_post$best_model, "log-normal")
   expect_true(all(is.finite(cmp_post$summary$neg_log_evidence)))
 })

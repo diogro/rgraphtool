@@ -14,6 +14,21 @@
   * They now match graph-tool 3.9 exactly. New parity tests are in
     `test-logq-parity.R`.
   * Bipartite states no longer cast an infinite `q_max` to an integer.
+* Merge-split MCMC (`multiflip = TRUE`) for weighted, planted-partition and
+  layered states now satisfies detailed balance. Against exact enumeration
+  of all partitions, total-variation distance dropped from 0.07-0.15 to the
+  single-node noise level (0.004-0.010). Three errors were fixed:
+  * Proposal probabilities: the 2^min(n, 50) cap, trivial splits treated as
+    redrawn rather than rejected, a 1/C(B, 2) merge-pair probability for
+    independent draws, and Gibbs-split proposal probabilities that ignored
+    the random launch.
+  * The number of merge-split attempts per sweep depended on the current B.
+  * At finite beta the moves are now an exact uniform-split / pair-merge
+    Metropolis-Hastings kernel. Greedy minimization (beta = Inf, and the PP
+    minimizer) keeps the Gibbs-guided splits.
+  * `sample_posterior()`, `model_evidence()` and the posterior-mode
+    `compare_*()` functions were affected. New tests are in
+    `test-mcmc-detailed-balance.R`.
 * PseudoNormal reconstruction:
   * The greedy sweep now optimizes edges before node parameters, as
     graph-tool does (`theta_first = False`).
