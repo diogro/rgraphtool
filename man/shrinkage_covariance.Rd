@@ -8,13 +8,18 @@ Computes an optimal linear shrinkage covariance matrix
 directly to \code{\link{pseudo_normal_block_state}(cov = ..., n_eff = ...)}.
 }
 \usage{
-shrinkage_covariance(x, target = c("diagonal", "identity"))
+shrinkage_covariance(x, target = c("diagonal", "identity"), center = TRUE)
 }
 \arguments{
 \item{x}{Numeric \code{N x M} matrix of variables (rows) by observations
 (columns), with \code{M >= 3}.}
 \item{target}{Shrinkage target: \code{"diagonal"} (unequal variable variances,
 zero covariances) or \code{"identity"} (mean-variance scaled identity).}
+\item{center}{Logical; if \code{TRUE} (default) each variable is centred and
+the covariance uses \code{M - 1} degrees of freedom. If \code{FALSE}, the
+observations are taken to have known zero mean (for example regression
+residuals) and the second-moment matrix \code{x \%*\% t(x) / M} is shrunk
+instead.}
 }
 \value{
 A list with \code{cov} (\code{N x N} symmetric positive-definite matrix),

@@ -1023,29 +1023,38 @@ print.rgraphtool_l1_path <- function(x, ...) {
 #'   with `M >= 3`.
 #' @param target Shrinkage target: `"diagonal"` (unequal variable variances,
 #'   zero covariances) or `"identity"` (mean-variance scaled identity).
+#' @param center Logical; if `TRUE` (default) each variable is centred and the
+#'   covariance uses `M - 1` degrees of freedom. If `FALSE`, the observations
+#'   are taken to have known zero mean (for example regression residuals) and
+#'   the second-moment matrix `x %*% t(x) / M` is shrunk instead.
 #' @return List with `cov` (`N x N` symmetric SPD matrix), `lambda` (shrinkage
 #'   intensity in `[0, 1]`), and `n_obs` (`M`).
 #' @export
-shrinkage_covariance <- function(x, target = c("diagonal", "identity")) {
+shrinkage_covariance <- function(x, target = c("diagonal", "identity"),
+                                 center = TRUE) {
   target <- match.arg(target)
   x <- .check_numeric_matrix(x, min_cols = 3L)
   N <- nrow(x)
   M <- ncol(x)
 
-  xc <- x - rowMeans(x)
-  s_mat <- tcrossprod(xc) / (M - 1)
+  centred <- isTRUE(center)
+  xc <- if (centred) x - rowMeans(x) else x
+  denom <- if (centred) M - 1 else M
+  s_mat <- tcrossprod(xc) / denom
   dimnames(s_mat) <- list(rownames(x), rownames(x))
 
   if (N == 1L) {
     return(list(cov = s_mat, lambda = 0, n_obs = M))
   }
 
-  # Unbiased variance of sample covariances (Schafer & Strimmer 2005)
-  z_bar <- ((M - 1) / M) * s_mat
+  # Unbiased variance of the sample covariances (Schafer & Strimmer 2005):
+  # Var(s_ij) = M / (M - 1)^3 * sum_k (w_kij - w_bar_ij)^2 for centred data,
+  # and 1 / (M (M - 1)) * sum_k (w_kij - w_bar_ij)^2 for known-zero-mean data.
+  z_bar <- if (centred) ((M - 1) / M) * s_mat else s_mat
   w2_sum <- tcrossprod(xc * xc)
   diff_w <- w2_sum - M * (z_bar * z_bar)
   diff_w[diff_w < 0] <- 0
-  var_s <- (M / ((M - 1)^3)) * diff_w
+  var_s <- if (centred) (M / ((M - 1)^3)) * diff_w else diff_w / (M * (M - 1))
 
   if (target == "diagonal") {
     t_mat <- diag(diag(s_mat), nrow = N, ncol = N)

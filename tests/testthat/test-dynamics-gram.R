@@ -296,3 +296,19 @@ test_that("QuantHist incremental MDL matches full recomputation across xdist + t
   expect_equal(rec_samp$entropy, rec_gram$entropy, tolerance = 1e-9)
   expect_equal(rec_samp$nll, rec_gram$nll, tolerance = 1e-9)
 })
+
+test_that("shrinkage_covariance(center = FALSE) shrinks the zero-mean second moment", {
+  set.seed(7)
+  x <- matrix(rnorm(8 * 30), 8, 30)
+  sh <- shrinkage_covariance(x, target = "diagonal", center = FALSE)
+  S <- tcrossprod(x) / 30
+  expect_equal(diag(sh$cov), diag(S), ignore_attr = TRUE)
+  off <- row(S) != col(S)
+  expect_equal(sh$cov[off], (1 - sh$lambda) * S[off], ignore_attr = TRUE)
+  # invariant to an orthogonal rotation of the observations? second moment yes
+  R <- qr.Q(qr(matrix(rnorm(30 * 30), 30)))
+  sh_r <- shrinkage_covariance(x %*% R, target = "diagonal", center = FALSE)
+  expect_equal(diag(sh_r$cov), diag(sh$cov), ignore_attr = TRUE)
+  # the default centred estimator is unchanged
+  expect_equal(diag(shrinkage_covariance(x)$cov), apply(x, 1, var), ignore_attr = TRUE)
+})

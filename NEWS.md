@@ -1,3 +1,16 @@
+# rgraphtool 0.5.1
+
+* Version bump marking the layered planted-partition API (`layers` /
+  `independent` arguments to `pp_block_state()` and
+  `minimize_pp_blockmodel_dl()`, and the `pp_edge_covariates` /
+  `pp_independent_layers` options of `compare_layered_models()`), which landed
+  after the 0.5.0 version number was set. Downstream packages that use the
+  layered PP models should require `rgraphtool (>= 0.5.1)`.
+* `shrinkage_covariance()` gains `center = TRUE`. Use `center = FALSE` for
+  observations with a known zero mean, such as regression residuals: the
+  second-moment matrix `x %*% t(x) / M` is shrunk instead of the centred
+  covariance.
+
 # rgraphtool 0.5.0
 
 Feature release adding Gram-matrix GMRF network reconstruction, multi-threaded
