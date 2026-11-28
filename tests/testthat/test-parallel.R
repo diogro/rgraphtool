@@ -17,3 +17,18 @@ test_that("parallel_starts gives identical results for any cores and reattaches 
   expect_error(parallel_starts(2, function(run) stop("boom"), cores = 2L), "boom")
   expect_error(parallel_starts(2, identity, cores = 0), "positive integer")
 })
+
+test_that("forked children can run threaded code after the parent's pool started", {
+  skip_on_os("windows")
+  skip_on_cran()
+  set.seed(1)
+  f <- matrix(rnorm(400 * 5), 400, 5)
+  x <- f %*% matrix(rnorm(5 * 1500), 5, 1500) + matrix(rnorm(400 * 1500), 400, 1500)
+  # parent spawns pool workers; a child inherits the pool object but not its threads
+  p <- shrink_pcor(x, top_k = 500, nthreads = 3)
+  res <- parallel::mclapply(1:2, function(i) {
+    identical(shrink_pcor(x, top_k = 500, nthreads = 3)$top, p$top)
+  }, mc.cores = 2)
+  expect_identical(unlist(res), c(TRUE, TRUE))
+  expect_identical(shrink_pcor(x, top_k = 500, nthreads = 3)$top, p$top)
+})

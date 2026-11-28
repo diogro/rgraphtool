@@ -22,6 +22,11 @@
 #include <mutex>
 #include <thread>
 #include <vector>
+#ifdef _WIN32
+#include <process.h>
+#else
+#include <unistd.h>
+#endif
 
 namespace rgt_parallel {
 
@@ -141,15 +146,50 @@ inline bool& in_parallel_region() {
     return flag;
 }
 
+inline long current_pid() {
+#ifdef _WIN32
+    return static_cast<long>(_getpid());
+#else
+    return static_cast<long>(getpid());
+#endif
+}
+
 // ---------------------------------------------------------------------------
 // Lightweight persistent C++23 thread pool (calling thread participates as
 // worker 0; workers are spawned lazily only when nthreads > 1).
+//
+// One pool per process. A forked child (parallel::mclapply) inherits a copy of
+// the parent's pool object, but none of its worker threads: dispatching to it
+// would wait forever for workers that do not exist. instance() therefore
+// starts a fresh pool when the process id changes. The stale copy is leaked,
+// never destroyed, since joining threads that do not exist is undefined.
 
 class ThreadPool {
 public:
     static ThreadPool& instance() {
-        static ThreadPool pool;
-        return pool;
+        struct Holder {
+            std::atomic<ThreadPool*> pool{nullptr};
+            std::atomic<long> owner{-1};
+            std::mutex mtx;
+            // Joins the workers when the library is unloaded, so no thread is
+            // left running code that dlclose() unmaps.
+            ~Holder() {
+                ThreadPool* p = pool.load();
+                if (p && owner.load() == current_pid()) delete p;
+            }
+        };
+        static Holder h;
+        const long pid = current_pid();
+        // owner is published after pool: seeing our pid guarantees seeing our pool
+        if (h.owner.load(std::memory_order_acquire) == pid) {
+            return *h.pool.load(std::memory_order_acquire);
+        }
+        std::lock_guard<std::mutex> lk(h.mtx);
+        if (h.owner.load(std::memory_order_acquire) != pid) {
+            h.pool.store(new ThreadPool(), std::memory_order_release);
+            h.owner.store(pid, std::memory_order_release);
+        }
+        return *h.pool.load(std::memory_order_acquire);
     }
 
     ~ThreadPool() {

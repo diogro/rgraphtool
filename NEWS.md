@@ -1,3 +1,12 @@
+# rgraphtool 0.5.5
+
+* Fixed a deadlock in forked workers. A child forked after the parent had
+  started its thread pool (for example `parallel_starts()` or
+  `parallel::mclapply()` with `cores > 1`) inherited the pool's bookkeeping
+  but not its threads. Any call with `nthreads > 1` handed work to threads
+  that did not exist and waited forever. Each process now gets its own pool,
+  so `cores` x `nthreads` works as documented.
+
 # rgraphtool 0.5.4
 
 * `plot_hierarchy()` draws the hierarchy tree in light blue, the default of
