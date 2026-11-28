@@ -1,3 +1,13 @@
+# rgraphtool 0.5.6
+
+* `plot_hierarchy()` can mark the groups of one hierarchy level with arcs
+  outside the vertex circle: `arc_level = 0` for the vertices' own groups,
+  `1` for the level above, and so on. Each arc is labelled with its group id,
+  or with a per-vertex `arc_labels` vector. Level-0 arcs repeat the default
+  vertex colours, and coarser levels alternate two greys. `arc_col`,
+  `arc_radius`, `arc_lwd`, `arc_label_cex` and `arc_label_radius` adjust them,
+  and the returned layout lists the arcs in `$arcs`.
+
 # rgraphtool 0.5.5
 
 * Fixed a deadlock in forked workers. A child forked after the parent had

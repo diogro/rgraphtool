@@ -215,3 +215,24 @@ test_that("project_coords, great_circle_arc, world_coastlines, and plot_graph_ma
   # Validation error checks
   expect_error(plot_graph_map(g_air, lon = 1:3, lat = 1:3), "length")
 })
+
+test_that("plot_hierarchy marks groups with arcs outside the circle", {
+  g <- graph_create(12, directed = FALSE)
+  graph_add_edges(g, do.call(rbind, lapply(list(1:4, 5:8, 9:12), function(v) t(combn(v, 2)))))
+  state <- nested_block_state(g, list(rep(1:3, each = 4), c(1, 1, 2), c(1, 1)))
+  pdf(NULL); on.exit(dev.off(), add = TRUE)
+  a0 <- plot_hierarchy(state, arc_level = 0)$arcs
+  expect_equal(a0$size, c(4L, 4L, 4L))
+  expect_equal(a0$label, c("1", "2", "3"))
+  # arcs do not overlap and stay inside one turn
+  o <- order(a0$start)
+  expect_true(all(a0$end[o][-3] < a0$start[o][-1]))
+  expect_true(all(a0$start >= -pi / 12 & a0$end <= 2 * pi))
+  a1 <- plot_hierarchy(state, arc_level = 1, arc_labels = letters[1:12])$arcs
+  expect_equal(a1$size, c(8L, 4L))
+  expect_equal(a1$label, c("a", "i"))
+  expect_equal(plot_hierarchy(state, arc_level = 1, arc_col = c("1" = "red", "2" = "blue"))$arcs$col,
+               c("red", "blue"))
+  expect_error(plot_hierarchy(state, arc_level = 3), "arc_level")
+  expect_error(plot_hierarchy(state, arc_level = 0, arc_labels = 1:3), "one label per vertex")
+})

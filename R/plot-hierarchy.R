@@ -51,22 +51,84 @@ bundle_path <- function(layout, u, v, beta) {
   beta * points + (1 - beta) * straight
 }
 
+# Arcs outside the vertex circle, one per group at hierarchy level `level`
+# (0 = the groups of the vertices). The hierarchy ordering makes every group's
+# vertices contiguous, so each group spans one interval of angles. `gap` is the
+# fraction of a vertex slot left empty at each end of an arc.
+hierarchy_arcs <- function(layout, level, gap = 0.3) {
+  depth <- ncol(layout$ancestors)
+  if (!is.numeric(level) || length(level) != 1L || is.na(level) || level < 0 ||
+      level != floor(level) || level > depth - 1L) {
+    stop(sprintf("arc_level must be an integer between 0 and %d", depth - 1L), call. = FALSE)
+  }
+  n <- nrow(layout$vertices)
+  slot <- 2 * pi / n
+  rank <- (atan2(layout$vertices[, 2], layout$vertices[, 1]) %% (2 * pi)) / slot
+  rank <- round(rank)  # 0-based position on the circle
+  grp <- layout$ancestors[, level + 1L]
+  ids <- sort(unique(grp))
+  lo <- vapply(ids, function(g) min(rank[grp == g]), numeric(1))
+  hi <- vapply(ids, function(g) max(rank[grp == g]), numeric(1))
+  pad <- min(max(gap, 0), 0.49) * slot
+  data.frame(group = ids, size = as.integer(tabulate(match(grp, ids), length(ids))),
+             start = (lo - 0.5) * slot + pad, end = (hi + 0.5) * slot - pad,
+             mid = (lo + hi) / 2 * slot)
+}
+
 #' @noRd
 #' @export
 plot_hierarchy <- function(state, beta = 0.8, vertex_col = NULL,
                            edge_col = grDevices::adjustcolor("grey30", 0.25),
                            vertex_cex = 0.6, show_tree = TRUE, main = NULL,
-                           tree_col = "#729fcf", edge_lwd = 1, ...) {
+                           tree_col = "#729fcf", edge_lwd = 1,
+                           arc_level = NULL, arc_col = NULL, arc_labels = TRUE,
+                           arc_radius = 1.06, arc_lwd = 5, arc_label_cex = 0.8,
+                           arc_label_radius = arc_radius + 0.05, ...) {
   layout <- hierarchy_layout(state)
   if (!is.numeric(beta) || length(beta) != 1L || is.na(beta) || beta < 0 || beta > 1) {
     stop("beta must be a number between 0 and 1", call. = FALSE)
   }
   groups0 <- layout$levels[[1]]
-  if (is.null(vertex_col)) {
+  default_vertex_col <- is.null(vertex_col)
+  if (default_vertex_col) {
     vertex_col <- grDevices::hcl.colors(max(groups0), "Dynamic")[groups0]
   }
+  arcs <- NULL
+  lim <- 1.05
+  if (!is.null(arc_level)) {
+    arcs <- hierarchy_arcs(layout, arc_level)
+    n_arc <- nrow(arcs)
+    if (is.null(arc_col)) {
+      # level 0 with default vertex colours: the arcs repeat the vertex colours;
+      # coarser levels alternate two greys so they are not read as level-0 groups
+      arc_col <- if (arc_level == 0 && default_vertex_col) {
+        grDevices::hcl.colors(max(groups0), "Dynamic")[arcs$group]
+      } else {
+        rep_len(c("#4B5563", "#9CA3AF"), n_arc)
+      }
+    } else if (!is.null(names(arc_col)) && all(as.character(arcs$group) %in% names(arc_col))) {
+      arc_col <- arc_col[as.character(arcs$group)]
+    } else {
+      arc_col <- rep_len(arc_col, n_arc)
+    }
+    arcs$col <- unname(as.character(arc_col))
+    # labels: TRUE = group ids; a vector over vertices labels each arc with the
+    # value at its vertices (the first, when they differ)
+    lab <- NULL
+    if (isTRUE(arc_labels)) {
+      lab <- as.character(arcs$group)
+    } else if (!isFALSE(arc_labels) && !is.null(arc_labels)) {
+      if (length(arc_labels) != nrow(layout$vertices)) {
+        stop("arc_labels must be TRUE, FALSE, or one label per vertex", call. = FALSE)
+      }
+      grp <- layout$ancestors[, arc_level + 1L]
+      lab <- as.character(arc_labels)[match(arcs$group, grp)]
+    }
+    arcs$label <- if (is.null(lab)) NA_character_ else lab
+    lim <- max(lim, arc_radius + 0.05, if (!is.null(lab)) arc_label_radius + 0.2)
+  }
   graphics::plot.new()
-  graphics::plot.window(c(-1.05, 1.05), c(-1.05, 1.05), asp = 1)
+  graphics::plot.window(c(-lim, lim), c(-lim, lim), asp = 1)
   edges <- graph_edges(state$graph)
   edges <- edges[edges[, 1] != edges[, 2], , drop = FALSE]
   # colours and widths follow the non-self-loop edges in graph order, recycled
@@ -91,6 +153,20 @@ plot_hierarchy <- function(state, beta = 0.8, vertex_col = NULL,
     }
   }
   graphics::points(layout$vertices, pch = 19, cex = vertex_cex, col = vertex_col, ...)
+  if (!is.null(arcs)) {
+    for (k in seq_len(nrow(arcs))) {
+      a <- seq(arcs$start[k], arcs$end[k], length.out = max(2L, ceiling((arcs$end[k] - arcs$start[k]) * 60)))
+      graphics::lines(arc_radius * cos(a), arc_radius * sin(a), col = arcs$col[k],
+                      lwd = arc_lwd, lend = "butt", xpd = NA)
+      if (!is.na(arcs$label[k])) {
+        m <- arcs$mid[k]
+        graphics::text(arc_label_radius * cos(m), arc_label_radius * sin(m), arcs$label[k],
+                       adj = c((1 - cos(m)) / 2, (1 - sin(m)) / 2), cex = arc_label_cex,
+                       xpd = NA, col = "#1F2937")
+      }
+    }
+    layout$arcs <- arcs
+  }
   if (!is.null(main)) graphics::title(main)
   invisible(layout)
 }
