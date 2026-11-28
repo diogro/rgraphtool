@@ -23,6 +23,8 @@
 #include <cmath>
 #include <vector>
 
+#include "parallel.h"
+
 namespace {
 
 struct Standardized {
@@ -168,7 +170,7 @@ struct Cand {
 // [[Rcpp::export(.shrink_pcor_cpp)]]
 Rcpp::List shrink_pcor_cpp(const Rcpp::NumericMatrix& x, double lambda, bool center,
                            const Rcpp::IntegerMatrix& pairs, int top_k, bool want_matrix,
-                           bool lambda_only) {
+                           bool lambda_only, int nthreads) {
     const int N = x.nrow(), M = x.ncol();
     if (M < 3) Rcpp::stop("x must have at least 3 observations (columns)");
     Standardized s = standardize(x, center);
@@ -245,36 +247,63 @@ Rcpp::List shrink_pcor_cpp(const Rcpp::NumericMatrix& x, double lambda, bool cen
             thr = std::fabs(cand[k - 1].v);
         };
         const int blk = 256;
-        std::vector<double> B;
-        for (int b0 = 0; b0 < N; b0 += blk) {
-            const int nb = std::min(blk, N - b0);
-            if (direct || all_zero) {
-                for (int i = b0; i < b0 + nb; ++i)
-                    for (int j = i + 1; j < N; ++j) {
-                        const double v = pc(i, j);
-                        if (std::fabs(v) > thr || static_cast<int>(cand.size()) < k) cand.push_back({i, j, v});
-                    }
-            } else {
-                // B (nb x (N - b0)) = Vt[:, b0:b0+nb]^T Vt[:, b0:N]
-                const int ncol = N - b0;
-                B.assign(static_cast<size_t>(nb) * ncol, 0.0);
-                const double one = 1.0, zero = 0.0;
-                const double* Vb = Vt.data() + static_cast<size_t>(b0) * M;
-                F77_CALL(dgemm)("T", "N", &nb, &ncol, &M, &one, Vb, &M, Vb, &M, &zero, B.data(), &nb
-                                FCONE FCONE);
-                for (int jj = 0; jj < ncol; ++jj) {
-                    const int j = b0 + jj;
-                    for (int ii = 0; ii < nb; ++ii) {
-                        const int i = b0 + ii;
-                        if (j <= i) continue;
-                        const double v = B[ii + static_cast<size_t>(jj) * nb];
-                        if (std::fabs(v) > thr || static_cast<int>(cand.size()) < k) cand.push_back({i, j, v});
-                    }
-                    if (static_cast<int>(cand.size()) > 2 * k + 1024) keep_top();
+        const int n_blocks = (N + blk - 1) / blk;
+        if (direct || all_zero) {
+            for (int i = 0; i < N; ++i) {
+                for (int j = i + 1; j < N; ++j) {
+                    const double v = pc(i, j);
+                    if (std::fabs(v) > thr || static_cast<int>(cand.size()) < k) cand.push_back({i, j, v});
                 }
+                if (static_cast<int>(cand.size()) > 2 * k + 1024) keep_top();
             }
-            keep_top();
-            Rcpp::checkUserInterrupt();
+        } else {
+            // Row blocks are scanned in parallel; each worker keeps its own
+            // candidate buffer and running threshold (no R API on workers).
+            const int nw = rgt_parallel::resolve_threads(nthreads);
+            std::vector<std::vector<Cand>> local(std::max(1, nw));
+            std::vector<double> local_thr(std::max(1, nw), 0.0);
+            auto keep_local = [&](int tid) {
+                auto& cv = local[tid];
+                if (static_cast<int>(cv.size()) <= k) return;
+                std::nth_element(cv.begin(), cv.begin() + (k - 1), cv.end(),
+                                 [](const Cand& a, const Cand& b) { return std::fabs(a.v) > std::fabs(b.v); });
+                cv.resize(k);
+                local_thr[tid] = std::fabs(cv[k - 1].v);
+            };
+            rgt_parallel::parallel_for(
+                static_cast<size_t>(n_blocks), nw,
+                [&](int tid, size_t lo, size_t hi) {
+                    std::vector<double> B;
+                    auto& cv = local[tid];
+                    for (size_t bi = lo; bi < hi; ++bi) {
+                        const int b0 = static_cast<int>(bi) * blk;
+                        const int nb = std::min(blk, N - b0);
+                        // B (nb x (N - b0)) = Vt[:, b0:b0+nb]^T Vt[:, b0:N]
+                        const int ncol = N - b0;
+                        B.assign(static_cast<size_t>(nb) * ncol, 0.0);
+                        const double one = 1.0, zero = 0.0;
+                        const double* Vb = Vt.data() + static_cast<size_t>(b0) * M;
+                        F77_CALL(dgemm)("T", "N", &nb, &ncol, &M, &one, Vb, &M, Vb, &M, &zero,
+                                        B.data(), &nb FCONE FCONE);
+                        for (int jj = 0; jj < ncol; ++jj) {
+                            const int j = b0 + jj;
+                            for (int ii = 0; ii < nb; ++ii) {
+                                const int i = b0 + ii;
+                                if (j <= i) continue;
+                                const double v = B[ii + static_cast<size_t>(jj) * nb];
+                                if (std::fabs(v) > local_thr[tid] || static_cast<int>(cv.size()) < k)
+                                    cv.push_back({i, j, v});
+                            }
+                            if (static_cast<int>(cv.size()) > 2 * k + 1024) keep_local(tid);
+                        }
+                        keep_local(tid);
+                    }
+                },
+                1);
+            for (auto& cv : local) {
+                cand.insert(cand.end(), cv.begin(), cv.end());
+                std::vector<Cand>().swap(cv);
+            }
         }
         keep_top();
         std::sort(cand.begin(), cand.end(), [](const Cand& a, const Cand& b) {

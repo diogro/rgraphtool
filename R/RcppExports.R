@@ -365,8 +365,8 @@ cpp_nested_ranked_mcmc <- function(pointer, bs, u, distance, unique, M_pos, degr
     .Call(`_rgraphtool_cpp_nested_ranked_mcmc`, pointer, bs, u, distance, unique, M_pos, degree_corrected, distributed, mcmc_opts, eq_opts, q_max)
 }
 
-.shrink_pcor_cpp <- function(x, lambda, center, pairs, top_k, want_matrix, lambda_only) {
-    .Call(`_rgraphtool_shrink_pcor_cpp`, x, lambda, center, pairs, top_k, want_matrix, lambda_only)
+.shrink_pcor_cpp <- function(x, lambda, center, pairs, top_k, want_matrix, lambda_only, nthreads) {
+    .Call(`_rgraphtool_shrink_pcor_cpp`, x, lambda, center, pairs, top_k, want_matrix, lambda_only, nthreads)
 }
 
 cpp_pagerank <- function(pointer, damping, pers, weights, tol, max_iter) {

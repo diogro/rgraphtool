@@ -59,3 +59,11 @@ test_that("shrink_pcor pairs, top_k and edge cases", {
   x[2, ] <- 1
   expect_error(shrink_pcor(x), "zero or non-finite variance")
 })
+
+test_that("shrink_pcor top_k does not depend on the thread count", {
+  set.seed(5)
+  x <- matrix(rnorm(700 * 30), 700, 30)
+  a <- shrink_pcor(x, top_k = 500L, nthreads = 1L)$top
+  b <- shrink_pcor(x, top_k = 500L, nthreads = 4L)$top
+  expect_identical(a, b)
+})

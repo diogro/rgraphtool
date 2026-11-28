@@ -11,7 +11,8 @@
   identity in observation space, so for N >> M it avoids N x N matrices
   unless the full matrix is requested. It returns selected `pairs` or the
   `top_k` strongest pairs, and accepts a fixed `lambda` and
-  `center = FALSE`. It links R's BLAS/LAPACK.
+  `center = FALSE`. It links R's BLAS/LAPACK. The `top_k` scan is
+  threaded (`nthreads`), and results do not depend on the thread count.
 * `shrinkage_covariance()` gains `center = TRUE`. Use `center = FALSE` for
   observations with a known zero mean, such as regression residuals: the
   second-moment matrix `x %*% t(x) / M` is shrunk instead of the centred

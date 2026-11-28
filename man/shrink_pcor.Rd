@@ -13,7 +13,7 @@ the \code{top_k} strongest pairs, streaming over blocks of variables.
 }
 \usage{
 shrink_pcor(x, lambda = NULL, center = TRUE, pairs = NULL, top_k = NULL,
-            matrix = NULL)
+            matrix = NULL, nthreads = NULL)
 
 shrink_pcor_lambda(x, center = TRUE)
 }
@@ -35,6 +35,9 @@ which to return partial correlations.}
 correlation, \code{i < j}) to return.}
 \item{matrix}{Logical; return the full \code{N x N} matrix. Defaults to
 \code{TRUE} only when neither \code{pairs} nor \code{top_k} is given.}
+\item{nthreads}{Number of threads for the \code{top_k} scan (\code{NULL}
+uses \code{\link{rgraphtool_num_threads}()}). Results do not depend on the
+thread count.}
 }
 \value{
 \code{shrink_pcor_lambda()} returns the estimated intensity only (cost
