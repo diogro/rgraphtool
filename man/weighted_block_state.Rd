@@ -38,13 +38,16 @@ minimize_nested_weighted_blockmodel_dl(graph, weights, types,
   \item{types}{Character vector of length \eqn{K} naming the covariate model for
   each column of \code{weights}: \code{"real-exponential"},
   \code{"real-normal"}, \code{"discrete-geometric"}, \code{"discrete-poisson"},
-  or \code{"discrete-binomial"}.}
+  \code{"discrete-binomial"}, or \code{"discrete-negbinomial"} (overdispersed
+  counts; see Details).}
   \item{params}{Covariate hyperprior specification: \code{"microcanonical"}
   (default, Peixoto 2018 maximum-entropy microcanonical priors),
   \code{"bayesian"} (empirical-Bayes conjugate hyperpriors matching graph-tool),
   a named list of hyperparameters (e.g. \code{list(alpha = 1, beta = 2)} or
   \code{list(N = 10, alpha = 1, beta = 1)} or
-  \code{list(m0 = 0, k0 = 1, v0 = 1, nu0 = 3)}), or a list of length \eqn{K}
+  \code{list(m0 = 0, k0 = 1, v0 = 1, nu0 = 3)}; \code{list(k = 2)} or
+  \code{list(k = 2, alpha = 1, beta = 1)} for \code{"discrete-negbinomial"},
+  which has no default size \code{k}), or a list of length \eqn{K}
   specifying one entry per covariate.}
   \item{blocks}{Optional 1-based integer group membership vector of length
   \code{graph_num_vertices(graph)}.}
@@ -74,6 +77,20 @@ covariate distributions (\code{real-exponential}, \code{real-normal},
 microcanonical and Bayesian conjugate hyperpriors.
 }
 \details{
+\code{"discrete-negbinomial"} is not in graph-tool. It models counts as Poisson
+with an observation-level random effect: each edge's rate is multiplied by an
+independent Gamma(\eqn{k}, \eqn{k}) variable, so counts are negative binomial
+with variance \eqn{\mu + \mu^2 / k}. Microcanonically, the counts of a block
+pair given their total are Dirichlet-multinomial with concentration \eqn{k} per
+edge; the Bayesian form puts a Beta(\code{alpha}, \code{beta}) prior on the
+negative-binomial probability. At \eqn{k = 1} it equals
+\code{"discrete-geometric"} exactly. Overdispersed counts fitted as
+\code{"discrete-poisson"} invent block structure to explain the extra variance:
+on random graphs without blocks and with counts of variance/mean 7-12, Poisson
+fits found 8-31 blocks; negative binomial at the true \eqn{k} found 1. Choose
+\eqn{k} by comparing description lengths over a grid of values (each value is a
+separate model; add the log of the grid size for the choice).
+
 All description lengths match graph-tool 3.9's \code{WeightedBlockState} and
 \code{NestedBlockState(base_state=WeightedBlockState)} to machine precision
 (including the exact continuous quantization scale

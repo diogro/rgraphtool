@@ -105,7 +105,7 @@ inline double lbinom_int(int64_t n, int64_t k) {
 
 inline double lgam(double x) { return std::lgamma(x); }
 
-inline double lbinom(double n, double k) {
+[[maybe_unused]] inline double lbinom(double n, double k) {
     if (k == 0 || n == k)
         return 0;
     if (n < k || k < 0)

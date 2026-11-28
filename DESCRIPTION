@@ -1,7 +1,7 @@
 Package: rgraphtool
 Type: Package
 Title: Native R/C++ Port of the Python 'graph-tool' Library
-Version: 0.5.2
+Version: 0.5.3
 Date: 2026-11-27
 Authors@R: c(
     person(given = "Diogo",

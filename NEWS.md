@@ -1,3 +1,22 @@
+# rgraphtool 0.5.3
+
+* New edge covariate type `"discrete-negbinomial"` for overdispersed counts,
+  in weighted, layered and planted-partition states. It is Poisson with an
+  observation-level Gamma(k, k) random effect, so counts are negative
+  binomial with size `k`.
+  * Microcanonical form: Dirichlet-multinomial given the block-pair total.
+  * Bayesian form: a Beta prior on the NB probability.
+  * At `k = 1` it equals `"discrete-geometric"` exactly.
+  * On random graphs without blocks, overdispersed counts fitted as
+    `"discrete-poisson"` gave 8-31 spurious blocks. Negative binomial gave 1.
+  * Pass `params = list(k = )`; there is no default size.
+* Weighted planted-partition states have new validation tests, since
+  graph-tool has no weighted PP to compare against:
+  * an exact identity with graph-tool's weighted SBM on the PP buckets;
+  * normalization of the weight code over integer weights;
+  * detailed balance of weighted PP merge-split.
+* Unused helpers no longer trigger compiler warnings (clean builds).
+
 # rgraphtool 0.5.2
 
 * New `pl_weight` argument for `pseudo_normal_block_state()`: a weight on the
@@ -14,8 +33,6 @@
     outnumber genes.
   * The weight scales the data term of the description length, so compare
     description lengths only between states with the same `pl_weight`.
-* An unused reference function no longer triggers a compiler warning.
-
 # rgraphtool 0.5.1
 
 ## Parallel independent starts

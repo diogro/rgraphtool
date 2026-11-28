@@ -425,3 +425,65 @@ test_that("parallel weighted SBM minimization and virtual_merge_const are exact"
   expect_gt(partition_overlap(nested_project(f4, 0L), truth, norm = TRUE), 0.90)
   expect_gt(partition_overlap(nested_project(f1, 0L), truth, norm = TRUE), 0.90)
 })
+
+test_that("discrete-negbinomial: geometric at k = 1, normalized, exact moves, no spurious blocks", {
+  set.seed(5)
+  n <- 30L
+  e <- t(utils::combn(n, 2))
+  e <- e[stats::runif(nrow(e)) < 0.3, ]
+  b <- sample(3, n, TRUE)
+  g <- graph_add_edges(graph_create(n, FALSE), e,
+                       properties = list(w = as.numeric(stats::rnbinom(nrow(e), size = 1.5, mu = 5))))
+  for (pr in list(list("microcanonical", list(k = 1)),
+                  list(list(alpha = 2, beta = 3), list(k = 1, alpha = 2, beta = 3)))) {
+    expect_equal(
+      weighted_description_length(weighted_block_state(g, "w", "discrete-negbinomial",
+                                                       params = pr[[2]], blocks = b)),
+      weighted_description_length(weighted_block_state(g, "w", "discrete-geometric",
+                                                       params = pr[[1]], blocks = b)),
+      tolerance = 1e-10)
+    expect_equal(
+      pp_description_length(pp_block_state(g, b, weights = "w", types = "discrete-negbinomial",
+                                           params = pr[[2]])),
+      pp_description_length(pp_block_state(g, b, weights = "w", types = "discrete-geometric",
+                                           params = pr[[1]])),
+      tolerance = 1e-10)
+  }
+
+  # the Bayesian form is a proper distribution over integer weights
+  g2 <- graph_add_edges(graph_create(4, FALSE), rbind(c(1, 2), c(3, 4)))
+  bb <- c(1, 1, 2, 2)
+  base <- block_description_length(block_state(g2, bb))
+  tot <- sum(apply(as.matrix(expand.grid(0:60, 0:60)), 1, function(x) {
+    graph_set_edge_property(g2, "w", as.numeric(x))
+    exp(-(weighted_description_length(weighted_block_state(
+      g2, "w", "discrete-negbinomial", params = list(k = 2, alpha = 30, beta = 10), blocks = bb)) - base))
+  }))
+  expect_equal(tot, 1, tolerance = 1e-8)
+
+  W <- matrix(graph_edge_property(g, "w"), ncol = 1)
+  expect_lt(max(abs(rgraphtool:::cpp_weighted_check_moves(
+    rgraphtool:::graph_pointer(g), b, W, "discrete-negbinomial", list(c(1.5, NaN, NaN)),
+    TRUE, TRUE, 40L, 1000))), 1e-9)
+  expect_lt(max(abs(rgraphtool:::cpp_pp_check_moves(
+    rgraphtool:::graph_pointer(g), b, FALSE, TRUE, TRUE, 40L, 1000, W, "discrete-negbinomial",
+    list(c(1.5, NaN, NaN))))), 1e-9)
+  expect_error(weighted_block_state(g, "w", "discrete-negbinomial", blocks = b), "list\\(k")
+  expect_error(weighted_block_state(g, "w", "discrete-negbinomial", params = list(k = -1),
+                                    blocks = b), "positive")
+
+  # overdispersed counts on a graph without blocks: Poisson invents structure
+  set.seed(30)
+  n <- 50L
+  e <- t(utils::combn(n, 2))
+  e <- e[stats::runif(nrow(e)) < 0.15, ]
+  g3 <- graph_add_edges(graph_create(n, FALSE), e,
+                        properties = list(w = as.numeric(stats::rnbinom(nrow(e), size = 0.5, mu = 6))))
+  set.seed(1)
+  nb <- minimize_weighted_blockmodel_dl(g3, weights = "w", types = "discrete-negbinomial",
+                                        params = list(k = 0.5))
+  set.seed(1)
+  po <- minimize_weighted_blockmodel_dl(g3, weights = "w", types = "discrete-poisson")
+  expect_equal(length(unique(block_membership(nb))), 1L)
+  expect_gt(length(unique(block_membership(po))), 3L)
+})

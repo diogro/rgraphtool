@@ -402,3 +402,63 @@ test_that("independent-layer PP state on an edgeless graph does not crash", {
   st <- pp_block_state(graph_create(5L), layers = integer(0), independent = TRUE)
   expect_true(is.finite(pp_description_length(st)))
 })
+
+test_that("weighted PP equals graph-tool's weight model on the PP buckets (no graph-tool PP reference)", {
+  # graph-tool has no weighted PPBlockState. Its weight term must equal the
+  # (graph-tool-validated) weighted SBM's on an auxiliary multigraph whose block
+  # pairs are the PP buckets: one 2-vertex block per within bucket and a 1+1
+  # vertex pair for the pooled between bucket.
+  aux_weight_part <- function(e, w, b, uniform, tp, pr) {
+    within <- b[e[, 1]] == b[e[, 2]]
+    key <- ifelse(within, if (uniform) 1L else b[e[, 1]], 0L)
+    ks <- sort(unique(key[key > 0]))
+    from <- ifelse(key > 0, 2L * match(key, ks) - 1L, 2L * length(ks) + 1L)
+    g <- graph_add_edges(graph_create(2L * length(ks) + 2L, FALSE), cbind(from, from + 1L),
+                         properties = list(w = w))
+    blk <- c(rep(seq_along(ks), each = 2), length(ks) + 1:2)
+    weighted_description_length(weighted_block_state(g, weights = "w", types = tp, params = pr,
+                                                     blocks = blk, degree_corrected = FALSE)) -
+      block_description_length(block_state(g, blk, degree_corrected = FALSE))
+  }
+  specs <- list(list("real-normal", "microcanonical"), list("real-normal", "bayesian"),
+                list("real-exponential", "microcanonical"), list("discrete-poisson", "microcanonical"),
+                list("discrete-geometric", "bayesian"), list("discrete-binomial", list(N = 12)))
+  for (rep in 1:2) {
+    set.seed(rep)
+    n <- 30L
+    B <- 3L + rep
+    b <- sample(B, n, TRUE)
+    b[1:B] <- 1:B
+    e <- t(utils::combn(n, 2))
+    e <- e[stats::runif(nrow(e)) < 0.3, ]
+    same <- b[e[, 1]] == b[e[, 2]]
+    W <- list(`real-normal` = stats::rnorm(nrow(e), ifelse(same, 1, -0.5)),
+              `real-exponential` = stats::rexp(nrow(e), ifelse(same, 1, 3)),
+              `discrete-poisson` = stats::rpois(nrow(e), ifelse(same, 6, 2)),
+              `discrete-geometric` = stats::rpois(nrow(e), ifelse(same, 6, 2)),
+              `discrete-binomial` = stats::rbinom(nrow(e), 12, ifelse(same, 0.7, 0.3)))
+    for (sp in specs) for (uniform in c(FALSE, TRUE)) {
+      g <- graph_add_edges(graph_create(n, FALSE), e, properties = list(w = W[[sp[[1]]]]))
+      pp_w <- pp_description_length(pp_block_state(g, b, uniform = uniform, weights = "w",
+                                                   types = sp[[1]], params = sp[[2]])) -
+        pp_description_length(pp_block_state(g, b, uniform = uniform))
+      ref <- aux_weight_part(graph_edges(g), graph_edge_property(g, "w"), b, uniform,
+                             sp[[1]], sp[[2]])
+      expect_equal(pp_w, ref, tolerance = 1e-9, info = paste(sp[[1]], uniform))
+    }
+  }
+
+  # proper Bayesian weights: the weight code sums to one over integer weights
+  g <- graph_add_edges(graph_create(4, FALSE), rbind(c(1, 2), c(3, 4)))
+  grid <- as.matrix(expand.grid(0:40, 0:40))
+  for (uniform in c(FALSE, TRUE)) {
+    base <- pp_description_length(pp_block_state(g, c(1, 1, 2, 2), uniform = uniform))
+    tot <- sum(apply(grid, 1, function(w) {
+      graph_set_edge_property(g, "w", as.numeric(w))
+      exp(-(pp_description_length(pp_block_state(g, c(1, 1, 2, 2), uniform = uniform, weights = "w",
+                                                 types = "discrete-poisson",
+                                                 params = list(alpha = 2, beta = 1))) - base))
+    }))
+    expect_equal(tot, 1, tolerance = 1e-8)
+  }
+})

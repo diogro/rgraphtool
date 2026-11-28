@@ -21,15 +21,16 @@ enum class CovType : int {
     REAL_NORMAL = 1,
     DISCRETE_GEOMETRIC = 2,
     DISCRETE_POISSON = 3,
-    DISCRETE_BINOMIAL = 4
+    DISCRETE_BINOMIAL = 4,
+    DISCRETE_NEGBINOMIAL = 5
 };
 
 struct CovSpec {
     CovType type;
     bool micro;              // true = microcanonical (NaN hyperparams), false = Bayesian
-    double p0 = NAN;         // alpha (exp/geo/poi), m0 (normal), N (binomial)
-    double p1 = NAN;         // beta  (exp/geo/poi), k0 (normal), alpha (binomial)
-    double p2 = NAN;         // v0 (normal), beta (binomial)
+    double p0 = NAN;         // alpha (exp/geo/poi), m0 (normal), N (binomial), k (negbinomial)
+    double p1 = NAN;         // beta  (exp/geo/poi), k0 (normal), alpha (binomial, negbinomial)
+    double p2 = NAN;         // v0 (normal), beta (binomial, negbinomial)
     double p3 = NAN;         // nu0 (normal)
     double eps = 1e-8;       // 0.1 * min_{w != 0} |w|
     double const_term = 0.0; // constant edge-level factor (poisson lgamma(w+1), binomial -lbinom(N,w))
@@ -141,6 +142,20 @@ inline double binomial_w_log_P(double N, double x, double trials,
     return w_lbeta(x + alpha, N * trials - x + beta) - w_lbeta(alpha, beta);
 }
 
+// Negative binomial with size k: Poisson counts whose rate carries an
+// observation-level Gamma(k, k) random effect (overdispersion, variance
+// mu + mu^2 / k). Microcanonical: the bucket's counts given their total are
+// Dirichlet-multinomial with concentration k per edge. Bayesian: Beta(alpha,
+// beta) prior on the NB probability. The per-edge factor
+// Gamma(w + k) / (Gamma(k) w!) is in CovSpec::const_term. k = 1 is the
+// geometric model.
+inline double negbinomial_w_log_P(double N, double x, double k, double alpha, double beta) {
+    if (N <= 0.0) return 0.0;
+    if (std::isnan(alpha) && std::isnan(beta))
+        return w_safe_lgamma(x + 1.0) + w_safe_lgamma(N * k) - w_safe_lgamma(x + N * k);
+    return w_lbeta(N * k + alpha, x + beta) - w_lbeta(alpha, beta);
+}
+
 inline double cov_pair_neg_log_P(const CovSpec& c, double m, double x, double x2) {
     if (m <= 0.0) return 0.0;
     switch (c.type) {
@@ -154,6 +169,8 @@ inline double cov_pair_neg_log_P(const CovSpec& c, double m, double x, double x2
         return -poisson_w_log_P(m, x, c.p0, c.p1);
     case CovType::DISCRETE_BINOMIAL:
         return -binomial_w_log_P(m, x, c.p0, c.p1, c.p2);
+    case CovType::DISCRETE_NEGBINOMIAL:
+        return -negbinomial_w_log_P(m, x, c.p0, c.p1, c.p2);
     }
     return 0.0;
 }
@@ -175,6 +192,7 @@ inline std::vector<CovSpec> parse_covs(const Rcpp::NumericMatrix& weights,
         else if (t == "discrete-geometric") c.type = CovType::DISCRETE_GEOMETRIC;
         else if (t == "discrete-poisson") c.type = CovType::DISCRETE_POISSON;
         else if (t == "discrete-binomial") c.type = CovType::DISCRETE_BINOMIAL;
+        else if (t == "discrete-negbinomial") c.type = CovType::DISCRETE_NEGBINOMIAL;
         else Rcpp::stop("Unknown covariate type: '%s'", t.c_str());
 
         double min_nz = W_INF;
@@ -192,6 +210,13 @@ inline std::vector<CovSpec> parse_covs(const Rcpp::NumericMatrix& weights,
             c.p0 = (p.size() > 0) ? p[0] : NAN;
             c.p1 = (p.size() > 1) ? p[1] : NAN;
             c.micro = (std::isnan(c.p0) && std::isnan(c.p1));
+        } else if (c.type == CovType::DISCRETE_NEGBINOMIAL) {
+            c.p0 = (p.size() > 0) ? p[0] : NAN;
+            if (!(c.p0 > 0.0) || !std::isfinite(c.p0))
+                Rcpp::stop("discrete-negbinomial needs a positive finite size k");
+            c.p1 = (p.size() > 1) ? p[1] : NAN;
+            c.p2 = (p.size() > 2) ? p[2] : NAN;
+            c.micro = (std::isnan(c.p1) && std::isnan(c.p2));
         } else if (c.type == CovType::DISCRETE_BINOMIAL) {
             c.p0 = (p.size() > 0) ? p[0] : 1.0;
             c.p1 = (p.size() > 1) ? p[1] : NAN;
@@ -212,6 +237,11 @@ inline std::vector<CovSpec> parse_covs(const Rcpp::NumericMatrix& weights,
         } else if (c.type == CovType::DISCRETE_BINOMIAL) {
             for (int e = 0; e < E; ++e)
                 c.const_term -= w_lbinom_d(c.p0, weights(e, k));
+        } else if (c.type == CovType::DISCRETE_NEGBINOMIAL) {
+            for (int e = 0; e < E; ++e) {
+                double w = weights(e, k);
+                c.const_term -= w_safe_lgamma(w + c.p0) - std::lgamma(c.p0) - w_safe_lgamma(w + 1.0);
+            }
         }
     }
     return out;
@@ -227,7 +257,8 @@ inline std::vector<CovSpec> make_upper_covs(const std::vector<CovSpec>& base_cov
         u.const_term = 0.0;
         if (c.type == CovType::DISCRETE_GEOMETRIC ||
             c.type == CovType::DISCRETE_POISSON ||
-            c.type == CovType::DISCRETE_BINOMIAL) {
+            c.type == CovType::DISCRETE_BINOMIAL ||
+            c.type == CovType::DISCRETE_NEGBINOMIAL) {
             u.type = CovType::DISCRETE_GEOMETRIC;
         } else {
             u.type = c.type;

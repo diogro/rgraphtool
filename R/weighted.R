@@ -1,6 +1,6 @@
 valid_covariate_types <- function() {
   c("real-exponential", "real-normal", "discrete-geometric",
-    "discrete-poisson", "discrete-binomial")
+    "discrete-poisson", "discrete-binomial", "discrete-negbinomial")
 }
 
 resolve_weight_matrix <- function(graph, weights) {
@@ -86,7 +86,8 @@ resolve_covariate_specs <- function(weight_mat, types, params = "microcanonical"
     if (tp == "real-exponential" && any(w < 0)) {
       stop("real-exponential weights must be non-negative", call. = FALSE)
     }
-    if (tp %in% c("discrete-geometric", "discrete-poisson", "discrete-binomial")) {
+    if (tp %in% c("discrete-geometric", "discrete-poisson", "discrete-binomial",
+                  "discrete-negbinomial")) {
       if (any(w < 0) || any(w != floor(w))) {
         stop(sprintf("%s weights must be non-negative integers", tp), call. = FALSE)
       }
@@ -125,6 +126,25 @@ resolve_covariate_specs <- function(weight_mat, types, params = "microcanonical"
         }
       }
       cpp_params[[i]] <- c(d$alpha, d$beta)
+      named_params[[i]] <- d
+    } else if (tp == "discrete-negbinomial") {
+      # size k of the observation-level Gamma(k, k) random effect; no default
+      if (!is.list(pi) || is.null(pi$k)) {
+        stop("discrete-negbinomial needs params = list(k = <size>) (microcanonical) or ",
+             "list(k = , alpha = , beta = ) (Bayesian); k = 1 is the geometric model",
+             call. = FALSE)
+      }
+      d <- list(k = as.numeric(pi$k), alpha = NaN, beta = NaN)
+      unknown <- setdiff(names(pi), names(d))
+      if (length(unknown)) stop("unknown parameter(s): ", paste(unknown, collapse = ", "), call. = FALSE)
+      for (nm in names(pi)) d[[nm]] <- as.numeric(pi[[nm]])
+      if (length(d$k) != 1L || !is.finite(d$k) || d$k <= 0) {
+        stop("discrete-negbinomial k must be a single positive number", call. = FALSE)
+      }
+      if (xor(is.nan(d$alpha), is.nan(d$beta))) {
+        stop("discrete-negbinomial: give both alpha and beta (Bayesian) or neither", call. = FALSE)
+      }
+      cpp_params[[i]] <- c(d$k, d$alpha, d$beta)
       named_params[[i]] <- d
     } else if (tp == "discrete-binomial") {
       n_def <- if (length(w)) max(w) else 1

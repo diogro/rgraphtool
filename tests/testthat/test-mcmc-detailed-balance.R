@@ -117,3 +117,15 @@ test_that("nested weighted MCMC changes the top level and minimizers pad the hie
                  g, weights = w, types = "real-exponential", levels = lv[seq_len(2L)])),
                tolerance = 1e-9)
 })
+
+test_that("weighted planted-partition merge-split samples the exact posterior", {
+  N <- 5L
+  ed <- rbind(c(1, 2), c(2, 3), c(1, 3), c(3, 4), c(4, 5), c(2, 5), c(1, 4))
+  g <- graph_add_edges(graph_create(N, FALSE), ed)
+  set.seed(3)
+  graph_set_edge_property(g, "w", rnorm(graph_num_edges(g)))
+  for (uniform in c(FALSE, TRUE)) {
+    mk <- function(b) pp_block_state(g, b, uniform = uniform, weights = "w", types = "real-normal")
+    expect_lt(.posterior_tv(mk, pp_description_length, N, 15000L), 0.03)
+  }
+})
