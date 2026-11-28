@@ -174,7 +174,7 @@ minimize_pp_blockmodel_dl <- function(graph, uniform = FALSE,
                                       weights = NULL, types = NULL,
                                       params = "microcanonical",
                                       layers = NULL, independent = FALSE,
-                                      present = NULL) {
+                                      present = NULL, spectral_starts = TRUE) {
   pointer <- graph_pointer(graph)
   degree_prior <- match.arg(degree_prior)
   if (!is.logical(uniform) || length(uniform) != 1L || is.na(uniform)) {
@@ -203,7 +203,9 @@ minimize_pp_blockmodel_dl <- function(graph, uniform = FALSE,
                          as.integer(floor(B_min)),
                          if (is.finite(B_max)) floor(B_max) else Inf,
                          isTRUE(refine), as.numeric(epsilon), q_cache_max(),
-                         w_mat, w_types, w_params, l_vec, isTRUE(independent), pres)
+                         w_mat, w_types, w_params, l_vec, isTRUE(independent), pres,
+                         if (isTRUE(spectral_starts) && wspec$weighted)
+                           weight_spectral_seeds(graph, w_mat, w_types) else NULL)
   new_pp_state(graph, res$blocks, uniform, degree_corrected, degree_prior,
                fit = list(description_length = res$entropy),
                wspec = wspec, linfo = linfo, independent = independent,

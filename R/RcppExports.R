@@ -325,8 +325,8 @@ cpp_pp_check_moves <- function(pointer, blocks, uniform, degree_corrected, distr
     .Call(`_rgraphtool_cpp_pp_check_moves`, pointer, blocks, uniform, degree_corrected, distributed, nmoves, q_max, weights, types, params, layers, independent, present)
 }
 
-cpp_pp_minimize <- function(pointer, uniform, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max, weights = NULL, types = NULL, params = NULL, layers = NULL, independent = FALSE, present = NULL) {
-    .Call(`_rgraphtool_cpp_pp_minimize`, pointer, uniform, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max, weights, types, params, layers, independent, present)
+cpp_pp_minimize <- function(pointer, uniform, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max, weights = NULL, types = NULL, params = NULL, layers = NULL, independent = FALSE, present = NULL, seeds = NULL) {
+    .Call(`_rgraphtool_cpp_pp_minimize`, pointer, uniform, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max, weights, types, params, layers, independent, present, seeds)
 }
 
 cpp_pp_mcmc <- function(pointer, blocks, uniform, degree_corrected, distributed, mcmc_opts, eq_opts, q_max, weights = NULL, types = NULL, params = NULL, layers = NULL, independent = FALSE, present = NULL) {
@@ -481,16 +481,16 @@ cpp_weighted_check_moves <- function(pointer, blocks, weights, types, params, de
     .Call(`_rgraphtool_cpp_weighted_check_moves`, pointer, blocks, weights, types, params, degree_corrected, distributed, nmoves, q_max)
 }
 
-cpp_weighted_minimize <- function(pointer, weights, types, params, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max, nthreads = 0L) {
-    .Call(`_rgraphtool_cpp_weighted_minimize`, pointer, weights, types, params, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max, nthreads)
+cpp_weighted_minimize <- function(pointer, weights, types, params, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max, nthreads = 0L, seeds = NULL) {
+    .Call(`_rgraphtool_cpp_weighted_minimize`, pointer, weights, types, params, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max, nthreads, seeds)
 }
 
 cpp_nested_weighted_entropy <- function(pointer, bs, weights, types, params, degree_corrected, distributed, q_max) {
     .Call(`_rgraphtool_cpp_nested_weighted_entropy`, pointer, bs, weights, types, params, degree_corrected, distributed, q_max)
 }
 
-cpp_nested_weighted_minimize <- function(pointer, weights, types, params, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max, nthreads = 0L) {
-    .Call(`_rgraphtool_cpp_nested_weighted_minimize`, pointer, weights, types, params, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max, nthreads)
+cpp_nested_weighted_minimize <- function(pointer, weights, types, params, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max, nthreads = 0L, seeds = NULL) {
+    .Call(`_rgraphtool_cpp_nested_weighted_minimize`, pointer, weights, types, params, degree_corrected, distributed, B_min, B_max, refine, epsilon, q_max, nthreads, seeds)
 }
 
 cpp_weighted_mcmc <- function(pointer, blocks, weights, types, params, degree_corrected, distributed, mcmc_opts, eq_opts, q_max) {

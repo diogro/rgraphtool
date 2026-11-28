@@ -487,3 +487,56 @@ test_that("discrete-negbinomial: geometric at k = 1, normalized, exact moves, no
   expect_equal(length(unique(block_membership(nb))), 1L)
   expect_gt(length(unique(block_membership(po))), 3L)
 })
+
+test_that("spectral starts find weight-only blocks and never worsen the fit", {
+  # blocks show only in the weights (Erdos-Renyi topology): agglomeration from
+  # neighbours' groups stops short, weight-informed starts do not
+  nmi <- function(x, y) {
+    t <- table(x, y) / length(x)
+    px <- rowSums(t)
+    py <- colSums(t)
+    h <- function(p) -sum(p[p > 0] * log(p[p > 0]))
+    mi <- sum(t[t > 0] * log(t[t > 0] / outer(px, py)[t > 0]))
+    if (h(px) + h(py) == 0) 1 else 2 * mi / (h(px) + h(py))
+  }
+  gain <- nmis <- numeric(0)
+  for (rep in 1:3) {
+    set.seed(100 * rep + 50)
+    n <- 60L
+    b <- rep(1:3, each = 20)
+    e <- t(utils::combn(n, 2))
+    e <- e[stats::runif(nrow(e)) < 0.15, ]
+    same <- b[e[, 1]] == b[e[, 2]]
+    g <- graph_add_edges(graph_create(n, FALSE), e, properties = list(
+      w = as.numeric(stats::rnbinom(nrow(e), size = 5, mu = ifelse(same, 12, 4)))))
+    fit <- function(fun, dl, ss) {
+      set.seed(1)
+      f <- fun(ss)
+      c(dl(f), nmi(block_membership(f), b))
+    }
+    for (fn in list(
+      list(function(ss) minimize_weighted_blockmodel_dl(g, "w", "discrete-negbinomial",
+                                                         params = list(k = 5), spectral_starts = ss),
+           weighted_description_length),
+      list(function(ss) minimize_pp_blockmodel_dl(g, weights = "w", types = "discrete-negbinomial",
+                                                  params = list(k = 5), spectral_starts = ss),
+           pp_description_length))) {
+      off <- fit(fn[[1]], fn[[2]], FALSE)
+      on <- fit(fn[[1]], fn[[2]], TRUE)
+      expect_lte(on[1], off[1] + 1e-8)
+      gain <- c(gain, off[1] - on[1])
+    }
+    nmis <- c(nmis, fit(function(ss) minimize_weighted_blockmodel_dl(
+      g, "w", "discrete-negbinomial", params = list(k = 5), spectral_starts = ss),
+      weighted_description_length, TRUE)[2])
+  }
+  expect_gt(sum(gain), 10)
+  expect_gt(mean(nmis), 0.4)
+  # the seeds leave R's random stream untouched
+  set.seed(7)
+  invisible(rgraphtool:::weight_spectral_seeds(g, matrix(graph_edge_property(g, "w"), ncol = 1),
+                                               "discrete-negbinomial"))
+  x1 <- stats::runif(1)
+  set.seed(7)
+  expect_identical(stats::runif(1), x1)
+})

@@ -1498,7 +1498,8 @@ void weighted_coarsen_to(WeightedLevel& s, WRng& rng, size_t B_target,
 
 double weighted_minimize_flat(WeightedLevel& s, WRng& rng, size_t B_min,
                               size_t B_max, bool refine, double epsilon,
-                              int nthreads = 0) {
+                              int nthreads = 0,
+                              const std::vector<std::vector<int>>* seeds = nullptr) {
     if (s.N() <= 1 || s.E() == 0) {
         s.set_partition(std::vector<int>(s.N(), 0));
         return s.entropy();
@@ -1588,6 +1589,23 @@ double weighted_minimize_flat(WeightedLevel& s, WRng& rng, size_t B_min,
         if (s1 < best_S) {
             best_S = s1;
             best_b = s.blocks();
+        }
+    }
+
+    // Extra starts supplied by the caller (e.g. spectral partitions of the edge
+    // weights): agglomeration proposes merges from neighbours' groups, which
+    // carry no information when only the weights are structured.
+    if (seeds != nullptr) {
+        for (const auto& b0 : *seeds) {
+            if (static_cast<int>(b0.size()) != s.N()) continue;
+            s.set_partition(b0);
+            size_t B0 = static_cast<size_t>(s.B());
+            if (B0 < B_lo || B0 > B_hi) continue;
+            double s1 = refine ? weighted_refine_flat(s, rng, B_lo, B_hi, epsilon, 15, nw) : s.entropy();
+            if (s1 < best_S) {
+                best_S = s1;
+                best_b = s.blocks();
+            }
         }
     }
 
@@ -2103,12 +2121,28 @@ Rcpp::NumericVector cpp_weighted_check_moves(SEXP pointer,
     return err;
 }
 
+// Seed partitions from R (1-based labels), one label per vertex.
+static std::vector<std::vector<int>> parse_seed_partitions(Rcpp::Nullable<Rcpp::List> seeds, int N) {
+    std::vector<std::vector<int>> out;
+    if (seeds.isNull()) return out;
+    Rcpp::List sl(seeds);
+    for (R_xlen_t i = 0; i < sl.size(); ++i) {
+        Rcpp::IntegerVector x = sl[i];
+        if (x.size() != N) Rcpp::stop("each seed partition must have one label per vertex");
+        std::vector<int> b0(N);
+        for (int v = 0; v < N; ++v) b0[v] = x[v] - 1;
+        out.push_back(std::move(b0));
+    }
+    return out;
+}
+
 // [[Rcpp::export]]
 Rcpp::List cpp_weighted_minimize(SEXP pointer, Rcpp::NumericMatrix weights,
                                  Rcpp::CharacterVector types, Rcpp::List params,
                                  bool degree_corrected, bool distributed,
                                  int B_min, double B_max, bool refine,
-                                 double epsilon, double q_max, int nthreads = 0) {
+                                 double epsilon, double q_max, int nthreads = 0,
+                                 Rcpp::Nullable<Rcpp::List> seeds = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) wlog_q().init(w_q_cache_max(q_max));
@@ -2118,8 +2152,10 @@ Rcpp::List cpp_weighted_minimize(SEXP pointer, Rcpp::NumericMatrix weights,
     WRng rng;
     size_t bmax = std::isinf(B_max) ? std::numeric_limits<size_t>::max()
                                     : static_cast<size_t>(B_max);
+    auto seed_vec = parse_seed_partitions(seeds, N);
     double S = weighted_minimize_flat(lv, rng, static_cast<size_t>(B_min), bmax,
-                                      refine, epsilon, nthreads);
+                                      refine, epsilon, nthreads,
+                                      seed_vec.empty() ? nullptr : &seed_vec);
     return Rcpp::List::create(
         Rcpp::Named("blocks") = lv.external_blocks_r(),
         Rcpp::Named("entropy") = S,
@@ -2160,7 +2196,8 @@ Rcpp::List cpp_nested_weighted_minimize(SEXP pointer, Rcpp::NumericMatrix weight
                                         Rcpp::List params, bool degree_corrected,
                                         bool distributed, int B_min, double B_max,
                                         bool refine, double epsilon, double q_max,
-                                        int nthreads = 0) {
+                                        int nthreads = 0,
+                                        Rcpp::Nullable<Rcpp::List> seeds = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) wlog_q().init(w_q_cache_max(q_max));
@@ -2173,7 +2210,9 @@ Rcpp::List cpp_nested_weighted_minimize(SEXP pointer, Rcpp::NumericMatrix weight
     // and jointly refine under exact total nested weighted DL!
     WeightedLevel seed(N, graph.directed, degree_corrected, distributed, true, true, covs);
     seed.set_edges(build_base_edges(graph, weights));
-    weighted_minimize_flat(seed, rng, static_cast<size_t>(B_min), bmax, refine, epsilon, nthreads);
+    auto seed_vec = parse_seed_partitions(seeds, N);
+    weighted_minimize_flat(seed, rng, static_cast<size_t>(B_min), bmax, refine, epsilon, nthreads,
+                           seed_vec.empty() ? nullptr : &seed_vec);
     Rcpp::IntegerVector eb0 = seed.external_blocks_r();
     std::vector<int> b0(N);
     for (int i = 0; i < N; ++i) b0[i] = eb0[i] - 1;

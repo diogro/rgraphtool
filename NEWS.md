@@ -10,6 +10,21 @@
   * On random graphs without blocks, overdispersed counts fitted as
     `"discrete-poisson"` gave 8-31 spurious blocks. Negative binomial gave 1.
   * Pass `params = list(k = )`; there is no default size.
+* Weighted minimizers get weight-informed extra starts (`spectral_starts =
+  TRUE`, the default) in `minimize_weighted_blockmodel_dl()`,
+  `minimize_nested_weighted_blockmodel_dl()` and
+  `minimize_pp_blockmodel_dl()`.
+  * The search proposes merges from neighbouring groups, which carry no
+    information when only the weights are structured. It stopped at one or
+    two blocks even when the planted partition had a lower description length.
+  * The extra starts are varimax-rotated (Rohe and Zeng 2023) and k-means
+    partitions of the leading eigenvectors of the weight-centred adjacency.
+  * Each is refined, and the lowest description length is kept, so fits never
+    get worse; R's random state is left unchanged.
+  * On graphs whose blocks show only in negative-binomial weights, NMI with the
+    planted partition rose from 0.16 to 0.71, and the fits now beat the planted
+    partition's description length on average.
+  * Runtime roughly doubles on large graphs.
 * Weighted planted-partition states have new validation tests, since
   graph-tool has no weighted PP to compare against:
   * an exact identity with graph-tool's weighted SBM on the PP buckets;

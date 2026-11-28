@@ -1884,7 +1884,8 @@ Rcpp::List cpp_pp_minimize(SEXP pointer, bool uniform, bool degree_corrected,
                            Rcpp::Nullable<Rcpp::List> params = R_NilValue,
                            Rcpp::Nullable<Rcpp::IntegerVector> layers = R_NilValue,
                            bool independent = false,
-    SEXP present = R_NilValue) {
+    SEXP present = R_NilValue,
+    Rcpp::Nullable<Rcpp::List> seeds = R_NilValue) {
     Graph& graph = get_graph(pointer);
     int N = static_cast<int>(boost::num_vertices(graph.adjacency));
     if (degree_corrected && distributed) pplog_q().init(pp_q_cache_max(q_max));
@@ -1953,6 +1954,43 @@ Rcpp::List cpp_pp_minimize(SEXP pointer, bool uniform, bool degree_corrected,
         if (cur_S < best_S) {
             best_S = cur_S;
             best_b = st.blocks();
+        }
+    }
+
+    // Caller-supplied starts (e.g. spectral partitions of the edge weights):
+    // quench them directly, without the warm phase that would scramble them.
+    if (seeds.isNotNull()) {
+        Rcpp::List sl(seeds);
+        for (R_xlen_t i = 0; i < sl.size(); ++i) {
+            Rcpp::IntegerVector x = sl[i];
+            if (x.size() != N) Rcpp::stop("each seed partition must have one label per vertex");
+            std::vector<int> b0(N);
+            for (int v = 0; v < N; ++v) b0[v] = x[v] - 1;
+            st.set_partition(b0);
+            size_t B0 = static_cast<size_t>(st.B());
+            if (B0 < bmin || B0 > bmax) continue;
+            double tot_dS = 0.0;
+            size_t na = 0, nm = 0;
+            double cur_S = st.entropy();
+            int no_imp = 0;
+            for (int sw = 0; sw < (refine ? 60 : 20); ++sw) {
+                pp_mcmc_sweep_once(st, rng, PP_INF, 0.5, 0.05, true, bmin, bmax, tot_dS, na, nm, false);
+                double new_S = st.entropy();
+                if (new_S < cur_S - epsilon) {
+                    cur_S = new_S;
+                    no_imp = 0;
+                } else if (++no_imp >= 6) {
+                    break;
+                }
+            }
+            if (refine) {
+                pp_greedy_sweeps(st, rng, bmin, bmax, 10, epsilon);
+                cur_S = st.entropy();
+            }
+            if (cur_S < best_S) {
+                best_S = cur_S;
+                best_b = st.blocks();
+            }
         }
     }
     st.set_partition(best_b);
