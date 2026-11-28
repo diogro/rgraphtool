@@ -126,7 +126,7 @@ inline double quantized_nll_from_stats(int64_t E, int64_t K, int64_t k_min, int6
 
 // Quantized MDL distribution prior matching Peixoto (2025 PRX) & graph-tool 3.9
 // (including the 128-nat floating-point range encoding constant when E > 0)
-double quantized_dist_nll(const std::vector<double>& vals, double delta, double lam,
+[[maybe_unused]] double quantized_dist_nll(const std::vector<double>& vals, double delta, double lam,
                           bool uniform, bool exclude_zero) {
     size_t E = vals.size();
     if (E == 0) return 0.0;
@@ -306,6 +306,11 @@ struct PriorOpts {
     bool normal_prior = false;
     double normal_mu = 0.0;
     double normal_sigma = 1.0;
+    // Weight on the pseudo-log-likelihood (1 = graph-tool's model). Symmetric
+    // pseudo-likelihoods count each edge's evidence in both endpoint
+    // conditionals, so the edge gains are twice the likelihood gains; 0.5 is
+    // the composite-likelihood correction.
+    double nll_weight = 1.0;
 };
 
 class DynamicsEngine {
@@ -337,6 +342,15 @@ public:
     DynBlockPrior& prior() { return _prior; }
     const DynBlockPrior& prior() const { return _prior; }
     const gt_hash_map<uint64_t, double>& weights() const { return _x; }
+    void set_nll_weight(double w) {
+        if (!(w > 0.0) || !std::isfinite(w)) Rcpp::stop("pl_weight must be a positive number");
+        if (w != _nll_weight) {
+            _nll_weight = w;
+            recompute_all_fields_and_nll();
+        }
+    }
+    double nll_weight() const { return _nll_weight; }
+
     const std::vector<std::vector<double>>& theta() const { return _theta; }
 
     uint64_t key(int u, int v) const {
@@ -930,7 +944,7 @@ public:
                 }
                 dS_xp = new_xp - old_xp;
             }
-            return (nll_u + nll_v - base_nll_uv) + dS_struct + dS_xp;
+            return (_nll_weight * (nll_u + nll_v) - base_nll_uv) + dS_struct + dS_xp;
         };
 
         // Quadratic Newton / soft-threshold proposal around w = 0
@@ -1763,6 +1777,7 @@ private:
     std::vector<std::vector<double>> _theta;
     std::vector<double> _node_nll;
     double _total_nll = 0.0;
+    double _nll_weight = 1.0;
 
     // Flattened data [i * _M + m]
     std::vector<double> _s_prev, _s_next;
@@ -1886,6 +1901,10 @@ private:
     }
 
     double eval_vertex_nll_with_edge_delta(int i, int j, double dw, double d_abs) const {
+        return _nll_weight * eval_vertex_nll_raw(i, j, dw, d_abs);
+    }
+
+    double eval_vertex_nll_raw(int i, int j, double dw, double d_abs) const {
         if (_model == DYN_PSEUDO_NORMAL && _use_gram) {
             double th0 = _theta[i][0];
             double mu = _theta[i][1];
@@ -2032,6 +2051,7 @@ PriorOpts parse_prior_opts(Rcpp::List opts_list, int q_t) {
     if (opts_list.containsElementNamed("density")) p.density = Rcpp::as<bool>(opts_list["density"]);
     if (opts_list.containsElementNamed("aE")) p.aE = Rcpp::as<double>(opts_list["aE"]);
     if (opts_list.containsElementNamed("xdist")) p.xdist = Rcpp::as<bool>(opts_list["xdist"]);
+    if (opts_list.containsElementNamed("nll_weight")) p.nll_weight = Rcpp::as<double>(opts_list["nll_weight"]);
     if (opts_list.containsElementNamed("xdist_uniform")) p.xdist_uniform = Rcpp::as<bool>(opts_list["xdist_uniform"]);
     if (opts_list.containsElementNamed("xl1")) p.xl1 = Rcpp::as<double>(opts_list["xl1"]);
     if (opts_list.containsElementNamed("xdelta")) p.xdelta = Rcpp::as<double>(opts_list["xdelta"]);
@@ -2125,6 +2145,7 @@ Rcpp::List cpp_dynamics_entropy(
         pslack, xmin, xmax, tmin, tmax, init_edges, init_x, init_theta, bs_list,
         dc, dist, q_max);
     PriorOpts opts = parse_prior_opts(prior_opts, init_theta.ncol());
+    eng.set_nll_weight(opts.nll_weight);
     double nll = opts.latent_edges ? eng.data_nll() : 0.0;
     double g_pr = eng.geom_edge_prior(static_cast<long>(eng.weights().size()), opts.density, opts.aE);
     double x_pr = eng.x_prior(opts);
@@ -2153,6 +2174,7 @@ Rcpp::NumericVector cpp_dynamics_check_moves(
         pslack, xmin, xmax, tmin, tmax, init_edges, init_x, init_theta, bs_list,
         dc, dist, q_max);
     PriorOpts opts = parse_prior_opts(prior_opts, init_theta.ncol());
+    eng.set_nll_weight(opts.nll_weight);
     Rng rng;
     Rcpp::NumericVector errs(nmoves);
     double S = eng.total_entropy(opts);
@@ -2219,6 +2241,7 @@ Rcpp::List cpp_dynamics_reconstruct(
         pslack, xmin, xmax, tmin, tmax, init_edges, init_x, init_theta, bs_list,
         dc, dist, q_max);
     PriorOpts opts = parse_prior_opts(prior_opts, init_theta.ncol());
+    eng.set_nll_weight(opts.nll_weight);
     Rng rng;
     std::vector<uint64_t> cands = eng.build_candidates(k_cand);
 

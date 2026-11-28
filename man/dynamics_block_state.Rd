@@ -62,7 +62,8 @@ pseudo_normal_block_state(s = NULL, graph = NULL, fix_mean = FALSE,
   disable_xdist = FALSE, disable_tdist = FALSE,
   xl1 = 1, tl1 = c(1, 1), sbm = NULL, nested = TRUE, blocks = NULL,
   degree_corrected = TRUE, degree_prior = c("distributed", "uniform"),
-  self_loops = FALSE, q_max = Inf, cov = NULL, n_eff = NULL, mean = NULL)
+  self_loops = FALSE, q_max = Inf, cov = NULL, n_eff = NULL, mean = NULL,
+  pl_weight = 1)
 
 normal_glauber_block_state(s, graph = NULL, directed = TRUE, fix_mean = FALSE,
   x = 0.1, x_range = c(-Inf, Inf), theta = c(0, 0),
@@ -133,6 +134,16 @@ dynamics_transmission_probs(state)
   \code{cov}, the effective number of observations \code{n_eff}, and an
   optional mean vector (default zero, e.g. for regression residuals). Give
   exactly one of \code{s} or \code{cov}.}
+  \item{pl_weight}{For \code{pseudo_normal_block_state()}, weight on the
+  pseudo-log-likelihood (default \code{1}, graph-tool's model). The
+  pseudo-likelihood sums every vertex's conditional, so each edge's evidence
+  is counted in both endpoint conditionals: adding an edge gains twice the
+  Gaussian likelihood gain. With the quantized weight prior this admits a
+  fixed share of null edges at any sample size (about 7.5\% of null pairs in
+  simulations). \code{pl_weight = 0.5} is the composite-likelihood
+  correction and removed those false edges. The weight scales the data term
+  of the description length, so description lengths are only comparable
+  between states with the same \code{pl_weight}.}
   \item{positive, pslack}{For \code{pseudo_normal_block_state()}, enforce strict
   diagonal dominance (positive definiteness) of the reconstructed precision
   matrix with margin \code{pslack}.}

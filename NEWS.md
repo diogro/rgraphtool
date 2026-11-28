@@ -1,3 +1,21 @@
+# rgraphtool 0.5.2
+
+* New `pl_weight` argument for `pseudo_normal_block_state()`: a weight on the
+  pseudo-log-likelihood. The default of 1 is graph-tool's model.
+  * The pseudo-likelihood sums every vertex's conditional, so an edge's
+    evidence is counted in both endpoint conditionals. On independent pairs
+    the gain from adding an edge was 2.0 times the Gaussian likelihood gain.
+  * With the quantized weight prior, extra edges cost only about 3 nats. A
+    fixed share of null pairs was therefore admitted (about 7.5%), whatever
+    the number of samples: 56 false edges among 36 true ones with 40 genes
+    and 1000 samples.
+  * `pl_weight = 0.5` is the composite-likelihood correction. It removed
+    those false edges in simulations and kept full recall when samples
+    outnumber genes.
+  * The weight scales the data term of the description length, so compare
+    description lengths only between states with the same `pl_weight`.
+* An unused reference function no longer triggers a compiler warning.
+
 # rgraphtool 0.5.1
 
 ## Parallel independent starts

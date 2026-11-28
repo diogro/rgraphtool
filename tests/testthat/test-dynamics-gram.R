@@ -359,3 +359,65 @@ test_that("PseudoNormal reconstruction from an empty graph finds edges that pay 
                                      xdelta = 1e-3, tdelta = c(1e-3, 1e-3))
   expect_lt(rec$entropy, dynamics_description_length(empty))
 })
+
+test_that("pl_weight scales the pseudo-likelihood and halving it removes null edges", {
+  set.seed(2)
+  N <- 20L
+  M <- 50L
+  g <- graph_create(N, FALSE)
+  graph_add_edges(g, cbind(1:19, 2:20))
+  S <- simulate_normal_dynamics(g, weights = 0.5, sigma = 0.7, n_samples = M, burnin = 100L,
+                                mode = "equilibrium")
+  S <- S - rowMeans(S)
+  th <- cbind(rnorm(N, -0.3, 0.1), 0)
+  w <- rnorm(19, 0.2, 0.05)
+  for (gram in c(FALSE, TRUE)) {
+    mk <- function(pw) {
+      if (gram) {
+        pseudo_normal_block_state(cov = tcrossprod(S) / M, n_eff = M, mean = numeric(N), graph = g,
+                                  x = w, theta = th, pl_weight = pw, nested = FALSE)
+      } else {
+        pseudo_normal_block_state(S, graph = g, x = w, theta = th, pl_weight = pw, nested = FALSE)
+      }
+    }
+    a <- dynamics_description_length(mk(1), breakdown = TRUE)
+    b <- dynamics_description_length(mk(0.5), breakdown = TRUE)
+    expect_equal(b$nll, 0.5 * a$nll, tolerance = 1e-12)
+    expect_equal(b$total - b$nll, a$total - a$nll, tolerance = 1e-12)
+    st <- mk(0.5)
+    chk <- rgraphtool:::cpp_dynamics_check_moves(
+      st$model_code, st$n_vertices, st$directed, st$self_loops, st$s_list, st$f_mat,
+      st$has_zero, st$exposed, st$positive, st$pslack, st$x_range[1L], st$x_range[2L],
+      st$tmin, st$tmax, st$edges, st$x, st$theta, st$bs, st$degree_corrected, st$dist,
+      rgraphtool:::.dyn_merge_prior(st), 30L, st$q_max)
+    expect_lt(max(abs(chk)), 1e-10)
+  }
+  expect_error(pseudo_normal_block_state(S, pl_weight = 0), "pl_weight")
+
+  # four GMRF chains, many samples: the uncorrected pseudo-likelihood admits
+  # null edges; the composite-likelihood weight does not
+  N <- 40L
+  M <- 1000L
+  Om <- matrix(0, N, N)
+  for (grp in split(1:N, rep(1:4, each = 10))) for (k in 1:9) {
+    Om[grp[k], grp[k + 1]] <- Om[grp[k + 1], grp[k]] <- -0.4
+  }
+  diag(Om) <- rowSums(abs(Om)) + 0.3
+  set.seed(9)
+  X <- t(matrix(rnorm(M * N), M) %*% chol(solve(Om)))
+  X <- X - rowMeans(X)
+  X <- X / sqrt(rowMeans(X^2))  # unit-variance genes, as gensbm passes them
+  tk <- paste(rep(1:N, each = 1)[-N], 2:N)[-(seq(10, 30, by = 10))]
+  fit <- function(pw) {
+    st <- pseudo_normal_block_state(cov = tcrossprod(X) / M, n_eff = M, mean = numeric(N),
+                                    xdelta = 1e-3, tdelta = c(1e-3, 1e-3), pl_weight = pw)
+    set.seed(1)
+    rec <- reconstruct_dynamics(st, niter = 25L, xl1 = 1, tl1 = c(0.1, 0.1))
+    k <- paste(pmin(rec$edges$from, rec$edges$to), pmax(rec$edges$from, rec$edges$to))
+    c(fp = sum(!k %in% tk), tp = sum(k %in% tk))
+  }
+  half <- fit(0.5)
+  expect_equal(unname(half["fp"]), 0)
+  expect_equal(unname(half["tp"]), 36)
+  expect_gt(fit(1)["fp"], 10)
+})

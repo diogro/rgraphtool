@@ -345,7 +345,12 @@ pseudo_normal_block_state <- function(s = NULL, graph = NULL, fix_mean = FALSE,
                                       degree_corrected = TRUE,
                                       degree_prior = c("distributed", "uniform"),
                                       self_loops = FALSE, q_max = Inf,
-                                      cov = NULL, n_eff = NULL, mean = NULL) {
+                                      cov = NULL, n_eff = NULL, mean = NULL,
+                                      pl_weight = 1) {
+  if (!is.numeric(pl_weight) || length(pl_weight) != 1L || !is.finite(pl_weight) ||
+      pl_weight <= 0) {
+    stop("pl_weight must be a single positive number", call. = FALSE)
+  }
   has_s <- !is.null(s)
   has_cov <- !is.null(cov)
   if (has_s == has_cov) {
@@ -387,7 +392,7 @@ pseudo_normal_block_state <- function(s = NULL, graph = NULL, fix_mean = FALSE,
       mean = if (isTRUE(fix_mean)) numeric(N_cov) else mean_vec
     )
   }
-  .dyn_build_state(
+  st <- .dyn_build_state(
     .DYN_PSEUDO_NORMAL, "pseudo_normal", s, graph, directed = FALSE, self_loops = self_loops,
     q_t = 2L, f_mat = matrix(0, 0, 0), has_zero = FALSE, exposed = FALSE,
     positive = positive, pslack = pslack, x = x, x_range = x_range,
@@ -397,6 +402,8 @@ pseudo_normal_block_state <- function(s = NULL, graph = NULL, fix_mean = FALSE,
     degree_corrected = degree_corrected, degree_prior = match.arg(degree_prior),
     fix_mean = fix_mean, q_max = q_max
   )
+  st$pl_weight <- as.numeric(pl_weight)
+  st
 }
 
 #' @noRd
@@ -540,6 +547,7 @@ potts_glauber_block_state <- function(s, f = NULL, q = NULL, graph = NULL, direc
                              tdist_uniform = NULL, xl1 = NULL, tl1 = NULL,
                              normal = NULL, mu = NULL, sigma = NULL) {
   p <- state$default_prior
+  p$nll_weight <- if (is.null(state$pl_weight)) 1 else state$pl_weight
   if (!is.null(sbm)) p$sbm <- isTRUE(sbm)
   if (!is.null(latent_edges)) p$latent_edges <- isTRUE(latent_edges)
   if (!is.null(density)) p$density <- isTRUE(density)
