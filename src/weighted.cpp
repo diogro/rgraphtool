@@ -2358,17 +2358,92 @@ Rcpp::List cpp_nested_weighted_mcmc(SEXP pointer, Rcpp::List bs,
     int steps_done = 0;
     double S_cur = nw.entropy();
 
+    // Probability of a B-changing proposal per node visit.
+    double d_bc = mcmc_opts.containsElementNamed("d") ? Rcpp::as<double>(mcmc_opts["d"]) : 0.01;
+    if (!(d_bc > 0.0)) d_bc = 0.0;
+
+    // B-changing moves at every level, edited on the contiguous level
+    // vectors (level l + 1 node i is level-l group i) and evaluated by
+    // rebuilding the hierarchy:
+    //  - split-off: v (in a group r of size >= 2, parent P) moves to a new
+    //    group under P;
+    //  - absorb: a singleton v (group t, parent P) joins one of the K groups
+    //    s != t with parent P, chosen uniformly; t disappears.
+    // These are exact reverses of each other (P always keeps a member, so
+    // nothing cascades upward): q_rev / q_fwd = 1/K for a split-off, K for an
+    // absorb.
+    // At the top level the groups share one implicit parent.
+    auto bchange_move = [&](int l, int v, double cur_beta) {
+        std::vector<std::vector<int>> bs_old = nw.save_bs();
+        std::vector<std::vector<int>> bs_new = bs_old;
+        std::vector<int>& bl = bs_new[l];
+        const bool has_up = (l + 1 < nw.levels());
+        std::vector<int> no_up;
+        std::vector<int>& bu = has_up ? bs_new[l + 1] : no_up;
+        int r = bl[v];
+        int B_l = has_up ? static_cast<int>(bu.size())
+                         : (*std::max_element(bl.begin(), bl.end()) + 1);
+        auto parent = [&](int g) { return has_up ? bu[g] : 0; };
+        int nr = 0;
+        for (int x : bl) if (x == r) ++nr;
+        int P = parent(r);
+        double log_q_ratio;
+        if (nr >= 2) {
+            bl[v] = B_l;
+            if (has_up) bu.push_back(P);
+            int K = 0;  // groups with parent P other than the new one (includes r)
+            for (int g = 0; g < B_l; ++g) if (parent(g) == P) ++K;
+            log_q_ratio = -std::log(static_cast<double>(K));
+        } else {
+            if (l == 0 && static_cast<size_t>(B_l) <= B_min) return;
+            std::vector<int> cand;
+            for (int s = 0; s < B_l; ++s) if (s != r && parent(s) == P) cand.push_back(s);
+            if (cand.empty()) return;
+            int K = static_cast<int>(cand.size());
+            int tgt = cand[rng.index(cand.size())];
+            bl[v] = tgt;
+            for (int& x : bl) if (x > r) --x;
+            if (has_up) bu.erase(bu.begin() + r);
+            log_q_ratio = std::log(static_cast<double>(K));
+        }
+        ++nattempts;
+        double S_old = S_cur;
+        nw.build(bs_new);
+        double S_new = nw.entropy();
+        double dS = S_new - S_old;
+        bool accept;
+        if (std::isinf(cur_beta)) {
+            accept = (dS < 0.0);
+        } else {
+            double log_a = -cur_beta * dS + log_q_ratio;
+            accept = (log_a >= 0.0 || rng.unif() < std::exp(log_a));
+        }
+        if (accept) {
+            total_dS += dS;
+            S_cur = S_new;
+            ++nmoves;
+        } else {
+            nw.build(bs_old);
+        }
+    };
+
     auto one_nested_sweep = [&](double cur_beta) {
-        // Level-by-level MH sweeps evaluated under exact total nested weighted entropy!
+        // Level-by-level MH sweeps evaluated under exact total nested weighted entropy.
         for (int l = 0; l < nw.levels(); ++l) {
-            WeightedLevel& lv = nw.level(l);
-            if (lv.N() <= 1 || lv.B() <= 1) continue;
-            std::vector<int> ord(lv.N());
+            if (nw.level(l).N() <= 1) continue;
+            const bool can_bc = d_bc > 0.0;
+            std::vector<int> ord(nw.level(l).N());
             std::iota(ord.begin(), ord.end(), 0);
             rng.shuffle(ord);
             for (int v : ord) {
+                if (can_bc && rng.unif() < d_bc) {
+                    bchange_move(l, v, cur_beta);
+                    continue;
+                }
+                WeightedLevel& lv = nw.level(l);  // re-fetch: build() reallocates levels
+                if (lv.B() <= 1) continue;
                 int r = lv.group(v);
-                if (lv.size(r) <= 1) continue;  // preserve hierarchy node count at l+1
+                if (lv.size(r) <= 1) continue;  // B-preserving move; B changes above
                 int t = lv.sample_group(v, c, rng);
                 if (t == r) continue;
                 ++nattempts;
@@ -2381,7 +2456,7 @@ Rcpp::List cpp_nested_weighted_mcmc(SEXP pointer, Rcpp::List bs,
                 if (std::isinf(cur_beta)) {
                     accept = (dS < 0.0);
                 } else {
-                    double prev = lv.move_prob(v, r, c);
+                    double prev = nw.level(l).move_prob(v, r, c);
                     if (prev > 0.0 && pfwd > 0.0) {
                         double log_a = -cur_beta * dS + std::log(prev) - std::log(pfwd);
                         accept = (log_a >= 0.0 || rng.unif() < std::exp(log_a));
@@ -2392,12 +2467,11 @@ Rcpp::List cpp_nested_weighted_mcmc(SEXP pointer, Rcpp::List bs,
                     S_cur = S_new;
                     ++nmoves;
                 } else {
-                    lv.move(v, r);
+                    nw.level(l).move(v, r);
                     if (l + 1 < nw.levels()) nw.rebuild_upper_keep_bs();
                 }
             }
         }
-        (void)B_min;
     };
 
     if (mode == "sweep") {

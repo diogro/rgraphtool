@@ -46,6 +46,28 @@
   * `sample_posterior()`, `model_evidence()` and the posterior-mode
     `compare_*()` functions were affected. New tests are in
     `test-mcmc-detailed-balance.R`.
+* Nested weighted MCMC can now change the number of groups at every level
+  below the top.
+  * Before, singleton groups were skipped and no move created or removed a
+    group, so B was fixed at every level. Posterior samples and evidence
+    for nested weighted states were conditional on the starting hierarchy.
+  * With probability `d` per node visit, a node now either splits off into
+    a new group under its group's parent, or, if it is alone in its group,
+    is absorbed into a sibling group (same parent). These two moves are
+    exact reverses of each other.
+  * The top level is sampled too, with one implicit parent.
+  * Against exact enumeration of all 358 three-level hierarchies on 5
+    vertices, TV is 0.005.
+* Nested weighted and nested layered minimizers keep graph-tool's
+  hierarchy depth, `ceil(log2 N) + 1` levels padded with single-group
+  levels, instead of trimming to the shortest stack.
+  * As in graph-tool, the number of stored levels is fixed during MCMC, and
+    the effective depth adapts within the padding. With a trimmed stack the
+    hierarchy could only get shallower.
+  * Padding levels have zero description length. Like graph-tool's
+    `print_summary()` / `get_bstack()`, `nested_summary()` and the print
+    methods stop at the first single-node level and report the padding
+    separately ("3 levels (+4 single-group padding)").
 * PseudoNormal reconstruction:
   * The greedy sweep now optimizes edges before node parameters, as
     graph-tool does (`theta_first = False`).

@@ -1,3 +1,32 @@
+# Number of non-padding levels, counted as graph-tool's get_bstack() /
+# print_summary() do: up to and including the first level with one node.
+# Levels above it are single-group padding (zero description length).
+nested_effective_levels <- function(levels) {
+  k <- which(lengths(levels) == 1L)[1L]
+  if (is.na(k)) length(levels) else k
+}
+
+.depth_text <- function(levels) {
+  k <- nested_effective_levels(levels)
+  pad <- length(levels) - k
+  if (pad > 0L) sprintf("%d levels (+%d single-group padding)", k, pad) else sprintf("%d levels", k)
+}
+
+# Pad a hierarchy (list of 1-based level vectors) with single-group levels up
+# to graph-tool's depth ceil(log2 N) + 1, closing it with a one-group level
+# first if needed. Padding levels have zero description length; they give
+# MCMC room to deepen the hierarchy (the number of stored levels is fixed
+# during sampling, as in graph-tool's NestedBlockState).
+pad_hierarchy <- function(levels, n) {
+  levels <- lapply(levels, as.integer)
+  if (max(levels[[length(levels)]]) > 1L) {
+    levels[[length(levels) + 1L]] <- rep(1L, max(levels[[length(levels)]]))
+  }
+  target <- max(length(levels), as.integer(ceiling(log2(max(2L, n)))) + 1L)
+  while (length(levels) < target) levels[[length(levels) + 1L]] <- 1L
+  levels
+}
+
 validate_hierarchy <- function(levels, n) {
   if (!is.list(levels) || length(levels) < 1L) {
     stop("levels must be a non-empty list of integer label vectors", call. = FALSE)
@@ -172,9 +201,9 @@ nested_summary <- function(state) {
 #' @export
 print.rgraphtool_nested_block_state <- function(x, ...) {
   summary <- nested_summary(x)
-  cat(sprintf("<nested block state: %s, %d levels, description length %.4f nats>\n",
+  cat(sprintf("<nested block state: %s, %s, description length %.4f nats>\n",
               if (x$degree_corrected) "degree-corrected" else "non-degree-corrected",
-              length(x$levels), sum(nested_level_entropy(x))))
+              .depth_text(x$levels), sum(nested_level_entropy(x))))
   for (i in seq_len(nrow(summary))) {
     cat(sprintf("l: %d, N: %d, B: %d\n", summary$level[i], summary$N[i], summary$B[i]))
   }

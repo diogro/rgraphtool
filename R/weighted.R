@@ -396,7 +396,7 @@ minimize_nested_weighted_blockmodel_dl <- function(graph, weights, types,
                                       if (is.finite(B_max)) floor(B_max) else Inf,
                                       isTRUE(refine), as.numeric(epsilon),
                                       q_cache_max(), nt)
-  new_nested_weighted_state(graph, res$bs, wmat, spec, degree_corrected,
+  new_nested_weighted_state(graph, pad_hierarchy(res$bs, graph_num_vertices(graph)), wmat, spec, degree_corrected,
                             degree_prior,
                             fit = list(description_length = res$entropy,
                                        level_entropy = res$level_entropy))
@@ -406,10 +406,11 @@ minimize_nested_weighted_blockmodel_dl <- function(graph, weights, types,
 #' @export
 print.rgraphtool_nested_weighted_block_state <- function(x, ...) {
   dl <- nested_weighted_description_length(x)
-  cat(sprintf("<nested weighted block state: %s, %s, %d levels, B = %s, description length %.4f nats>\n",
+  k <- nested_effective_levels(x$levels)
+  cat(sprintf("<nested weighted block state: %s, %s, %s, B = %s, description length %.4f nats>\n",
               if (x$degree_corrected) "degree-corrected" else "non-degree-corrected",
-              paste(x$types, collapse = "+"), length(x$levels),
-              paste(x$B, collapse = "-"), dl))
+              paste(x$types, collapse = "+"), .depth_text(x$levels),
+              paste(x$B[seq_len(k)], collapse = "-"), dl))
   invisible(x)
 }
 

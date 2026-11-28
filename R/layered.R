@@ -347,7 +347,7 @@ minimize_nested_layered_blockmodel_dl <- function(graph, layers, independent = T
                                      isTRUE(refine), as.numeric(epsilon),
                                      q_cache_max(), wspec$W, wspec$types,
                                      wspec$cpp_params, nt)
-  new_nested_layered_state(graph, res$bs, linfo, independent, degree_corrected,
+  new_nested_layered_state(graph, pad_hierarchy(res$bs, graph_num_vertices(graph)), linfo, independent, degree_corrected,
                            degree_prior,
                            fit = list(description_length = res$entropy,
                                       level_entropy = res$level_entropy),
@@ -359,12 +359,13 @@ minimize_nested_layered_blockmodel_dl <- function(graph, layers, independent = T
 print.rgraphtool_nested_layered_block_state <- function(x, ...) {
   dl <- nested_layered_description_length(x)
   wtxt <- if (isTRUE(x$weighted)) paste0(", ", paste(x$types, collapse = "+")) else ""
-  cat(sprintf("<nested layered block state: %s, %d %s layer%s%s, %d levels, B = %s, description length %.4f nats>\n",
+  cat(sprintf("<nested layered block state: %s, %d %s layer%s%s, %s, B = %s, description length %.4f nats>\n",
               if (x$degree_corrected) "degree-corrected" else "non-degree-corrected",
               x$C,
               if (x$independent) "independent" else "edge-covariate",
               if (x$C == 1L) "" else "s",
-              wtxt, length(x$levels), paste(x$B, collapse = "-"), dl))
+              wtxt, .depth_text(x$levels),
+              paste(x$B[seq_len(nested_effective_levels(x$levels))], collapse = "-"), dl))
   invisible(x)
 }
 
