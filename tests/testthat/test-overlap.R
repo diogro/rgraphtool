@@ -89,7 +89,7 @@ test_that("OverlapSBM incremental virtual_move and move deltas match exact entro
         if (!dc && !dist) next
         for (gen_ov in c(TRUE, FALSE)) {
           set.seed(123)
-          errs <- cpp_overlap_check_moves(g$pointer, he, dc, dist, gen_ov, 80L, 1e6)
+          errs <- rgraphtool:::cpp_overlap_check_moves(g$pointer, he, dc, dist, gen_ov, 80L, 1e6)
           expect_lt(max(abs(errs)), 1e-9)
         }
       }

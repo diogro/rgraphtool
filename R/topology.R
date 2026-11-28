@@ -1,14 +1,24 @@
 resolve_edge_weights_opt <- function(graph, weights = NULL) {
   graph_pointer(graph)
   if (is.null(weights)) return(NULL)
-  if (is.character(weights) && length(weights) == 1L && !is.na(weights) && nzchar(weights)) {
-    return(as.numeric(graph_edge_property(graph, weights)))
-  }
-  if (is.numeric(weights)) {
+  w <- if (is.character(weights) && length(weights) == 1L && !is.na(weights) && nzchar(weights)) {
+    as.numeric(graph_edge_property(graph, weights))
+  } else if (is.numeric(weights)) {
     if (length(weights) != graph_num_edges(graph)) {
       stop("weights must have length graph_num_edges(graph)", call. = FALSE)
     }
-    return(as.numeric(weights))
+    as.numeric(weights)
+  } else {
+    NULL
+  }
+  if (!is.null(w)) {
+    # NA weights (e.g. edges added in a batch without this property) would
+    # silently turn modularity / assortativity into NA.
+    if (any(!is.finite(w))) {
+      stop("edge weights must be finite (found ", sum(!is.finite(w)),
+           " NA / non-finite values)", call. = FALSE)
+    }
+    return(w)
   }
   stop("weights must be NULL, an edge property name, or a numeric vector of length E",
        call. = FALSE)
@@ -237,6 +247,14 @@ assortativity <- function(graph, values = "total", categorical = FALSE, weights 
          call. = FALSE)
   }
 
+  if (anyNA(x_src) || anyNA(x_tgt)) {
+    stop("assortativity values must not contain NA", call. = FALSE)
+  }
+  if (isTRUE(categorical)) {
+    # Categories are compared by exact value: map them to integer codes here
+    # (the C++ side casts to integers, which would merge 0.2 and 0.7).
+    x_src <- x_tgt <- as.numeric(match(x_src, unique(x_src)))
+  }
   w <- resolve_edge_weights_opt(graph, weights)
   cpp_assortativity(pointer, x_src, x_tgt, categorical, w)
 }

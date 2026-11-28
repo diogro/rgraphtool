@@ -141,3 +141,18 @@ test_that("C. elegans nested fits reach graph-tool 3.9 description lengths", {
     expect_lte(min(scores), upstream_max[[as.character(dc)]])
   }
 })
+
+test_that("nested_block_state keeps parents when relabelling user hierarchies", {
+  g <- graph_create(120L, directed = FALSE)
+  set.seed(4)
+  graph_add_edges(g, cbind(sample.int(120L, 400L, TRUE), sample.int(120L, 400L, TRUE)))
+  l1 <- rep(c(3L, 1L, 4L, 2L), each = 30L)
+  l2 <- c(1L, 2L, 1L, 2L)  # groups 1,3 -> parent 1; groups 2,4 -> parent 2
+  st <- nested_block_state(g, list(l1, l2, c(1L, 1L)))
+  # the same hierarchy in first-appearance order: 3,1,4,2 -> 1,2,3,4
+  st_ref <- nested_block_state(g, list(rep(1:4, each = 30L), c(1L, 2L, 1L, 2L)[c(3L, 1L, 4L, 2L)],
+                                       c(1L, 1L)))
+  expect_equal(nested_description_length(st), nested_description_length(st_ref))
+  expect_equal(as.integer(nested_project(st, level = 1L)),
+               as.integer(nested_project(st_ref, level = 1L)))
+})

@@ -107,7 +107,8 @@ graph_add_edges <- function(graph, edges, properties = NULL) {
   }
   cpp_add_edges(pointer, edges)
   new_e <- as.integer(cpp_num_edges(pointer))
-  new_ord <- if (new_e > 0L && (length(old_ord) > 0L || !is.null(properties))) {
+  has_r_props <- is.environment(graph$attrs) && length(graph$attrs$edge_props) > 0L
+  new_ord <- if (new_e > 0L && (length(old_ord) > 0L || !is.null(properties) || has_r_props)) {
     cpp_edge_order(pointer)
   } else {
     integer(0)
@@ -134,9 +135,11 @@ graph_add_edges <- function(graph, edges, properties = NULL) {
       }
     }
   }
-  if (!is.null(properties)) {
+  if (!is.null(properties) && new_e > old_e) {
     for (nm in names(properties)) {
       v <- properties[[nm]]
+      if (is.factor(v)) v <- as.character(v)
+      .check_edge_property_type(graph, pointer, nm, v)
       if (is.numeric(v) && !is.matrix(v)) {
         cpp_set_edge_property(pointer, nm, as.numeric(v), TRUE, old_e)
       } else {
@@ -171,6 +174,22 @@ graph_add_edges <- function(graph, edges, properties = NULL) {
   invisible(graph)
 }
 
+# Numeric vectors live in the C++ store and everything else in the R
+# environment; a property that changed store would keep stale values in the
+# other one (and graph_edge_property() reads the C++ store first).
+.check_edge_property_type <- function(graph, pointer, name, values) {
+  numeric_new <- is.numeric(values) && !is.matrix(values)
+  in_cpp <- name %in% cpp_edge_property_names(pointer)
+  in_r <- is.environment(graph$attrs) && name %in% names(graph$attrs$edge_props)
+  if ((numeric_new && in_r) || (!numeric_new && in_cpp)) {
+    stop(sprintf(
+      "edge property '%s' already exists with a different type (%s); use a new name",
+      name, if (in_cpp) "numeric" else "non-numeric"
+    ), call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
 #' @noRd
 #' @export
 graph_set_edge_property <- function(graph, name, values) {
@@ -179,10 +198,12 @@ graph_set_edge_property <- function(graph, name, values) {
     stop("name must be a non-empty character string", call. = FALSE)
   }
   ne <- graph_num_edges(graph)
+  if (is.factor(values)) values <- as.character(values)
   vlen <- if (is.matrix(values)) nrow(values) else length(values)
   if (vlen != ne) {
     stop("values must have length graph_num_edges(graph)", call. = FALSE)
   }
+  .check_edge_property_type(graph, pointer, name, values)
   if (is.numeric(values) && !is.matrix(values)) {
     cpp_set_edge_property(pointer, name, as.numeric(values), FALSE, 0L)
     if (is.environment(graph$attrs) && !is.null(graph$attrs$edge_props[[name]])) {

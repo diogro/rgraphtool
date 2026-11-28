@@ -28,6 +28,7 @@
 #include "graph_types.h"
 #include "parallel.h"
 #include "weight_cov.h"
+#include "logq.h"
 
 namespace {
 
@@ -84,99 +85,9 @@ WMath& wmath() {
     return m;
 }
 
-// Log of restricted integer partition function q(n, k) (identical to blockmodel.cpp).
-class WLogQ {
-public:
-    void init(size_t n_max) {
-        n_max = std::min<size_t>(n_max, 2000);
-        if (n_max <= _n_max) return;
-        _table.assign(n_max * (n_max + 1) / 2, -W_INF);
-        _n_max = n_max;
-        for (size_t n = 1; n <= n_max; ++n) {
-            at(n, 1) = 0;
-            for (size_t k = 2; k <= n; ++k) {
-                double a = get_raw(n, k - 1);
-                double b = get_raw(n - k, k);
-                at(n, k) = (a > b) ? a + std::log1p(std::exp(b - a))
-                                   : b + std::log1p(std::exp(a - b));
-            }
-        }
-    }
-    double operator()(int64_t n, int64_t k) const {
-        if (n <= 0 || k < 1) return 0.0;
-        if (k > n) k = n;
-        if (static_cast<size_t>(n) <= _n_max) return get(n, k);
-        uint64_t key = (static_cast<uint64_t>(n) << 32) ^ static_cast<uint64_t>(k);
-        {
-            std::lock_guard<std::mutex> lk(_cache_mtx);
-            auto it = _cache.find(key);
-            if (it != _cache.end()) return it->second;
-        }
-        double v = approx(static_cast<double>(n), static_cast<double>(k));
-        {
-            std::lock_guard<std::mutex> lk(_cache_mtx);
-            _cache.emplace(key, v);
-        }
-        return v;
-    }
-private:
-    size_t _n_max = 0;
-    std::vector<double> _table;
-    mutable wt_hash_map<uint64_t, double> _cache;
-    mutable std::mutex _cache_mtx;
-    double& at(size_t n, size_t k) { return _table[n * (n - 1) / 2 + (k - 1)]; }
-    double get(size_t n, size_t k) const { return _table[n * (n - 1) / 2 + (k - 1)]; }
-    double get_raw(size_t n, size_t k) const {
-        if (k > n) k = n;
-        return (n == 0) ? 0.0 : get(n, k);
-    }
-    static double dilog(double z) {
-        if (z <= 0.0) return 0.0;
-        if (z >= 1.0) return M_PI * M_PI / 6.0;
-        if (z > 0.5)
-            return M_PI * M_PI / 6.0 - std::log(z) * std::log1p(-z) - dilog(1.0 - z);
-        double sum = 0.0, term = z;
-        for (int k = 1; k < 200; ++k) {
-            double add = term / (double(k) * k);
-            sum += add;
-            if (add < 1e-18 * sum) break;
-            term *= z;
-        }
-        return sum;
-    }
-    static double spence(double x) {
-        if (x <= 0.0) return M_PI * M_PI / 6.0;
-        if (x >= 1.0) return 0.0;
-        if (x < 0.5) return M_PI * M_PI / 6.0 - std::log1p(-x) * std::log(x) - dilog(x);
-        return dilog(1.0 - x);
-    }
-    static double approx(double n, double k) {
-        if (k < std::pow(n, 0.25)) {
-            return w_lbinom_d(n + k - 1.0, k - 1.0) - std::lgamma(k + 1.0);
-        }
-        double x = k / std::sqrt(n);
-        auto f = [x](double u) { return 2.0 * std::sqrt(spence(std::exp(-u))) / u - x; };
-        double lo = 1e-12, hi = 100.0;
-        for (int i = 0; i < 80; ++i) {
-            double mid = 0.5 * (lo + hi);
-            if (f(mid) > 0) lo = mid; else hi = mid;
-        }
-        double u = 0.5 * (lo + hi);
-        double sp = spence(std::exp(-u));
-        double g = u / (2.0 * std::sqrt(sp));
-        double ex = std::exp(-u);
-        double h = std::sqrt(g) * (2.0 * std::sqrt(sp) - u * std::log1p(-ex));
-        double B = 1.0 / (2.0 * std::sqrt(2.0 * M_PI)) *
-                   std::pow(1.0 - ex, -0.5) *
-                   std::pow(1.0 - ex * (1.0 + u * u / (4.0 * sp)), -0.5);
-        return h * std::sqrt(n) + std::log(B / n);
-    }
-};
-
-WLogQ& wlog_q() {
-    static WLogQ q;
-    return q;
-}
+// Shared log q(n, k) table (src/logq.h).
+using WLogQ = rgt_logq::LogQ;
+inline WLogQ& wlog_q() { return rgt_logq::shared(); }
 
 struct WRng {
     double unif() { return R::unif_rand(); }
@@ -304,7 +215,7 @@ public:
             for (int k = 0; k < _K; ++k) _base_const += _covs[k].const_term;
         }
         wmath().ensure(static_cast<size_t>(_N + _E + 64));
-        if (_dc && _dist) wlog_q().init(std::min<size_t>(static_cast<size_t>(2 * _E + 10), 10000));
+        if (_dc && _dist) wlog_q().init(rgt_logq::table_size(static_cast<double>(_E), 5000));
     }
 
     int N() const { return _N; }
@@ -2112,7 +2023,7 @@ void weighted_flat_mcmc_sweep(WeightedLevel& s, WRng& rng, double beta,
 }
 
 size_t w_q_cache_max(double x) {
-    return std::isinf(x) ? 100 : std::min<size_t>(static_cast<size_t>(x), 2000);
+    return (!std::isfinite(x) || x <= 0) ? 10000 : std::min<size_t>(static_cast<size_t>(x), 10000);
 }
 
 }  // namespace

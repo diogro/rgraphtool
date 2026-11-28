@@ -59,3 +59,21 @@ test_that("print.rgraphtool_graph formats small, large, and deserialized graphs"
   out_dead <- capture.output(print(dead))
   expect_true(any(grepl("invalid or deserialized", out_dead)))
 })
+
+test_that("edge properties survive zero-edge adds and reject type changes", {
+  g <- graph_create(4L, directed = FALSE)
+  graph_add_edges(g, cbind(c(1L, 3L), c(2L, 4L)), properties = list(lab = c("a", "b")))
+  expect_silent(graph_add_edges(g, matrix(integer(0), 0L, 2L),
+                                properties = list(lab = character(0))))
+  expect_equal(length(graph_edge_property(g, "lab")), 2L)
+  expect_error(graph_add_edges(g, cbind(1L, 4L), properties = list(lab = 5)), "different type")
+  graph_add_edges(g, cbind(2L, 3L), properties = list(w = 1.5))
+  expect_error(graph_set_edge_property(g, "w", rep("x", graph_num_edges(g))), "different type")
+  graph_add_edges(g, cbind(1L, 3L), properties = list(f = factor("z")))
+  expect_true(is.character(graph_edge_property(g, "f")))
+  # an R-side property on an edgeless graph keeps its length after later adds
+  h <- graph_create(3L, directed = FALSE)
+  graph_set_edge_property(h, "tag", character(0))
+  graph_add_edges(h, cbind(1L, 2L))
+  expect_length(graph_edge_property(h, "tag"), 1L)
+})

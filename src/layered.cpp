@@ -26,6 +26,7 @@
 #include "graph_types.h"
 #include "parallel.h"
 #include "weight_cov.h"
+#include "logq.h"
 
 namespace {
 
@@ -85,121 +86,13 @@ LMath& lmath() {
     static LMath m;
     return m;
 }
-
-struct LLogQ {
-    size_t max_n = 0;
-    std::vector<double> table;
-    mutable lt_hash_map<uint64_t, double> memo;
-    mutable std::mutex memo_mtx;
-
-    void init(size_t n) {
-        if (n <= max_n) return;
-        n = std::min<size_t>(n, 2500);
-        if (n <= max_n) return;
-        size_t stride = n + 1;
-        std::vector<double> nt(stride * stride, 0.0);
-        for (size_t i = 1; i <= n; ++i) {
-            nt[i * stride + 1] = 0.0;
-            for (size_t j = 2; j <= i; ++j) {
-                double a = nt[i * stride + (j - 1)];
-                double b = nt[(i - j) * stride + std::min(i - j, j)];
-                double mx = std::max(a, b);
-                nt[i * stride + j] = mx + std::log1p(std::exp(-std::abs(a - b)));
-            }
-        }
-        table.swap(nt);
-        max_n = n;
-    }
-
-    double operator()(long n, long k) const {
-        if (n <= 0 || k <= 0) return 0.0;
-        if (k > n) k = n;
-        if (static_cast<size_t>(n) <= max_n) {
-            return table[static_cast<size_t>(n) * (max_n + 1) + static_cast<size_t>(k)];
-        }
-        uint64_t key = (static_cast<uint64_t>(n) << 32) | static_cast<uint64_t>(k);
-        {
-            std::lock_guard<std::mutex> lk(memo_mtx);
-            auto it = memo.find(key);
-            if (it != memo.end()) return it->second;
-        }
-        // Exact Szekeres / Peixoto (2017) saddle-point approximation (matches blockmodel.cpp):
-        double dn = static_cast<double>(n);
-        double dk = static_cast<double>(k);
-        double c = M_PI / std::sqrt(6.0);
-        double res;
-        if (dk >= dn) {
-            res = 2.0 * c * std::sqrt(dn) - std::log(4.0 * std::sqrt(3.0) * dn);
-        } else {
-            double u = dk / std::sqrt(dn);
-            // Solve 2*sqrt(Li_2(1-exp(-v))) / ... using exact Szekeres parameterization:
-            // alpha in (0, inf): u = -log(1 - exp(-alpha)) / alpha * sqrt(I(alpha))
-            // Use exact Szekeres equations:
-            // f(a) = (1/a) * integral_0^a (t/(exp(t)-1)) dt? No, exact Peixoto (2017):
-            // Let t = exp(-alpha) in (0, 1):
-            // v(t) = (Li_2(t)) / (-log(t))^2 ...
-            // Actually exact Szekeres (1953) Eq. (2.4) as in graph-tool q_cache.hh:
-            auto spence = [](double z) -> double {
-                if (z <= 0.0) return 0.0;
-                if (z >= 1.0) return M_PI * M_PI / 6.0;
-                if (z > 0.5) {
-                    double w = 1.0 - z, s = 0.0, pw = w;
-                    for (int m = 1; m <= 60; ++m) {
-                        s += pw / (static_cast<double>(m) * m);
-                        pw *= w;
-                        if (pw < 1e-16) break;
-                    }
-                    return M_PI * M_PI / 6.0 - std::log(z) * std::log(w) - s;
-                }
-                double s = 0.0, pz = z;
-                for (int m = 1; m <= 60; ++m) {
-                    s += pz / (static_cast<double>(m) * m);
-                    pz *= z;
-                    if (pz < 1e-16) break;
-                }
-                return s;
-            };
-            double a_lo = 1e-9, a_hi = 40.0;
-            auto g_a = [&](double a) -> double {
-                double e = std::exp(-a);
-                double li = spence(1.0 - e);
-                double val = (2.0 * li - a * std::log1p(-e)) / (a * a);
-                return (val > 0.0) ? (-std::log1p(-e) / (a * std::sqrt(val))) : 1e9;
-            };
-            for (int iter = 0; iter < 60; ++iter) {
-                double mid = 0.5 * (a_lo + a_hi);
-                if (g_a(mid) > u) a_lo = mid;
-                else a_hi = mid;
-            }
-            double a = 0.5 * (a_lo + a_hi);
-            double e = std::exp(-a);
-            double l1e = std::log1p(-e);
-            double li = spence(1.0 - e);
-            double v = std::sqrt(std::max(1e-30, 2.0 * li / (a * a) - l1e / a));
-            double f = 2.0 * v - u * l1e / a;
-            double num = 1.0 - e - a * e / (1.0 - e);
-            double den = 2.0 * v * v * v * a * a * (1.0 - e);
-            (void)num; (void)den;
-            res = f * std::sqrt(dn) - std::log(2.0 * M_PI * dn);
-            if (!std::isfinite(res))
-                res = 2.0 * c * std::sqrt(dn) - std::log(4.0 * std::sqrt(3.0) * dn);
-        }
-        {
-            std::lock_guard<std::mutex> lk(memo_mtx);
-            memo.emplace(key, res);
-        }
-        return res;
-    }
-};
-
-LLogQ& llog_q() {
-    static LLogQ q;
-    return q;
-}
+// Shared log q(n, k) table (src/logq.h).
+using LLogQ = rgt_logq::LogQ;
+inline LLogQ& llog_q() { return rgt_logq::shared(); }
 
 size_t l_q_cache_max(double q_max) {
-    if (!std::isfinite(q_max) || q_max <= 0.0) return 2000;
-    return std::min<size_t>(static_cast<size_t>(q_max), 2000);
+    if (!std::isfinite(q_max) || q_max <= 0.0) return 10000;
+    return std::min<size_t>(static_cast<size_t>(q_max), 10000);
 }
 
 // RNG backed by R's RNG state
@@ -559,7 +452,7 @@ public:
             for (int k = 0; k < _K; ++k) _base_const += _covs[k].const_term;
         }
         if (_is_base && _dc && _dist) {
-            llog_q().init(std::min<size_t>(static_cast<size_t>(2 * _E + 10), 2000));
+            llog_q().init(rgt_logq::table_size(static_cast<double>(_E), 5000));
         }
     }
 

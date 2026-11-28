@@ -397,3 +397,8 @@ test_that("layered PP recovers multi-layer communities and integrates with compa
   expect_true(cmp_rew$best_model %in% c("pp_independent_layers", "independent_layers"))
   expect_true(cmp_rew$summary$independent[1L])
 })
+
+test_that("independent-layer PP state on an edgeless graph does not crash", {
+  st <- pp_block_state(graph_create(5L), layers = integer(0), independent = TRUE)
+  expect_true(is.finite(pp_description_length(st)))
+})

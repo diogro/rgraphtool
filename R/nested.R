@@ -13,10 +13,27 @@ validate_hierarchy <- function(levels, n) {
         l, if (l == 1L) "vertex" else sprintf("group of levels[[%d]]", l - 1L), expected
       ), call. = FALSE)
     }
-    # relabel contiguously in order of first appearance
-    b <- match(b, unique(b))
-    out[[l]] <- as.integer(b)
-    expected <- max(c(0L, b))
+    # Relabel contiguously in order of first appearance, and permute the next
+    # level the same way so each group keeps its parent. The next level is
+    # indexed by this level's labels (length max(b)), or, for sparse labels,
+    # by their sorted unique values (length = number of groups).
+    u <- unique(b)
+    b_new <- match(b, u)
+    if (l < length(levels)) {
+      nxt <- levels[[l + 1L]]
+      if (length(nxt) == max(b)) {
+        levels[[l + 1L]] <- nxt[u]
+      } else if (length(nxt) == length(u)) {
+        levels[[l + 1L]] <- nxt[match(u, sort(u))]
+      } else {
+        stop(sprintf(
+          "levels[[%d]] must have one parent label per group of levels[[%d]] (%d or %d values)",
+          l + 1L, l, length(u), max(b)
+        ), call. = FALSE)
+      }
+    }
+    out[[l]] <- as.integer(b_new)
+    expected <- max(c(0L, b_new))
   }
   out
 }

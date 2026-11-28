@@ -21,6 +21,7 @@
 
 #include "graph_types.h"
 #include "weight_cov.h"
+#include "logq.h"
 
 namespace {
 
@@ -128,55 +129,13 @@ PPMath& ppmath() {
     static PPMath m;
     return m;
 }
-
-struct PPLogQ {
-    size_t max_n = 0;
-    std::vector<double> table;
-    mutable pp_hash_map<uint64_t, double> memo;
-
-    void init(size_t n) {
-        if (n <= max_n) return;
-        n = std::min<size_t>(n, 2500);
-        if (n <= max_n) return;
-        size_t stride = n + 1;
-        std::vector<double> nt(stride * stride, 0.0);
-        for (size_t i = 1; i <= n; ++i) {
-            nt[i * stride + 1] = 0.0;
-            for (size_t j = 2; j <= i; ++j) {
-                double a = nt[i * stride + (j - 1)];
-                double b = nt[(i - j) * stride + std::min(i - j, j)];
-                double mx = std::max(a, b);
-                nt[i * stride + j] = mx + std::log1p(std::exp(-std::abs(a - b)));
-            }
-        }
-        table.swap(nt);
-        max_n = n;
-    }
-
-    double operator()(long n, long k) const {
-        if (n <= 0 || k <= 0) return 0.0;
-        if (k > n) k = n;
-        if (static_cast<size_t>(n) <= max_n)
-            return table[static_cast<size_t>(n) * (max_n + 1) + static_cast<size_t>(k)];
-        uint64_t key = (static_cast<uint64_t>(n) << 32) | static_cast<uint64_t>(k);
-        auto it = memo.find(key);
-        if (it != memo.end()) return it->second;
-        double dn = static_cast<double>(n);
-        double c = M_PI / std::sqrt(6.0);
-        double res = 2.0 * c * std::sqrt(dn) - std::log(4.0 * std::sqrt(3.0) * dn);
-        memo.emplace(key, res);
-        return res;
-    }
-};
-
-PPLogQ& pplog_q() {
-    static PPLogQ q;
-    return q;
-}
+// Shared log q(n, k) table (src/logq.h).
+using PPLogQ = rgt_logq::LogQ;
+inline PPLogQ& pplog_q() { return rgt_logq::shared(); }
 
 size_t pp_q_cache_max(double q_max) {
-    if (!std::isfinite(q_max) || q_max <= 0.0) return 2000;
-    return std::min<size_t>(static_cast<size_t>(q_max), 2000);
+    if (!std::isfinite(q_max) || q_max <= 0.0) return 10000;
+    return std::min<size_t>(static_cast<size_t>(q_max), 10000);
 }
 
 struct PPRng {
@@ -239,6 +198,13 @@ public:
         } else {
             _C = 1;
             _independent = independent && (E_total > 0);
+        }
+        // The degree histograms were sized from the requested `independent`;
+        // resize them to the resolved mode (e.g. independent requested on an
+        // edgeless graph falls back to pooled degrees).
+        if (!_independent && _dc && _dist) {
+            _h_out.resize(_cap);
+            if (_directed) _h_in.resize(_cap);
         }
         _E_l.assign(_C, 0);
         _e_in_l.assign(_C, 0);
@@ -384,7 +350,7 @@ public:
         }
 
         ppmath().ensure(static_cast<size_t>(_N + 2 * _E + 2 * _C + 64));
-        if (_dc && _dist) pplog_q().init(std::min<size_t>(static_cast<size_t>(2 * _E + 10), 2000));
+        if (_dc && _dist) pplog_q().init(rgt_logq::table_size(static_cast<double>(_E), 5000));
 
         const PPMath& M = ppmath();
         _base_const = 0.0;

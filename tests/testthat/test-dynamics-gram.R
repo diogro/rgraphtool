@@ -312,3 +312,23 @@ test_that("shrinkage_covariance(center = FALSE) shrinks the zero-mean second mom
   # the default centred estimator is unchanged
   expect_equal(diag(shrinkage_covariance(x)$cov), apply(x, 1, var), ignore_attr = TRUE)
 })
+
+test_that("PseudoNormal reconstruction with quantized priors recovers chains from a cold start", {
+  # Regression: theta used to be fitted to the empty graph before any edge
+  # move, after which every single edge looked too costly under xdist and the
+  # greedy optimizer stayed at E = 0. graph-tool 3.9 sweeps edges first and
+  # finds all 14 edges of these two 8-node chains (M = 400) in two sweeps
+  # (S = 9491.03 after sweep 2).
+  Z <- as.matrix(utils::read.csv(test_path("fixtures", "pseudonormal_chains_Z.csv.gz"),
+                                 header = FALSE))
+  set.seed(1)
+  st <- pseudo_normal_block_state(Z, positive = TRUE, nested = TRUE,
+                                  xdelta = 1e-3, tdelta = c(1e-3, 1e-3))
+  r <- reconstruct_dynamics(st, niter = 25L, nsamples = 0L, sbm = TRUE, xdist = TRUE,
+                            tdist = TRUE, xl1 = 1, tl1 = c(0.1, 0.1),
+                            refresh_every = 3L, merge_split = TRUE)
+  true_keys <- paste(c(1:7, 9:15), c(2:8, 10:16))
+  got <- paste(pmin(r$edges$from, r$edges$to), pmax(r$edges$from, r$edges$to))
+  expect_gte(sum(true_keys %in% got), 13L)
+  expect_lt(r$entropy, 9600)
+})

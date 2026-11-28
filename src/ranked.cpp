@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "graph_types.h"
+#include "logq.h"
 
 namespace {
 
@@ -75,55 +76,13 @@ RKMath& rkmath() {
     static RKMath m;
     return m;
 }
-
-struct RKLogQ {
-    size_t max_n = 0;
-    std::vector<double> table;
-    mutable rk_hash_map<uint64_t, double> memo;
-
-    void init(size_t n) {
-        if (n <= max_n) return;
-        n = std::min<size_t>(n, 2500);
-        if (n <= max_n) return;
-        size_t stride = n + 1;
-        std::vector<double> nt(stride * stride, 0.0);
-        for (size_t i = 1; i <= n; ++i) {
-            nt[i * stride + 1] = 0.0;
-            for (size_t j = 2; j <= i; ++j) {
-                double a = nt[i * stride + (j - 1)];
-                double b = nt[(i - j) * stride + std::min(i - j, j)];
-                double mx = std::max(a, b);
-                nt[i * stride + j] = mx + std::log1p(std::exp(-std::abs(a - b)));
-            }
-        }
-        table.swap(nt);
-        max_n = n;
-    }
-
-    double operator()(long n, long k) const {
-        if (n <= 0 || k <= 0) return 0.0;
-        if (k > n) k = n;
-        if (static_cast<size_t>(n) <= max_n)
-            return table[static_cast<size_t>(n) * (max_n + 1) + static_cast<size_t>(k)];
-        uint64_t key = (static_cast<uint64_t>(n) << 32) | static_cast<uint64_t>(k);
-        auto it = memo.find(key);
-        if (it != memo.end()) return it->second;
-        double dn = static_cast<double>(n);
-        double c = M_PI / std::sqrt(6.0);
-        double res = 2.0 * c * std::sqrt(dn) - std::log(4.0 * std::sqrt(3.0) * dn);
-        memo.emplace(key, res);
-        return res;
-    }
-};
-
-RKLogQ& rklog_q() {
-    static RKLogQ q;
-    return q;
-}
+// Shared log q(n, k) table (src/logq.h).
+using RKLogQ = rgt_logq::LogQ;
+inline RKLogQ& rklog_q() { return rgt_logq::shared(); }
 
 size_t rk_q_cache_max(double q_max) {
-    if (!std::isfinite(q_max) || q_max <= 0.0) return 2000;
-    return std::min<size_t>(static_cast<size_t>(q_max), 2000);
+    if (!std::isfinite(q_max) || q_max <= 0.0) return 10000;
+    return std::min<size_t>(static_cast<size_t>(q_max), 10000);
 }
 
 struct RKRng {
@@ -238,7 +197,7 @@ public:
 
         rkmath().ensure(static_cast<size_t>(_N + _M + 2 * _E + 64));
         if (_dc && _dist)
-            rklog_q().init(std::min<size_t>(static_cast<size_t>(2 * _E + 10), 2000));
+            rklog_q().init(rgt_logq::table_size(static_cast<double>(_E), 5000));
 
         const RKMath& M = rkmath();
         _base_const = 0.0;

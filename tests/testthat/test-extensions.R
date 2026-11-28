@@ -68,18 +68,18 @@ test_that("checked vs unchecked property map bounds checks work as documented", 
   vprop <- c(10, 20, 30, 40)
 
   # Valid checked and unchecked reads
-  expect_equal(cpp_extension_check_bounds(g, vprop, 0L, FALSE), 10)
-  expect_equal(cpp_extension_check_bounds(g, vprop, 3L, TRUE), 40)
+  expect_equal(rgraphtool:::cpp_extension_check_bounds(g, vprop, 0L, FALSE), 10)
+  expect_equal(rgraphtool:::cpp_extension_check_bounds(g, vprop, 3L, TRUE), 40)
 
   # Out-of-bounds checked read throws std::out_of_range
-  expect_error(cpp_extension_check_bounds(g, vprop, 4L, FALSE), "out of bounds")
+  expect_error(rgraphtool:::cpp_extension_check_bounds(g, vprop, 4L, FALSE), "out of bounds")
 
   # Creating an unchecked view over a too-short vector throws up-front
   short_vec <- c(1, 2)
-  expect_error(cpp_extension_check_bounds(g, short_vec, 0L, TRUE), "smaller than num_vertices")
+  expect_error(rgraphtool:::cpp_extension_check_bounds(g, short_vec, 0L, TRUE), "smaller than num_vertices")
 
   # checked_vertex rejects out-of-range vertex index
-  expect_error(cpp_extension_check_bounds(g, vprop, 9L, TRUE), "Vertex index out of bounds")
+  expect_error(rgraphtool:::cpp_extension_check_bounds(g, vprop, 9L, TRUE), "Vertex index out of bounds")
 })
 
 test_that("bundled C++ extension examples and inline user C++ code compile and run via compile_cpp_extension", {

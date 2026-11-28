@@ -1,5 +1,52 @@
 # rgraphtool 0.5.1
 
+## Bug fixes from the 0.5.1 review
+
+* Degree description lengths:
+  * All SBM families (weighted, layered, planted-partition, ranked,
+    bipartite) now share one log q(n, k) table (`src/logq.h`), graph-tool's
+    exact q cache plus `log_q_approx`.
+  * The model-specific copies capped the exact table at 2000 edge ends and
+    fell back to an incorrect approximation. Degree-corrected "distributed"
+    DLs were hundreds to thousands of nats off for blocks with more than
+    2000 edge ends, so the weighted / layered / PP minimizers optimized the
+    wrong objective.
+  * They now match graph-tool 3.9 exactly. New parity tests are in
+    `test-logq-parity.R`.
+  * Bipartite states no longer cast an infinite `q_max` to an integer.
+* PseudoNormal reconstruction:
+  * The greedy sweep now optimizes edges before node parameters, as
+    graph-tool does (`theta_first = False`).
+  * Fitting theta to the empty graph first made every single edge look too
+    costly under the quantized `xdist` prior, so reconstruction could
+    return 0 edges where graph-tool recovers the network.
+* `shrink_pcor()`:
+  * The threaded top-k scan uses a plain C++ dot-product kernel instead of
+    calling BLAS on pool workers, which oversubscribed cores with a
+    multithreaded OpenBLAS. Results are bit-identical across thread counts,
+    and the scan is 2x faster.
+  * `nthreads` is validated.
+* `nested_block_state()`: user-supplied hierarchies whose labels are not in
+  first-appearance order are relabelled consistently. Before, a group could
+  silently get the wrong parent.
+* `pp_block_state(layers = integer(0), independent = TRUE)` on an edgeless
+  graph no longer segfaults.
+* `assortativity(categorical = TRUE)` compares exact values; non-integer
+  values used to be truncated (0.2 and 0.7 merged). NA values are an error.
+* Edge weights given to `modularity()`, `assortativity()` and other topology
+  functions must be finite. NA weights, e.g. from edges added in a batch
+  without the property, used to return NA silently.
+* `graph_add_edges()` / `graph_set_edge_property()`:
+  * Adding zero edges with properties works.
+  * An R-side property on an edgeless graph keeps its length after later
+    adds.
+  * Factors are stored as character.
+  * Changing a property between numeric and non-numeric is an error (it
+    used to drop the old values silently).
+* `Depends: R (>= 4.3.0)`, the first R release with C++23 support.
+* `pseudo_normal_block_state()` documents `cov`, `n_eff` and `mean`.
+  `shrink_pcor` is in the pkgdown index.
+
 * Version bump marking the layered planted-partition API (`layers` /
   `independent` arguments to `pp_block_state()` and
   `minimize_pp_blockmodel_dl()`, and the `pp_edge_covariates` /

@@ -1509,57 +1509,71 @@ public:
     void greedy_sweep(Rng& rng, const std::vector<uint64_t>& cands,
                       const PriorOpts& opts, bool update_sbm,
                       double& total_dS, size_t& nattempts, size_t& nmoves) {
-        // 1. Update node parameters theta[i][l]
-        std::vector<int> vord(_N);
-        std::iota(vord.begin(), vord.end(), 0);
-        rng.shuffle(vord);
-        for (int i : vord) {
-            for (int l = 0; l < _q_t; ++l) {
+        // Node parameters and edges are optimized in turn. For PseudoNormal,
+        // edges go first (graph-tool's theta_first = False): fitting theta to
+        // the empty graph first makes every single-edge addition look costly
+        // under the quantized xdist prior, trapping the optimizer at E = 0.
+        auto sweep_theta = [&]() {
+            // 1. Update node parameters theta[i][l]
+            std::vector<int> vord(_N);
+            std::iota(vord.begin(), vord.end(), 0);
+            rng.shuffle(vord);
+            for (int i : vord) {
+                for (int l = 0; l < _q_t; ++l) {
+                    ++nattempts;
+                    double best_dS = 0.0;
+                    double best_t = optimize_theta_val(i, l, opts, best_dS);
+                    if (best_dS < -1e-9) {
+                        apply_theta_move(i, l, best_t);
+                        total_dS += best_dS;
+                        ++nmoves;
+                    }
+                }
+            }
+        };
+        auto sweep_edges = [&]() {
+            // 2. Sweep candidate dyads (add / refine / delete)
+            std::vector<uint64_t> ord = cands;
+            // Also ensure all currently active edges are visited
+            gt_hash_map<uint64_t, int> in_ord;
+            for (uint64_t k : ord) in_ord[k] = 1;
+            for (uint64_t k : _active) {
+                if (in_ord.find(k) == in_ord.end()) ord.push_back(k);
+            }
+            rng.shuffle(ord);
+
+            for (uint64_t k : ord) {
+                auto [u, v] = unpack_key(k);
                 ++nattempts;
-                double best_dS = 0.0;
-                double best_t = optimize_theta_val(i, l, opts, best_dS);
-                if (best_dS < -1e-9) {
-                    apply_theta_move(i, l, best_t);
-                    total_dS += best_dS;
-                    ++nmoves;
+                bool cur_pres = has_edge(u, v);
+                double dS_del = cur_pres ? edge_move_dS(u, v, false, 0.0, opts) : 0.0;
+                double dS_opt = INF;
+                double w_opt = optimize_edge_weight(u, v, opts, dS_opt);
+                if (cur_pres) {
+                    if (dS_del < dS_opt && dS_del < -1e-9) {
+                        apply_edge_move(u, v, false, 0.0, opts);
+                        total_dS += dS_del;
+                        ++nmoves;
+                    } else if (dS_opt < -1e-9) {
+                        apply_edge_move(u, v, true, w_opt, opts);
+                        total_dS += dS_opt;
+                        ++nmoves;
+                    }
+                } else {
+                    if (dS_opt < -1e-9) {
+                        apply_edge_move(u, v, true, w_opt, opts);
+                        total_dS += dS_opt;
+                        ++nmoves;
+                    }
                 }
             }
-        }
-
-        // 2. Sweep candidate dyads (add / refine / delete)
-        std::vector<uint64_t> ord = cands;
-        // Also ensure all currently active edges are visited
-        gt_hash_map<uint64_t, int> in_ord;
-        for (uint64_t k : ord) in_ord[k] = 1;
-        for (uint64_t k : _active) {
-            if (in_ord.find(k) == in_ord.end()) ord.push_back(k);
-        }
-        rng.shuffle(ord);
-
-        for (uint64_t k : ord) {
-            auto [u, v] = unpack_key(k);
-            ++nattempts;
-            bool cur_pres = has_edge(u, v);
-            double dS_del = cur_pres ? edge_move_dS(u, v, false, 0.0, opts) : 0.0;
-            double dS_opt = INF;
-            double w_opt = optimize_edge_weight(u, v, opts, dS_opt);
-            if (cur_pres) {
-                if (dS_del < dS_opt && dS_del < -1e-9) {
-                    apply_edge_move(u, v, false, 0.0, opts);
-                    total_dS += dS_del;
-                    ++nmoves;
-                } else if (dS_opt < -1e-9) {
-                    apply_edge_move(u, v, true, w_opt, opts);
-                    total_dS += dS_opt;
-                    ++nmoves;
-                }
-            } else {
-                if (dS_opt < -1e-9) {
-                    apply_edge_move(u, v, true, w_opt, opts);
-                    total_dS += dS_opt;
-                    ++nmoves;
-                }
-            }
+        };
+        if (_model == DYN_PSEUDO_NORMAL) {
+            sweep_edges();
+            sweep_theta();
+        } else {
+            sweep_theta();
+            sweep_edges();
         }
 
         // 3. SBM partition sweep (if sbm = TRUE)

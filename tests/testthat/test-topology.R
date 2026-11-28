@@ -145,3 +145,16 @@ test_that("random graph generators and modularity overfitting warning behave as 
   expect_equal(mod_sbm$B, 2L)
   expect_equal(partition_overlap(block_membership(mod_sbm), rep(1:2, each = 25L)), 1.0)
 })
+
+test_that("categorical assortativity compares exact values and weights must be finite", {
+  g <- graph_create(4L, directed = FALSE)
+  graph_add_edges(g, cbind(c(1L, 2L, 3L), c(2L, 3L, 4L)), properties = list(w = c(1, 2, 3)))
+  x <- c(0.2, 0.7, 1.5, 3)
+  r_frac <- assortativity(g, x, categorical = TRUE)
+  r_trunc <- assortativity(g, c(0, 0, 1, 3), categorical = TRUE)
+  expect_false(isTRUE(all.equal(r_frac, r_trunc)))
+  expect_equal(r_frac, assortativity(g, c("a", "b", "c", "d"), categorical = TRUE))
+  expect_error(assortativity(g, c(1, NA, 2, 3), categorical = TRUE), "must not contain NA")
+  graph_add_edges(g, cbind(1L, 4L))  # weight property becomes NA for the new edge
+  expect_error(modularity(g, c(1L, 1L, 2L, 2L), weights = "w"), "must be finite")
+})

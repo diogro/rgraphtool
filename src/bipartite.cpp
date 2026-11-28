@@ -20,6 +20,7 @@
 #include <boost/unordered/unordered_flat_map.hpp>
 #include "graph_types.h"
 #include "parallel.h"
+#include "logq.h"
 
 namespace {
 
@@ -96,86 +97,9 @@ inline double bp_lbeta(double a, double b) {
     return std::lgamma(a) + std::lgamma(b) - std::lgamma(a + b);
 }
 
-// Restricted integer partition log q(n, k) matching blockmodel.cpp / graph-tool 3.9
-class BpLogQ {
-public:
-    void init(size_t n_max) {
-        n_max = std::min<size_t>(n_max, 5000);
-        if (n_max <= _n_max) return;
-        _table.assign(n_max * (n_max + 1) / 2, -BP_INF);
-        _n_max = n_max;
-        for (size_t n = 1; n <= n_max; ++n) {
-            at(n, 1) = 0.0;
-            for (size_t k = 2; k <= n; ++k) {
-                double a = get_raw(n, k - 1);
-                double b = get_raw(n - k, k);
-                at(n, k) = (a > b) ? a + std::log1p(std::exp(b - a))
-                                   : b + std::log1p(std::exp(a - b));
-            }
-        }
-    }
-    double operator()(int64_t n, int64_t k) const {
-        if (n <= 0 || k < 1) return 0.0;
-        if (k > n) k = n;
-        if (static_cast<size_t>(n) <= _n_max) return get(n, k);
-        return approx(static_cast<double>(n), static_cast<double>(k));
-    }
-private:
-    size_t _n_max = 0;
-    std::vector<double> _table;
-    double& at(size_t n, size_t k) { return _table[n * (n - 1) / 2 + (k - 1)]; }
-    double get(size_t n, size_t k) const { return _table[n * (n - 1) / 2 + (k - 1)]; }
-    double get_raw(size_t n, size_t k) const {
-        if (k > n) k = n;
-        return (n == 0) ? 0.0 : get(n, k);
-    }
-    static double dilog(double z) {
-        if (z <= 0.0) return 0.0;
-        if (z >= 1.0) return M_PI * M_PI / 6.0;
-        if (z > 0.5)
-            return M_PI * M_PI / 6.0 - std::log(z) * std::log1p(-z) - dilog(1.0 - z);
-        double sum = 0.0, term = z;
-        for (int k = 1; k < 200; ++k) {
-            double add = term / (double(k) * k);
-            sum += add;
-            if (add < 1e-18 * sum) break;
-            term *= z;
-        }
-        return sum;
-    }
-    static double spence(double x) {
-        if (x <= 0.0) return M_PI * M_PI / 6.0;
-        if (x >= 1.0) return 0.0;
-        if (x < 0.5) return M_PI * M_PI / 6.0 - std::log1p(-x) * std::log(x) - dilog(x);
-        return dilog(1.0 - x);
-    }
-    static double approx(double n, double k) {
-        if (k < std::pow(n, 0.25)) {
-            return bp_lbinom_d(n + k - 1.0, k - 1.0) - std::lgamma(k + 1.0);
-        }
-        double x = k / std::sqrt(n);
-        auto f = [x](double u) { return 2.0 * std::sqrt(spence(std::exp(-u))) / u - x; };
-        double lo = 1e-12, hi = 100.0;
-        for (int i = 0; i < 80; ++i) {
-            double mid = 0.5 * (lo + hi);
-            if (f(mid) > 0) lo = mid; else hi = mid;
-        }
-        double u = 0.5 * (lo + hi);
-        double sp = spence(std::exp(-u));
-        double g = 2.0 * std::sqrt(sp) / u;
-        double f_val = 2.0 * std::sqrt(sp) - x * std::log1p(-std::exp(-u));
-        double eu = std::exp(-u);
-        double g_prime = -std::log1p(-eu) / (u * std::sqrt(sp)) - g / u;
-        double denom = -2.0 * M_PI * n * (2.0 * sp * (1.0 - eu) - u * u * eu);
-        double pre = std::sqrt(std::abs(u / (g_prime * denom)));
-        return f_val * std::sqrt(n) + std::log(std::max(pre, 1e-300));
-    }
-};
-
-BpLogQ& bp_log_q() {
-    static BpLogQ q;
-    return q;
-}
+// Shared log q(n, k) table (src/logq.h).
+using BpLogQ = rgt_logq::LogQ;
+inline BpLogQ& bp_log_q() { return rgt_logq::shared(); }
 
 // ---------------------------------------------------------------------------
 // Weighted covariate specifications (exact Peixoto 2018 / graph-tool 3.9)
@@ -1546,7 +1470,7 @@ double cpp_bipartite_entropy(SEXP pointer,
                              Rcpp::CharacterVector cov_types,
                              Rcpp::List cov_params,
                              double q_max) {
-    bp_log_q().init(static_cast<size_t>(std::max(100.0, q_max)));
+    bp_log_q().init((!std::isfinite(q_max) || q_max > 10000) ? 10000 : static_cast<size_t>(std::max(100.0, q_max)));
     const Graph& g = get_graph(pointer);
     BpGraphData gd = build_bp_graph(g, type_vec, W, cov_types, cov_params);
     std::vector<int> b0(gd.N);
@@ -1567,7 +1491,7 @@ Rcpp::NumericVector cpp_bipartite_check_moves(SEXP pointer,
                                               Rcpp::List cov_params,
                                               int nmoves,
                                               double q_max) {
-    bp_log_q().init(static_cast<size_t>(std::max(100.0, q_max)));
+    bp_log_q().init((!std::isfinite(q_max) || q_max > 10000) ? 10000 : static_cast<size_t>(std::max(100.0, q_max)));
     const Graph& g = get_graph(pointer);
     BpGraphData gd = build_bp_graph(g, type_vec, W, cov_types, cov_params);
     std::vector<int> b0(gd.N);
@@ -1613,7 +1537,7 @@ Rcpp::List cpp_bipartite_minimize(SEXP pointer,
                                   bool refine,
                                   double q_max,
                                   Rcpp::Nullable<Rcpp::IntegerVector> init_blocks = R_NilValue) {
-    bp_log_q().init(static_cast<size_t>(std::max(100.0, q_max)));
+    bp_log_q().init((!std::isfinite(q_max) || q_max > 10000) ? 10000 : static_cast<size_t>(std::max(100.0, q_max)));
     const Graph& g = get_graph(pointer);
     BpGraphData gd = build_bp_graph(g, type_vec, W, cov_types, cov_params);
 
@@ -1755,7 +1679,7 @@ Rcpp::List cpp_bipartite_mcmc(SEXP pointer,
                               Rcpp::List mcmc_opts,
                               Rcpp::List eq_opts,
                               double q_max) {
-    bp_log_q().init(static_cast<size_t>(std::max(100.0, q_max)));
+    bp_log_q().init((!std::isfinite(q_max) || q_max > 10000) ? 10000 : static_cast<size_t>(std::max(100.0, q_max)));
     const Graph& g = get_graph(pointer);
     BpGraphData gd = build_bp_graph(g, type_vec, W, cov_types, cov_params);
     std::vector<int> b0(gd.N);
@@ -1873,7 +1797,7 @@ Rcpp::NumericVector cpp_nested_bipartite_entropy(SEXP pointer,
                                                  Rcpp::CharacterVector cov_types,
                                                  Rcpp::List cov_params,
                                                  double q_max) {
-    bp_log_q().init(static_cast<size_t>(std::max(100.0, q_max)));
+    bp_log_q().init((!std::isfinite(q_max) || q_max > 10000) ? 10000 : static_cast<size_t>(std::max(100.0, q_max)));
     const Graph& g = get_graph(pointer);
     int L = levels.size();
     Rcpp::NumericVector lev_S(L);
@@ -1910,7 +1834,7 @@ Rcpp::List cpp_nested_bipartite_minimize(SEXP pointer,
                                          double r_shrink,
                                          int n_cand,
                                          double q_max) {
-    bp_log_q().init(static_cast<size_t>(std::max(100.0, q_max)));
+    bp_log_q().init((!std::isfinite(q_max) || q_max > 10000) ? 10000 : static_cast<size_t>(std::max(100.0, q_max)));
     const Graph& g = get_graph(pointer);
     BpGraphData cur_g = build_bp_graph(g, type_vec, W, cov_types, cov_params);
 

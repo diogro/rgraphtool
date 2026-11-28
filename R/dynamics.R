@@ -1031,7 +1031,10 @@ shrink_pcor <- function(x, lambda = NULL, center = TRUE, pairs = NULL,
   k <- if (is.null(top_k)) 0L else as.integer(top_k)
   if (is.na(k) || k < 0L) stop("top_k must be a non-negative integer", call. = FALSE)
   want_matrix <- if (is.null(matrix)) (nrow(pr) == 0L && k == 0L) else isTRUE(matrix)
-  nt <- if (is.null(nthreads)) 0L else as.integer(nthreads)
+  nt <- if (is.null(nthreads)) 0L else suppressWarnings(as.integer(nthreads))
+  if (length(nt) != 1L || is.na(nt) || nt < 0L) {
+    stop("nthreads must be NULL or a single non-negative integer", call. = FALSE)
+  }
   out <- .shrink_pcor_cpp(x, lam_in, isTRUE(center), pr, k, want_matrix, FALSE, nt)
   if (!is.null(out$matrix)) dimnames(out$matrix) <- list(rownames(x), rownames(x))
   out

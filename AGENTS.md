@@ -43,13 +43,17 @@ for working safely inside `rgraphtool`.
 
 ## 3. Critical Pitfalls & Invariants Checklist
 
-1. **Canonical edge order inside Boost adjacency lists**:
-   `graph_add_edges()` sorts edges canonically by `(source, target)` inside the
-   underlying Boost graph and reorders attached edge properties accordingly.
+1. **Edge order inside Boost adjacency lists**:
+   `graph_edges()` is source-major: edges are grouped by source vertex, keep
+   insertion order within a source (not sorted by target), and keep the
+   orientation they were given. `graph_add_edges()` reorders attached edge
+   properties to match, and positions change after every add.
    - Any external weight vector passed to `assortativity()`, `modularity()`, or
-     block states **must** align with `graph_edges(g)`, or else be attached via
-     `graph_add_edges(..., properties = list(weight = ...))` /
+     block states **must** align with the current `graph_edges(g)`, or else be
+     attached via `graph_add_edges(..., properties = list(weight = ...))` /
      `graph_set_edge_property()` and referenced by property name (`weights = "weight"`).
+   - Numeric edge properties live in C++, all others in the R environment; a
+     property may not change between the two (it is an error).
 2. **1-based R vs. 0-based C++ vertex indices**:
    R exposes 1-based vertex IDs (`1..N`) and block labels (`1..B`), while C++
    uses 0-based indices (`it->s`, `it->t`). Validate lengths, finiteness, and
@@ -59,29 +63,38 @@ for working safely inside `rgraphtool`.
    function in `src/*.cpp`, always run:
    ```r
    Rcpp::compileAttributes(".")
-   roxygen2::roxygenise(".")
    ```
    before `R CMD INSTALL` or `R CMD check`. Do not hand-edit `src/RcppExports.cpp`
-   or `R/RcppExports.R`.
-4. **C++23 & portable threading rules**:
+   or `R/RcppExports.R`. The Rd files in `man/` and `NAMESPACE` are maintained
+   **by hand** (not by roxygen): after any change to an exported signature,
+   update the Rd `\usage` / `\arguments` and run `tools::codoc(dir = ".")`.
+4. **One log q(n, k) table**: every SBM family takes degree-DL partition
+   counts from `src/logq.h` (`rgt_logq::shared()`). Never add a model-local
+   copy; per-model copies with a 2000 cap and a wrong approximation put
+   weighted / layered / PP degree DLs hundreds of nats off graph-tool.
+5. **No BLAS on pool workers**: BLAS/LAPACK may be called from the main thread
+   only. Inside `rgt_parallel::parallel_for` use plain C++ kernels (a
+   multithreaded OpenBLAS would oversubscribe cores; some builds are not
+   reentrant).
+6. **C++23 & portable threading rules**:
    `src/Makevars` / `src/Makevars.win` enforce `CXX_STD = CXX23` and
    `PKG_CPPFLAGS = -I../inst/include`. Never rely on compiler-specific OpenMP
    pragmas for core inference; use `src/parallel.h` (`std::thread`) and avoid
    GNU extensions that fail strict CRAN / portable C++23 checks. Keep R API
    calls (memory allocation, RNG if using R's RNG, exceptions) off worker
    threads.
-5. **Undirected half-edge (stub) & self-loop conventions**:
+7. **Undirected half-edge (stub) & self-loop conventions**:
    `blockmodel.cpp`, `planted_partition.cpp`, and `topology.cpp` follow
    graph-tool's convention where undirected internal edges count **2 stubs** in
    $e_{rr}$ (`W = 2E`) and undirected modularity sums $e_{rr}/(2m) - (k_r/(2m))^2$.
    Verify exact parity against Python `graph-tool` 3.9 using the pixi
    environment under `tools/reference/` whenever changing entropy, Log-BF, or
    MCMC acceptance formulas.
-6. **Declarative API over closure callbacks**:
+8. **Declarative API over closure callbacks**:
    Never require user-supplied R closures inside tight MCMC inner loops. Expose
    declarative parameters (`nsamples`, `collect`, `history`, `refine`,
    `mode_cluster_state()`) executed natively in C++.
-7. **Build, check, and site cleanups**:
+9. **Build, check, and site cleanups**:
    - Register exported R functions and datasets in `_pkgdown.yml` when updating
      documentation.
    - Run `R CMD build` / `R CMD check --no-manual` in `/tmp` and `cd` out before

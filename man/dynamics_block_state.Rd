@@ -54,7 +54,7 @@ epidemics_block_state(s, graph = NULL, directed = TRUE, exposed = FALSE,
   degree_corrected = TRUE, degree_prior = c("distributed", "uniform"),
   self_loops = FALSE, q_max = Inf)
 
-pseudo_normal_block_state(s, graph = NULL, fix_mean = FALSE,
+pseudo_normal_block_state(s = NULL, graph = NULL, fix_mean = FALSE,
   positive = TRUE, pslack = 1e-6,
   x = 0.1, x_range = c(-Inf, Inf), theta = c(0, 0),
   theta_range = list(c(-200, 200), c(-Inf, Inf)),
@@ -62,7 +62,7 @@ pseudo_normal_block_state(s, graph = NULL, fix_mean = FALSE,
   disable_xdist = FALSE, disable_tdist = FALSE,
   xl1 = 1, tl1 = c(1, 1), sbm = NULL, nested = TRUE, blocks = NULL,
   degree_corrected = TRUE, degree_prior = c("distributed", "uniform"),
-  self_loops = FALSE, q_max = Inf)
+  self_loops = FALSE, q_max = Inf, cov = NULL, n_eff = NULL, mean = NULL)
 
 normal_glauber_block_state(s, graph = NULL, directed = TRUE, fix_mean = FALSE,
   x = 0.1, x_range = c(-Inf, Inf), theta = c(0, 0),
@@ -128,6 +128,11 @@ dynamics_transmission_probs(state)
   before becoming \code{1} (infectious).}
   \item{fix_mean}{For Gaussian models, center each vertex's observations to
   zero mean across samples.}
+  \item{cov, n_eff, mean}{For \code{pseudo_normal_block_state()}, sufficient
+  statistics used instead of \code{s}: an \code{N x N} covariance matrix
+  \code{cov}, the effective number of observations \code{n_eff}, and an
+  optional mean vector (default zero, e.g. for regression residuals). Give
+  exactly one of \code{s} or \code{cov}.}
   \item{positive, pslack}{For \code{pseudo_normal_block_state()}, enforce strict
   diagonal dominance (positive definiteness) of the reconstructed precision
   matrix with margin \code{pslack}.}

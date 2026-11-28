@@ -66,6 +66,7 @@ reference:
   - partition_mode_state
   - predict_edges
   - shrinkage_covariance
+  - shrink_pcor
 - title: Model selection
   contents:
   - compare_layered_models

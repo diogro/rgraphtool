@@ -165,6 +165,21 @@ struct Cand {
     double v;
 };
 
+// Dot product with four independent accumulators (vectorizes without
+// -ffast-math).
+inline double dot4(const double* a, const double* b, int M) {
+    double s0 = 0, s1 = 0, s2 = 0, s3 = 0;
+    int k = 0;
+    for (; k + 3 < M; k += 4) {
+        s0 += a[k] * b[k];
+        s1 += a[k + 1] * b[k + 1];
+        s2 += a[k + 2] * b[k + 2];
+        s3 += a[k + 3] * b[k + 3];
+    }
+    for (; k < M; ++k) s0 += a[k] * b[k];
+    return (s0 + s1) + (s2 + s3);
+}
+
 }  // namespace
 
 // [[Rcpp::export(.shrink_pcor_cpp)]]
@@ -194,11 +209,8 @@ Rcpp::List shrink_pcor_cpp(const Rcpp::NumericMatrix& x, double lambda, bool cen
     auto pc = [&](int i, int j) -> double {
         if (all_zero || i == j) return 0.0;
         if (direct) return Pdir(i, j);
-        const double* a = Vt.data() + static_cast<size_t>(i) * M;
-        const double* b = Vt.data() + static_cast<size_t>(j) * M;
-        double d = 0.0;
-        for (int k = 0; k < M; ++k) d += a[k] * b[k];
-        return d;
+        return dot4(Vt.data() + static_cast<size_t>(i) * M,
+                    Vt.data() + static_cast<size_t>(j) * M, M);
     };
 
     if (want_matrix) {
@@ -273,24 +285,20 @@ Rcpp::List shrink_pcor_cpp(const Rcpp::NumericMatrix& x, double lambda, bool cen
             rgt_parallel::parallel_for(
                 static_cast<size_t>(n_blocks), nw,
                 [&](int tid, size_t lo, size_t hi) {
-                    std::vector<double> B;
+                    // Plain C++ dot products, never BLAS: BLAS must not be
+                    // called from pool workers (a multithreaded OpenBLAS would
+                    // oversubscribe cores, and some builds are not reentrant).
+                    // One kernel for every thread count keeps results
+                    // bit-identical across nthreads.
                     auto& cv = local[tid];
                     for (size_t bi = lo; bi < hi; ++bi) {
                         const int b0 = static_cast<int>(bi) * blk;
                         const int nb = std::min(blk, N - b0);
-                        // B (nb x (N - b0)) = Vt[:, b0:b0+nb]^T Vt[:, b0:N]
-                        const int ncol = N - b0;
-                        B.assign(static_cast<size_t>(nb) * ncol, 0.0);
-                        const double one = 1.0, zero = 0.0;
-                        const double* Vb = Vt.data() + static_cast<size_t>(b0) * M;
-                        F77_CALL(dgemm)("T", "N", &nb, &ncol, &M, &one, Vb, &M, Vb, &M, &zero,
-                                        B.data(), &nb FCONE FCONE);
-                        for (int jj = 0; jj < ncol; ++jj) {
-                            const int j = b0 + jj;
-                            for (int ii = 0; ii < nb; ++ii) {
-                                const int i = b0 + ii;
-                                if (j <= i) continue;
-                                const double v = B[ii + static_cast<size_t>(jj) * nb];
+                        for (int ii = 0; ii < nb; ++ii) {
+                            const int i = b0 + ii;
+                            const double* a = Vt.data() + static_cast<size_t>(i) * M;
+                            for (int j = i + 1; j < N; ++j) {
+                                const double v = dot4(a, Vt.data() + static_cast<size_t>(j) * M, M);
                                 if (std::fabs(v) > local_thr[tid] || static_cast<int>(cv.size()) < k)
                                     cv.push_back({i, j, v});
                             }
