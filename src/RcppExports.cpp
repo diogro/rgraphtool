@@ -1635,6 +1635,23 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// shrink_pcor_cpp
+Rcpp::List shrink_pcor_cpp(const Rcpp::NumericMatrix& x, double lambda, bool center, const Rcpp::IntegerMatrix& pairs, int top_k, bool want_matrix, bool lambda_only);
+RcppExport SEXP _rgraphtool_shrink_pcor_cpp(SEXP xSEXP, SEXP lambdaSEXP, SEXP centerSEXP, SEXP pairsSEXP, SEXP top_kSEXP, SEXP want_matrixSEXP, SEXP lambda_onlySEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< const Rcpp::NumericMatrix& >::type x(xSEXP);
+    Rcpp::traits::input_parameter< double >::type lambda(lambdaSEXP);
+    Rcpp::traits::input_parameter< bool >::type center(centerSEXP);
+    Rcpp::traits::input_parameter< const Rcpp::IntegerMatrix& >::type pairs(pairsSEXP);
+    Rcpp::traits::input_parameter< int >::type top_k(top_kSEXP);
+    Rcpp::traits::input_parameter< bool >::type want_matrix(want_matrixSEXP);
+    Rcpp::traits::input_parameter< bool >::type lambda_only(lambda_onlySEXP);
+    rcpp_result_gen = Rcpp::wrap(shrink_pcor_cpp(x, lambda, center, pairs, top_k, want_matrix, lambda_only));
+    return rcpp_result_gen;
+END_RCPP
+}
 // cpp_pagerank
 Rcpp::List cpp_pagerank(SEXP pointer, double damping, Rcpp::Nullable<Rcpp::NumericVector> pers, Rcpp::Nullable<Rcpp::NumericVector> weights, double tol, int max_iter);
 RcppExport SEXP _rgraphtool_cpp_pagerank(SEXP pointerSEXP, SEXP dampingSEXP, SEXP persSEXP, SEXP weightsSEXP, SEXP tolSEXP, SEXP max_iterSEXP) {
@@ -2313,6 +2330,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_rgraphtool_cpp_nested_ranked_minimize", (DL_FUNC) &_rgraphtool_cpp_nested_ranked_minimize, 11},
     {"_rgraphtool_cpp_ranked_mcmc", (DL_FUNC) &_rgraphtool_cpp_ranked_mcmc, 11},
     {"_rgraphtool_cpp_nested_ranked_mcmc", (DL_FUNC) &_rgraphtool_cpp_nested_ranked_mcmc, 11},
+    {"_rgraphtool_shrink_pcor_cpp", (DL_FUNC) &_rgraphtool_shrink_pcor_cpp, 7},
     {"_rgraphtool_cpp_pagerank", (DL_FUNC) &_rgraphtool_cpp_pagerank, 6},
     {"_rgraphtool_cpp_betweenness", (DL_FUNC) &_rgraphtool_cpp_betweenness, 3},
     {"_rgraphtool_cpp_closeness", (DL_FUNC) &_rgraphtool_cpp_closeness, 4},

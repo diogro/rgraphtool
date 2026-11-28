@@ -1012,6 +1012,36 @@ print.rgraphtool_l1_path <- function(x, ...) {
   x
 }
 
+# Shrinkage partial correlations (see man/shrink_pcor.Rd).
+shrink_pcor <- function(x, lambda = NULL, center = TRUE, pairs = NULL,
+                        top_k = NULL, matrix = NULL) {
+  x <- .check_numeric_matrix(x, min_cols = 3L)
+  lam_in <- if (is.null(lambda)) NA_real_ else as.numeric(lambda)
+  if (length(lam_in) != 1L || (!is.na(lam_in) && (lam_in < 0 || lam_in > 1))) {
+    stop("lambda must be NULL or a single number in [0, 1]", call. = FALSE)
+  }
+  pr <- if (is.null(pairs)) {
+    matrix(0L, 0L, 2L)
+  } else {
+    pm <- as.matrix(pairs)
+    if (ncol(pm) != 2L || anyNA(pm)) stop("pairs must be a two-column index matrix", call. = FALSE)
+    storage.mode(pm) <- "integer"
+    pm
+  }
+  k <- if (is.null(top_k)) 0L else as.integer(top_k)
+  if (is.na(k) || k < 0L) stop("top_k must be a non-negative integer", call. = FALSE)
+  want_matrix <- if (is.null(matrix)) (nrow(pr) == 0L && k == 0L) else isTRUE(matrix)
+  out <- .shrink_pcor_cpp(x, lam_in, isTRUE(center), pr, k, want_matrix, FALSE)
+  if (!is.null(out$matrix)) dimnames(out$matrix) <- list(rownames(x), rownames(x))
+  out
+}
+
+# Shrinkage intensity only (see man/shrink_pcor.Rd).
+shrink_pcor_lambda <- function(x, center = TRUE) {
+  x <- .check_numeric_matrix(x, min_cols = 3L)
+  .shrink_pcor_cpp(x, NA_real_, isTRUE(center), matrix(0L, 0L, 2L), 0L, FALSE, TRUE)$lambda
+}
+
 #' Analytical Ledoit-Wolf / Schafer-Strimmer shrinkage covariance estimation
 #'
 #' Computes an optimal linear shrinkage covariance matrix

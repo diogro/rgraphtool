@@ -6,6 +6,12 @@
   `pp_independent_layers` options of `compare_layered_models()`), which landed
   after the 0.5.0 version number was set. Downstream packages that use the
   layered PP models should require `rgraphtool (>= 0.5.1)`.
+* New `shrink_pcor()`: compiled Schafer-Strimmer shrinkage partial
+  correlations (matches `corpcor::pcor.shrink()`). It uses the Woodbury
+  identity in observation space, so for N >> M it avoids N x N matrices
+  unless the full matrix is requested. It returns selected `pairs` or the
+  `top_k` strongest pairs, and accepts a fixed `lambda` and
+  `center = FALSE`. It links R's BLAS/LAPACK.
 * `shrinkage_covariance()` gains `center = TRUE`. Use `center = FALSE` for
   observations with a known zero mean, such as regression residuals: the
   second-moment matrix `x %*% t(x) / M` is shrunk instead of the centred
