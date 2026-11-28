@@ -32,7 +32,7 @@ BugReports: https://github.com/diogro/rgraphtool/issues
 License: LGPL (>= 3)
 Encoding: UTF-8
 Depends: R (>= 4.3.0)
-Imports: Rcpp, grid
+Imports: Rcpp, grid, parallel
 LinkingTo: Rcpp, BH (>= 1.81.0)
 Suggests: testthat (>= 3.0.0), igraph, ggplot2, svglite, knitr, rmarkdown
 VignetteBuilder: knitr

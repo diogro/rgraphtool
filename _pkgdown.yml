@@ -95,4 +95,5 @@ reference:
 - title: Package
   contents:
   - rgraphtool_threads
+  - parallel_starts
   - cpp_extensions

@@ -378,7 +378,7 @@ compare_layered_models <- function(graph, layers,
                                    degree_prior = c("distributed", "uniform"),
                                    method = c("map", "posterior"),
                                    evidence_method = c("variational", "importance"),
-                                   nruns = 1L, nsamples = 200L, thin = 5L,
+                                   nruns = 1L, cores = NULL, nsamples = 200L, thin = 5L,
                                    burnin = NULL, mle = TRUE,
                                    B_min = 1L, B_max = Inf, refine = TRUE,
                                    weights = NULL, types = NULL,
@@ -447,7 +447,7 @@ compare_layered_models <- function(graph, layers,
     sp <- spec_for(nm)
     best_st <- NULL
     best_dl <- Inf
-    for (run in seq_len(nruns)) {
+    .starts <- parallel_starts(nruns, function(run) {
       st <- if (isTRUE(sp$pp)) {
         minimize_pp_blockmodel_dl(
           graph, uniform = sp$uniform, degree_corrected = sp$dc,
@@ -479,6 +479,10 @@ compare_layered_models <- function(graph, layers,
           nthreads = nthreads
         )
       }
+      st
+    }, cores = cores, graph = graph)
+    for (run in seq_len(nruns)) {
+      st <- .starts[[run]]
       st$layer_levels <- linfo$levels
       dl <- state_description_length(st)
       if (dl < best_dl) {

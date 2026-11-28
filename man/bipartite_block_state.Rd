@@ -33,7 +33,7 @@ minimize_bipartite_blockmodel_dl(graph, type = NULL,
   degree_corrected = TRUE, degree_prior = c("distributed", "uniform"),
   edge_prior = c("bipartite", "unipartite"), weights = NULL, types = NULL,
   params = NULL, microcanonical = FALSE, B_row_range = NULL, B_col_range = NULL,
-  nruns = 1L, refine = TRUE, control = list(), init_blocks = NULL,
+  nruns = 1L, cores = NULL, refine = TRUE, control = list(), init_blocks = NULL,
   dim_labels = NULL,
   weight_mode = c("auto", "binary", "multigraph", "weight"))
 nested_bipartite_block_state(graph, type = NULL, levels = NULL,
@@ -44,7 +44,7 @@ nested_bipartite_description_length(state)
 minimize_nested_bipartite_blockmodel_dl(graph, type = NULL,
   degree_corrected = TRUE, degree_prior = c("distributed", "uniform"),
   edge_prior = c("bipartite", "unipartite"), weights = NULL, types = NULL,
-  params = NULL, microcanonical = FALSE, nruns = 1L, control = list(),
+  params = NULL, microcanonical = FALSE, nruns = 1L, cores = NULL, control = list(),
   dim_labels = NULL,
   weight_mode = c("auto", "binary", "multigraph", "weight"))
 bipartite_membership(state, level = 1L)
@@ -105,6 +105,7 @@ compare_bipartite_models(graph, type = NULL, weights = NULL, types = NULL,
   \code{c(min, max)} on the number of row and column blocks.}
   \item{nruns}{Number of independent restarts; keeps the lowest description
   length.}
+  \item{cores}{Number of worker processes running the \code{nruns} independent starts in parallel (forked; \code{NULL} uses \code{getOption("rgraphtool.cores", 1L)}). Workers run single-threaded; results do not depend on \code{cores}. Unavailable on Windows.}
   \item{refine}{Logical; whether to perform zero-temperature refinement sweeps.}
   \item{control}{Optional list of search controls (\code{r} shrink ratio,
   \code{n_cand} merge candidates per block).}

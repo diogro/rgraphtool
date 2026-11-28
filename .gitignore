@@ -7,3 +7,4 @@
 .Rproj.user/
 *.Rcheck/
 .pixi/
+tests/testthat/Rplots.pdf

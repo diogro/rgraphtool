@@ -282,10 +282,10 @@ model_class_specs <- function() {
 }
 
 fit_single_model_class <- function(graph, spec, degree_prior, nruns,
-                                   B_min, B_max, refine) {
+                                   B_min, B_max, refine, cores = NULL) {
   best_state <- NULL
   best_dl <- Inf
-  for (run in seq_len(nruns)) {
+  .starts <- parallel_starts(nruns, function(run) {
     st <- if (!spec$nested && !spec$overlap) {
       minimize_blockmodel_dl(graph, degree_corrected = spec$degree_corrected,
                              degree_prior = degree_prior, B_min = B_min,
@@ -304,6 +304,10 @@ fit_single_model_class <- function(graph, spec, degree_prior, nruns,
                                             B_min = B_min, B_max = B_max,
                                             refine = refine)
     }
+    st
+  }, cores = cores, graph = graph)
+  for (run in seq_len(nruns)) {
+    st <- .starts[[run]]
     dl <- state_description_length(st)
     if (dl < best_dl) {
       best_dl <- dl
@@ -323,7 +327,7 @@ compare_model_classes <- function(graph,
                                   degree_prior = c("distributed", "uniform"),
                                   method = c("map", "posterior"),
                                   evidence_method = c("variational", "importance"),
-                                  nruns = 1L, nsamples = 200L, thin = 5L,
+                                  nruns = 1L, cores = NULL, nsamples = 200L, thin = 5L,
                                   burnin = NULL, mle = TRUE,
                                   B_min = 1L, B_max = Inf, refine = TRUE) {
   graph_pointer(graph)
@@ -360,7 +364,7 @@ compare_model_classes <- function(graph,
     nm <- models[i]
     sp <- specs[[nm]]
     st <- fit_single_model_class(graph, sp, degree_prior, nruns,
-                                 B_min, B_max, refine)
+                                 B_min, B_max, refine, cores = cores)
     states[[nm]] <- st
     dl <- state_description_length(st)
     if (method == "posterior") {

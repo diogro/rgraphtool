@@ -12,7 +12,7 @@ minimize_blockmodel_dl(graph, degree_corrected = TRUE,
 refine_blockmodel_dl(graph, state, degree_prior = NULL, epsilon = 1e-3,
   nthreads = NULL, control = list())
 compare_blockmodels(graph, degree_prior = c("distributed", "uniform"),
-  nested = FALSE, nruns = 1L, ...)
+  nested = FALSE, nruns = 1L, cores = NULL, ...)
 }
 \arguments{
   \item{graph}{A graph created by \code{graph_create()}.}
@@ -35,6 +35,7 @@ compare_blockmodels(graph, degree_prior = c("distributed", "uniform"),
   \code{\link{minimize_nested_blockmodel_dl}} instead of flat ones.}
   \item{nruns}{Number of fits per model; the one with the smallest description
   length is kept.}
+  \item{cores}{Number of worker processes running the \code{nruns} independent starts in parallel (forked; \code{NULL} uses \code{getOption("rgraphtool.cores", 1L)}). Workers run single-threaded; results do not depend on \code{cores}. Unavailable on Windows.}
   \item{...}{Passed to the fitting function.}
 }
 \description{

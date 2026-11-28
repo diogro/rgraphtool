@@ -155,7 +155,7 @@ minimize_bipartite_blockmodel_dl <- function(graph, type = NULL,
                                              weights = NULL, types = NULL, params = NULL,
                                              microcanonical = FALSE,
                                              B_row_range = NULL, B_col_range = NULL,
-                                             nruns = 1L, refine = TRUE,
+                                             nruns = 1L, cores = NULL, refine = TRUE,
                                              control = list(),
                                              init_blocks = NULL,
                                              dim_labels = NULL,
@@ -198,7 +198,7 @@ minimize_bipartite_blockmodel_dl <- function(graph, type = NULL,
   init_b <- if (!is.null(init_blocks)) canonicalize_bipartite_blocks(init_blocks, inp$type) else NULL
 
   best_res <- NULL
-  for (run in seq_len(nruns)) {
+  .starts <- parallel_starts(nruns, function(run) {
     res <- cpp_bipartite_minimize(
       graph_pointer(inp$graph),
       inp$type,
@@ -216,6 +216,10 @@ minimize_bipartite_blockmodel_dl <- function(graph, type = NULL,
       q_cache_max(),
       init_b
     )
+    res
+  }, cores = cores, graph = graph)
+  for (run in seq_len(nruns)) {
+    res <- .starts[[run]]
     if (is.null(best_res) || res$description_length < best_res$description_length) {
       best_res <- res
     }
@@ -334,7 +338,7 @@ minimize_nested_bipartite_blockmodel_dl <- function(graph, type = NULL,
                                                     edge_prior = c("bipartite", "unipartite"),
                                                     weights = NULL, types = NULL, params = NULL,
                                                     microcanonical = FALSE,
-                                                    nruns = 1L,
+                                                    nruns = 1L, cores = NULL,
                                                     control = list(),
                                                     dim_labels = NULL,
                                                     weight_mode = c("auto", "binary", "multigraph", "weight")) {
@@ -358,7 +362,7 @@ minimize_nested_bipartite_blockmodel_dl <- function(graph, type = NULL,
   n_cand <- if (!is.null(control$n_cand)) as.integer(control$n_cand) else 12L
 
   best_res <- NULL
-  for (run in seq_len(nruns)) {
+  .starts <- parallel_starts(nruns, function(run) {
     res <- cpp_nested_bipartite_minimize(
       graph_pointer(inp$graph),
       inp$type,
@@ -372,6 +376,10 @@ minimize_nested_bipartite_blockmodel_dl <- function(graph, type = NULL,
       n_cand,
       q_cache_max()
     )
+    res
+  }, cores = cores, graph = graph)
+  for (run in seq_len(nruns)) {
+    res <- .starts[[run]]
     if (is.null(best_res) || res$description_length < best_res$description_length) {
       best_res <- res
     }

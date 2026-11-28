@@ -1,5 +1,22 @@
 # rgraphtool 0.5.1
 
+## Parallel independent starts
+
+* New `parallel_starts()` and a `cores` argument run the `nruns`
+  independent starts in forked worker processes (default
+  `getOption("rgraphtool.cores", 1L)`). It is available in:
+  * `compare_blockmodels()`
+  * `compare_model_classes()`
+  * `compare_assortative_models()`
+  * `compare_weight_models()`
+  * `compare_layered_models()`
+  * `compare_ordered_models()`
+  * the bipartite minimizers
+* Each start gets its own seed drawn up front, so results are identical for
+  any `cores`.
+* Workers run single-threaded, and graphs are re-attached to the states
+  they return. On Windows the starts run sequentially.
+
 ## Bug fixes from the 0.5.1 review
 
 * Degree description lengths:

@@ -445,7 +445,7 @@ compare_weight_models <- function(graph, weights, candidates = NULL,
                                   degree_prior = c("distributed", "uniform"),
                                   method = c("map", "posterior"),
                                   evidence_method = c("variational", "importance"),
-                                  nruns = 1L, nsamples = 200L, thin = 5L,
+                                  nruns = 1L, cores = NULL, nsamples = 200L, thin = 5L,
                                   burnin = NULL, mle = TRUE,
                                   B_min = 1L, B_max = Inf, refine = TRUE) {
   graph_pointer(graph)
@@ -513,7 +513,7 @@ compare_weight_models <- function(graph, weights, candidates = NULL,
 
     best_st <- NULL
     best_dl <- Inf
-    for (run in seq_len(nruns)) {
+    .starts <- parallel_starts(nruns, function(run) {
       st <- if (nested) {
         minimize_nested_weighted_blockmodel_dl(
           graph, weights = as.numeric(w_tr), types = tp, params = pr,
@@ -527,6 +527,10 @@ compare_weight_models <- function(graph, weights, candidates = NULL,
           B_min = B_min, B_max = B_max, refine = refine
         )
       }
+      st
+    }, cores = cores, graph = graph)
+    for (run in seq_len(nruns)) {
+      st <- .starts[[run]]
       dl_raw <- if (nested) nested_weighted_description_length(st) else weighted_description_length(st)
       if (dl_raw < best_dl) {
         best_dl <- dl_raw

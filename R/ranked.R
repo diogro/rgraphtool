@@ -379,7 +379,7 @@ compare_ordered_models <- function(graph,
                                    degree_prior = c("distributed", "uniform"),
                                    method = c("map", "posterior"),
                                    evidence_method = c("variational", "importance"),
-                                   nruns = 1L, nsamples = 200L, thin = 5L,
+                                   nruns = 1L, cores = NULL, nsamples = 200L, thin = 5L,
                                    burnin = NULL, mle = TRUE,
                                    B_min = 1L, B_max = Inf, refine = TRUE) {
   graph_pointer(graph)
@@ -419,7 +419,7 @@ compare_ordered_models <- function(graph,
     nm <- models[i]
     best_st <- NULL
     best_dl <- Inf
-    for (run in seq_len(nruns)) {
+    .starts <- parallel_starts(nruns, function(run) {
       st <- switch(
         nm,
         unordered_flat = minimize_blockmodel_dl(
@@ -451,6 +451,10 @@ compare_ordered_models <- function(graph,
           B_min = B_min, B_max = B_max, refine = refine
         )
       )
+      st
+    }, cores = cores, graph = graph)
+    for (run in seq_len(nruns)) {
+      st <- .starts[[run]]
       dl <- state_description_length(st)
       if (dl < best_dl) {
         best_dl <- dl

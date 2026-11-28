@@ -41,7 +41,7 @@ compare_ordered_models(graph,
   degree_corrected = TRUE, degree_prior = c("distributed", "uniform"),
   method = c("map", "posterior"),
   evidence_method = c("variational", "importance"),
-  nruns = 1L, nsamples = 200L, thin = 5L, burnin = NULL, mle = TRUE,
+  nruns = 1L, cores = NULL, nsamples = 200L, thin = 5L, burnin = NULL, mle = TRUE,
   B_min = 1L, B_max = Inf, refine = TRUE)
 }
 \arguments{
@@ -83,6 +83,7 @@ compare_ordered_models(graph,
   \item{evidence_method}{Evidence estimator forwarded to
   \code{\link{model_evidence}} when \code{method = "posterior"}.}
   \item{nruns}{Number of independent minimization restarts per model.}
+  \item{cores}{Number of worker processes running the \code{nruns} independent starts in parallel (forked; \code{NULL} uses \code{getOption("rgraphtool.cores", 1L)}). Workers run single-threaded; results do not depend on \code{cores}. Unavailable on Windows.}
   \item{nsamples, thin, burnin, mle}{Posterior sampling and entropy estimation
   controls forwarded to \code{\link{model_evidence}}.}
 }

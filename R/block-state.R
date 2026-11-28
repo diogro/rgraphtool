@@ -331,7 +331,7 @@ refine_blockmodel_dl <- function(graph, state, degree_prior = NULL, epsilon = 1e
 #' @noRd
 #' @export
 compare_blockmodels <- function(graph, degree_prior = c("distributed", "uniform"),
-                                nested = FALSE, nruns = 1L, ...) {
+                                nested = FALSE, nruns = 1L, cores = NULL, ...) {
   degree_prior <- match.arg(degree_prior)
   if (!is.logical(nested) || length(nested) != 1L || is.na(nested)) {
     stop("nested must be TRUE or FALSE", call. = FALSE)
@@ -342,9 +342,13 @@ compare_blockmodels <- function(graph, degree_prior = c("distributed", "uniform"
   score <- if (nested) nested_description_length else block_description_length
   states <- lapply(c(FALSE, TRUE), function(degree_corrected) {
     best <- NULL
-    for (run in seq_len(nruns)) {
+    .starts <- parallel_starts(nruns, function(run) {
       state <- fit(graph, degree_corrected = degree_corrected,
                    degree_prior = degree_prior, ...)
+      state
+    }, cores = cores, graph = graph)
+    for (run in seq_len(nruns)) {
+      state <- .starts[[run]]
       if (is.null(best) || score(state) < score(best)) best <- state
     }
     best

@@ -6,7 +6,7 @@
 compare_weight_models(graph, weights, candidates = NULL, nested = TRUE,
   degree_corrected = TRUE, degree_prior = c("distributed", "uniform"),
   method = c("map", "posterior"),
-  evidence_method = c("variational", "importance"), nruns = 1L,
+  evidence_method = c("variational", "importance"), nruns = 1L, cores = NULL,
   nsamples = 200L, thin = 5L, burnin = NULL, mle = TRUE, B_min = 1L,
   B_max = Inf, refine = TRUE)
 }
@@ -40,6 +40,7 @@ compare_weight_models(graph, weights, candidates = NULL, nested = TRUE,
   \item{evidence_method}{Evidence estimator forwarded to
   \code{\link{model_evidence}} when \code{method = "posterior"}.}
   \item{nruns}{Number of independent minimization restarts per candidate.}
+  \item{cores}{Number of worker processes running the \code{nruns} independent starts in parallel (forked; \code{NULL} uses \code{getOption("rgraphtool.cores", 1L)}). Workers run single-threaded; results do not depend on \code{cores}. Unavailable on Windows.}
   \item{nsamples, thin, burnin, mle}{Posterior sampling arguments used when
   \code{method = "posterior"}.}
   \item{B_min, B_max}{Bounds on the number of level-0 groups.}
